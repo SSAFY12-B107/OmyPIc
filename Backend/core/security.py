@@ -1,16 +1,11 @@
 from fastapi import Depends, Response
-import redis.asyncio as redis
-
 from fastapi_users.authentication import (
     AuthenticationBackend, 
     BearerTransport, 
     CookieTransport,
     JWTStrategy,
-    RedisStrategy,
-    Strategy,
 )
 
-from db.session import get_redis
 from core.config import settings
 
 # 액세스 토큰용 Bearer 전송 방식 (Authorization 헤더 사용)
@@ -46,7 +41,7 @@ cookie_transport = CustomCookieTransport(
 )
 
 # 액세스 토큰 생성 전략 (JWT)
-# 짧은 만료 시간 (30분)
+# 짧은 만료 시간 (15분)
 def get_jwt_strategy() -> JWTStrategy:
     return JWTStrategy(
         secret=settings.SECRET_KEY, 
@@ -55,12 +50,13 @@ def get_jwt_strategy() -> JWTStrategy:
         token_audience=["fastapi-users:auth"]
     )
 
-# 리프레시 토큰 생성 전략 (Redis)
+# 리프레시 토큰 생성 전략 (JWT)
 # 긴 만료 시간 (7일)
-async def get_refresh_strategy(redis_client: redis.Redis = Depends(get_redis)) -> RedisStrategy:
-    return RedisStrategy(
-        redis_client, 
+def get_refresh_strategy() -> JWTStrategy:
+    return JWTStrategy(
+        secret=settings.REFRESH_TOKEN_SECRET_KEY,  # 리프레시 토큰용 별도 시크릿 키 사용
         lifetime_seconds=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        algorithm=settings.JWT_ALGORITHM,
         token_audience=["fastapi-users:refresh"]
     )
 

@@ -15,7 +15,7 @@ sys.path.append(str(BASE_DIR))
 
 # 앱 설정과 모델 불러오기
 from app.core.config import settings
-from app.db.base import Base  # 모든 모델이 임포트된 Base
+from app.db.base_class import Base  # 모든 모델이 임포트된 Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

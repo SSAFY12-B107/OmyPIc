@@ -1,8 +1,7 @@
 import os
-from typing import List, Optional, Union, Any
-from pydantic import AnyHttpUrl, field_validator
+from typing import List
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
-import json
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "OmyPIC"
@@ -10,9 +9,10 @@ class Settings(BaseSettings):
     PROJECT_VERSION: str = "0.1.0"
     
     # SECURITY
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "YOUR_SECRET_KEY")  # 실제 환경에서는 환경 변수로 관리
+    SECRET_KEY: str = os.getenv("SECRET_KEY")  # 액세스 토큰용 시크릿 키
+    REFRESH_TOKEN_SECRET_KEY: str = os.getenv("REFRESH_TOKEN_SECRET_KEY")  # 리프레시 토큰용 시크릿 키
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # 액세스 토큰 만료 시간(분)
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15  # 액세스 토큰 만료 시간(분) - 짧게 설정
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7     # 리프레시 토큰 만료 시간(일)
     
     # COOKIE SETTINGS
@@ -22,9 +22,6 @@ class Settings(BaseSettings):
     
     # DATABASE
     DATABASE_URL: str = os.getenv("DATABASE_URL")
-    
-    # REDIS
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")  # Redis 서버 URL
     
     # CORS
     CORS_ORIGINS: List[str] = []

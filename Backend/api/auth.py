@@ -3,10 +3,11 @@ from fastapi.responses import RedirectResponse
 
 from core.config import settings
 from services.auth import fastapi_users
-from core.security import auth_backend, refresh_backend, cookie_transport
+from core.security import auth_backend, refresh_backend, cookie_transport, get_jwt_strategy, get_refresh_strategy
 from services.user_manager import UserManager, get_user_manager
 from services.oauth import get_kakao_token, get_kakao_user_info
 from schemas.user import TokenResponse
+from core.jwt_utils import decode_jwt
 
 router = APIRouter(tags=["auth"], prefix="/auth")
 
@@ -33,7 +34,6 @@ async def kakao_callback(
     response: Response,
     code: str, 
     user_manager: UserManager = Depends(get_user_manager),
-    refresh_strategy = Depends(refresh_backend.get_strategy)
 ):
     """
     카카오 로그인 콜백 처리
@@ -53,13 +53,15 @@ async def kakao_callback(
         name=user_info["name"],
     )
     
-    # 1. 액세스 토큰 생성 (JWT) - 세션 스토리지에 저장될 짧은 수명의 토큰
-    access_token = await auth_backend.get_strategy().write_token(user)
+    # 1. 액세스 토큰 생성 (JWT) - 짧은 수명의 토큰 (15분)
+    jwt_strategy = get_jwt_strategy()
+    access_token = await jwt_strategy.write_token(user)
     
-    # 2. 리프레시 토큰 생성 (Redis) - HTTP Only 쿠키에 저장될 긴 수명의 토큰
+    # 2. 리프레시 토큰 생성 (JWT) - HTTP Only 쿠키에 저장될 긴 수명의 토큰 (7일)
+    refresh_strategy = get_refresh_strategy()
     refresh_token = await refresh_strategy.write_token(user)
     
-    # 리프레시 토큰을 쿠키에 설정
+    # 리프레시 토큰을 HTTP-only 쿠키에 설정
     cookie_transport.set_refresh_token_cookie(response, refresh_token)
     
     # 프론트엔드로 리다이렉트
@@ -77,8 +79,6 @@ async def kakao_callback(
 async def refresh_tokens(
     response: Response,
     refresh_token: str = Cookie(None, alias="refresh_token"),
-    refresh_strategy = Depends(refresh_backend.get_strategy),
-    jwt_strategy = Depends(auth_backend.get_strategy),
     user_manager: UserManager = Depends(get_user_manager),
 ):
     """
@@ -91,8 +91,11 @@ async def refresh_tokens(
         )
     
     try:
-        # 리프레시 토큰 검증 및 사용자 가져오기
-        user_id = await refresh_strategy.read_token(refresh_token)
+        # 리프레시 토큰 검증 및 사용자 ID 가져오기
+        refresh_payload = decode_jwt(refresh_token, settings.REFRESH_TOKEN_SECRET_KEY)
+        
+        # 사용자 가져오기
+        user_id = refresh_payload.get("sub")
         user = await user_manager.get(user_id)
         
         if not user or not user.is_active:
@@ -101,16 +104,15 @@ async def refresh_tokens(
                 detail="Invalid refresh token or inactive user",
             )
         
-        # 기존 리프레시 토큰 무효화 (보안 강화)
-        await refresh_strategy.revoke_token(refresh_token)
-        
-        # 새 액세스 토큰 생성
+        # 새 액세스 토큰 생성 (짧은 만료 시간)
+        jwt_strategy = get_jwt_strategy()
         access_token = await jwt_strategy.write_token(user)
         
-        # 새 리프레시 토큰 생성
+        # 새 리프레시 토큰 생성 (긴 만료 시간)
+        refresh_strategy = get_refresh_strategy()
         new_refresh_token = await refresh_strategy.write_token(user)
         
-        # 새 리프레시 토큰을 쿠키에 설정
+        # 새 리프레시 토큰을 HTTP-only 쿠키에 설정
         cookie_transport.set_refresh_token_cookie(response, new_refresh_token)
         
         return TokenResponse(
@@ -121,30 +123,16 @@ async def refresh_tokens(
         # 토큰 검증 실패 또는 다른 오류
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token",
+            detail=f"Invalid refresh token: {str(e)}",
         )
 
 # 로그아웃 엔드포인트
 @router.post("/logout")
-async def logout(
-    response: Response,
-    refresh_token: str = Cookie(None, alias="refresh_token"),
-    refresh_strategy = Depends(refresh_backend.get_strategy),
-):
+async def logout(response: Response):
     """
-    사용자 로그아웃 처리
-    - 리프레시 토큰 쿠키 삭제
-    - 리프레시 토큰 무효화 (Redis에서 제거)
+    사용자 로그아웃 처리 - 클라이언트 측에서 토큰 삭제
     """
-    # 리프레시 토큰이 있으면 Redis에서 무효화
-    if refresh_token:
-        try:
-            await refresh_strategy.revoke_token(refresh_token)
-        except Exception:
-            # 토큰이 이미 만료되었거나 유효하지 않은 경우도 계속 진행
-            pass
-    
-    # 쿠키 삭제
+    # 쿠키 삭제 (리프레시 토큰)
     response.delete_cookie(
         key="refresh_token",
         path=cookie_transport.cookie_path,
