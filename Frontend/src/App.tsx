@@ -1,5 +1,6 @@
 import './App.css'
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import TestMain from './pages/test/TestMain';
 
 function App() {
   return (
@@ -14,11 +15,11 @@ function App() {
           <Route path="survey" element={<Survey />} />
         </Route> */}
 
-        {/* Test 관련 라우트 */}
-        {/* <Route path="/test">
-          <Route path="exam" element={<Exam />} />
-          <Route path="feedback/:examId/:questionId" element={<Feedback />} />
-        </Route> */}
+        {/* Test 관련 라우트 */} 
+        <Route path="/test" element={<TestMain />}>
+          {/* <Route path="exam" element={<Exam />} /> */}
+          {/* <Route path="feedback/:examId/:questionId" element={<Feedback />} /> */}
+        </Route>
 
         {/* Script 관련 라우트 */}
         {/* <Route path="/script">
