@@ -1,12 +1,13 @@
 import './App.css'
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Home from './pages/home/Home';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         
-        <Route path="/"/>
+        <Route path="/" element={<Home/>}/>
 
         {/* Auth 관련 라우트 */}
         {/* <Route path="/auth">
