@@ -1,0 +1,14 @@
+body {
+    width: 100%;       /* 모바일에서는 100% 너비 사용 */
+    max-width: 480px;  /* 일반적인 모바일 가로 크기보다 약간 큰 값 */
+    min-width: 320px;  /* 작은 모바일 기기도 지원 */
+    margin: 0 auto;    /* 가운데 정렬 */
+  }
+  
+  /* 모바일 최적화 미디어 쿼리 */
+  @media screen and (max-width: 360px) {
+    /* 360px 이하 화면에 대한 스타일 */
+    body {
+      font-size: 1.4rem; /* 작은 화면에서 글자 크기 조정 */
+    }
+  }
