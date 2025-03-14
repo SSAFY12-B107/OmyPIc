@@ -1,0 +1,27 @@
+.nav-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4rem;
+  padding: 2rem 0 1rem;
+  border-radius: 2rem 2rem 0 0;
+  background-color: #fff;
+  box-shadow: 1px -1px 6px rgba(0, 0, 0, 0.07)
+}
+
+.nav-txt {
+  position: relative;
+  font-size: 1.4rem;
+  color: #565656;
+  text-decoration: none;
+}
+
+.nav-txt.active::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background-color: #A986E8;
+}
