@@ -1,37 +1,23 @@
-import './App.css'
+import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import ProfilePage from './pages/auth/ProfilePage'; // 경로 수정
+import './App.css';
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        
-        <Route path="/"/>
-
-        {/* Auth 관련 라우트 */}
-        {/* <Route path="/auth">
-          <Route path="login" element={<Login />} />
-          <Route path="survey" element={<Survey />} />
-        </Route> */}
-
-        {/* Test 관련 라우트 */}
-        {/* <Route path="/test">
-          <Route path="exam" element={<Exam />} />
-          <Route path="feedback/:examId/:questionId" element={<Feedback />} />
-        </Route> */}
-
-        {/* Script 관련 라우트 */}
-        {/* <Route path="/script">
-          <Route path="list" element={<ScriptList />} />
-          <Route path="detail/:questionId" element={<ScriptDetail />} />
-          <Route path="write/:questionId" element={<ScriptWrite />} />
-        </Route> */}
-
-        {/* 404 페이지 */}
-        {/* <Route path="*" element={<div>페이지를 찾을 수 없습니다.</div>} /> */}
-      </Routes>
-    </BrowserRouter>
+    <div className="app">
+      <BrowserRouter>
+        <Routes>
+          <Route path="/profile" element={<ProfilePage />} />
+          {/* 필요한 다른 경로들을 여기에 추가하세요 */}
+          <Route path="/" element={<div className="home-container">
+            <h1>어플리케이션에 오신 것을 환영합니다</h1>
+            <a href="/profile" className="nav-link">프로필 페이지로 이동</a>
+          </div>} />
+        </Routes>
+      </BrowserRouter>
+    </div>
   );
 }
 
-export default App
+export default App;

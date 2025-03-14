@@ -1,10 +1,18 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-  
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-      Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  }
+/* 리셋 스타일 임포트 */
+@import '../src/assets/styles/rest.css';
+
+/* 반응형 스타일 임포트 */
+@import '../src/assets/styles/responsive.css';
+
+/* 메인 스타일 */
+:root {
+  /* 앱에서 사용할 전역 변수 */
+  --background-color: #F9F9F9;
+}
+
+/* PWA 최적화를 위한 추가 스타일 */
+body {
+  -webkit-tap-highlight-color: transparent; /* 탭 하이라이트 제거 */
+  overscroll-behavior: none; /* 오버스크롤 동작 방지 */
+  touch-action: manipulation; /* 더블탭 확대 방지 */
+}
