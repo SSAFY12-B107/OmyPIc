@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Optional
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
@@ -21,7 +21,8 @@ class Settings(BaseSettings):
     COOKIE_SAMESITE: str = "lax"  # 프로덕션 환경에서는 "strict"로 고려
     
     # DATABASE
-    DATABASE_URL: str = os.getenv("DATABASE_URL")
+    MONGODB_URL : Optional[str] = os.getenv("MONGODB_URL")
+    MONGODB_DB_NAME : Optional[str] = os.getenv("MONGODB_DB_NAME")
     
     # CORS
     CORS_ORIGINS: List[str] = []
