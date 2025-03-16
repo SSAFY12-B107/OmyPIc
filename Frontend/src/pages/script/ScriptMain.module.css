@@ -1,0 +1,82 @@
+.script-main {
+  margin: 0 2rem;
+}
+
+/* 주제/유형 선택 멘트 */
+.selection-title {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 3rem;
+  /* letter-spacing: -1px; */
+}
+
+.selection-title p {
+  font-size: 1.4rem;
+  text-align: center;
+}
+
+.selection-title img {
+  width: 5rem;
+  height: 5rem;
+  object-fit: contain;
+}
+
+/* 주제, 유형 선택 박스 */
+.category-section {
+  margin-top: 3rem;
+}
+
+.category-title {
+  padding: 0.3rem 1rem 0.4rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #8A63D2;
+  border-radius: 1.5rem;
+  background-color: #E5D8FF;
+}
+
+.category-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1.5rem 0 3rem;
+}
+
+.category-list a {
+  width: calc(50% - 0.5rem);
+}
+
+.category-item {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 1.5rem 0;
+  border-radius: 1rem;
+  box-shadow: 1px 1px 6px 0 rgba(0, 0, 0, 0.07);
+}
+
+.icon-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background-color: #F7F3FF;
+}
+
+.category-item p {
+  font-size: 1.4rem;
+  color: #333;
+}
+
+.section-divider {
+  border: none;
+  border-top: 1px dashed #8A63D2;
+  margin: 20px 0;
+  width: 100%;
+}
