@@ -1,0 +1,8 @@
+.loginBtnGroup {
+  position: fixed;
+  bottom: 8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  width: 30rem;
+}
