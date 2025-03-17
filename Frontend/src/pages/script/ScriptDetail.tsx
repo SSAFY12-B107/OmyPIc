@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import QuestionBox from "../../components/script/QuestionBox";
 import ScriptBox from "../../components/script/ScriptBox";
 import styles from "./ScriptDetail.module.css";
@@ -18,7 +19,10 @@ function ScriptDetail({}: Props) {
       {/* 나의 모의고사 답변 : 아이콘 다르게 */}
       <QuestionBox title="나의 모의고사 답변" content="답변 내용 넣기" />
 
-      <button className={styles["create-btn"]}>스크립트 생성하기</button>
+      {/* 경로 수정 필요 */}
+      <Link to={"/script/write"}>
+        <button className={styles["create-btn"]}>스크립트 생성하기</button>
+      </Link>
     </div>
   );
 }
