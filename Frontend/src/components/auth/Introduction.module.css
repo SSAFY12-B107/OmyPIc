@@ -41,13 +41,59 @@
 }
 
 /* 두번째 소개화면 */
+.introSecond {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
 .chatContainer {
   margin: 8rem 0;
   width: 30rem;
 }
 
 /* 세번째 소개화면 */
+.introThird {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
 .testContainer {
   margin: 5.5rem 0;
   width: 30rem;
+}
+
+@media screen and (max-height: 700px) {
+  .introFirst {
+    margin-top: 8rem; /* 작은 화면 높이에서는 마진 줄이기 */
+  }
+
+  .chatContainer {
+    width: 25rem;
+    margin: 6rem 0;
+  }
+
+  .testContainer {
+    width: 25rem;
+    margin: 3rem 0;
+  }
+}
+
+@media screen and (max-height: 600px) {
+  .introFirst {
+    margin-top: 5rem; /* 더 작은 화면 높이에서는 마진 더 줄이기 */
+  }
+
+  .chatContainer {
+    width: 25rem;
+    margin: 5rem 0;
+  }
+
+  .chatContainer {
+    width: 25rem;
+    margin: 2rem 0; /* 작은 화면에서 여백 줄이기 */
+  }
 }
