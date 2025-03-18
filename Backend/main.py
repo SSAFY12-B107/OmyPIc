@@ -1,12 +1,10 @@
-from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
+from api import auth, users
 from core.config import settings
-# from api.auth import router as auth_router
-from api.users import router as users_router
-
-from db.mongodb import connect_to_mongo, close_mongo_connection, mongo_db
+from db.mongodb import connect_to_mongo, close_mongo_connection
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -16,7 +14,7 @@ async def lifespan(app: FastAPI):
     await connect_to_mongo()
     
     # MongoDB 인덱스 생성
-    await setup_mongodb_indexes()
+    await setup_mongo_indexes()
     
     yield  # 애플리케이션 실행
     
@@ -25,15 +23,13 @@ async def lifespan(app: FastAPI):
     
     print("Shutting down...")
 
-async def setup_mongodb_indexes():
+async def setup_mongo_indexes():
     """필요한 MongoDB 인덱스를 설정합니다."""
-    db = mongo_db.db
+    # db = get_mongodb.db
     
     # 사용자 컬렉션 인덱스
     # await db.users.create_index("email", unique=True)
     # await db.users.create_index("username")
-    # await db.users.create_index([("social_accounts.provider", 1), 
-    #                             ("social_accounts.provider_user_id", 1)])
     
     # # 문제 컬렉션 인덱스
     # await db.problems.create_index("category")
@@ -49,6 +45,7 @@ async def setup_mongodb_indexes():
     print("MongoDB 인덱스가 생성되었습니다.")
 
 
+# FastAPI 애플리케이션 생성
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description=settings.PROJECT_DESCRIPTION,
@@ -56,7 +53,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS 설정
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -65,16 +62,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 기본 라우트
-@app.get("/")
-async def root():
-    return {"message": f"Welcome to {settings.PROJECT_NAME} API"}
 
 # 라우터 등록
-# app.include_router(auth_router, prefix="/api")
-app.include_router(users_router, prefix="/api")
+app.include_router(auth.router, prefix="/api/auth", tags=["인증"])
+app.include_router(users.router, prefix="/api/users", tags=["사용자"])
 
-# 앱 실행 부분
+@app.get("/")
+async def root():
+    return {
+        "project_name": settings.PROJECT_NAME,
+        "version": settings.PROJECT_VERSION,
+        "message": "OmyPIC API 서비스에 오신 것을 환영합니다!"
+    }
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
