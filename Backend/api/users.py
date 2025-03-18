@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Query, Body
 from typing import List, Optional
 from schemas.user import UserCreate, UserResponse, UserUpdate
 from services import user as user_service
+from bson import ObjectId
 import datetime
 
 router = APIRouter()
@@ -43,11 +44,17 @@ async def create_user(user_data: UserCreate):
     return user
 
 @router.get("/{user_id}", response_model=UserResponse)
-async def get_user(user_id: int):
+@router.get("/{user_id}", response_model=UserResponse)
+async def get_user(user_id: str):
     """
     사용자 ID로 사용자 조회 엔드포인트
     """
-    user = await user_service.get_user_by_id(user_id)
+    try:
+        oid = ObjectId(user_id)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="유효하지 않은 사용자 ID 형식입니다.")
+    
+    user = await user_service.get_user_by_id(oid)
     
     if not user:
         raise HTTPException(
@@ -70,7 +77,7 @@ async def get_users(
 
 @router.patch("/{user_id}", response_model=UserResponse)
 async def update_user(
-    user_id: int,
+    user_id: str,
     user_data: UserUpdate = Body(...)
 ):
     """
@@ -78,6 +85,11 @@ async def update_user(
     
     PATCH 메서드를 사용하여 제공된 필드만 업데이트합니다.
     """
+    try:
+        oid = ObjectId(user_id)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="유효하지 않은 사용자 ID 형식입니다.")
+    
     # 업데이트할 데이터 준비 (None이 아닌 값만 포함)
     update_data = user_data.dict(exclude_unset=True)
     
@@ -86,7 +98,7 @@ async def update_user(
         update_data["background_survey"] = update_data["background_survey"].dict(exclude_unset=True)
     
     # 사용자 업데이트
-    updated_user = await user_service.update_user(user_id, update_data)
+    updated_user = await user_service.update_user(oid, update_data)
     
     if not updated_user:
         raise HTTPException(
@@ -97,11 +109,16 @@ async def update_user(
     return updated_user
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(user_id: int):
+async def delete_user(user_id: str):
     """
     사용자 삭제 엔드포인트
     """
-    deleted = await user_service.delete_user(user_id)
+    try:
+        oid = ObjectId(user_id)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="유효하지 않은 사용자 ID 형식입니다.")
+    
+    deleted = await user_service.delete_user(oid)
     
     if not deleted:
         raise HTTPException(
