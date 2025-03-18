@@ -2,7 +2,7 @@ import "./App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/home/Home";
 import Login from "./pages/auth/Login";
-// import Survey from "./pages/auth/Survey";
+import Survey from "./pages/auth/Survey";
 import Profile from "./pages/auth/Profile";
 import TestMain from "./pages/test/TestMain";
 import TestExam from "./pages/test/TestExam";
@@ -20,7 +20,7 @@ function App() {
 
         {/* Auth 관련 라우트 */}
         <Route path="/auth/login" element={<Login />} />
-        {/* <Route path="/auth/survey" element={<Survey />} /> */}
+        <Route path="/auth/survey" element={<Survey />} />
         <Route path="/auth/profile" element={<Profile />} />
 
         {/* Test 관련 라우트 */}
