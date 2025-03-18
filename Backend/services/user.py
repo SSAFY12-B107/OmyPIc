@@ -1,6 +1,6 @@
 from typing import List, Optional, Dict, Any
 from db.mongodb import get_collection
-from models.mongo_models import User
+from Backend.models.user import User
 from datetime import date
 
 # 사용자 컬렉션 가져오기
@@ -16,7 +16,7 @@ async def get_next_user_id() -> int:
     )
     
     # 결과가 없으면 1부터 시작, 있으면 최대값 + 1
-    if result is None:
+    if result is None or "user_id" not in result:
         return 1
     return result["user_id"] + 1
 

@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Query, Body
 from typing import List, Optional
 from schemas.user import UserCreate, UserResponse, UserUpdate
 from services import user as user_service
+import datetime
 
 router = APIRouter()
 
@@ -15,12 +16,21 @@ async def create_user(user_data: UserCreate):
     if user_data.background_survey:
         background_survey = user_data.background_survey.dict(exclude_unset=True)
     
+    if user_data.target_exam_date:
+        # date를 datetime으로 변환 (자정 시간으로 설정)
+        target_exam_date = datetime.datetime.combine(
+            user_data.target_exam_date, 
+            datetime.time(0, 0, 0)
+        )
+    else:
+        target_exam_date = None
+
     user = await user_service.create_user(
         name=user_data.name,
         auth_provider=user_data.auth_provider,
         current_opic_score=user_data.current_opic_score,
         target_opic_score=user_data.target_opic_score,
-        target_exam_date=user_data.target_exam_date,
+        target_exam_date=target_exam_date,
         background_survey=background_survey
     )
     

@@ -1,35 +1,67 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+
 from api import auth, users
 from core.config import settings
 from db.mongodb import connect_to_mongo, close_mongo_connection
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("앱 시작함.")
+    
+    # MongoDB 연결 설정
+    await connect_to_mongo()
+    
+    # MongoDB 인덱스 생성
+    await setup_mongo_indexes()
+    
+    yield  # 애플리케이션 실행
+    
+    # MongoDB 연결 종료
+    await close_mongo_connection()
+    
+    print("Shutting down...")
+
+async def setup_mongo_indexes():
+    """필요한 MongoDB 인덱스를 설정합니다."""
+    # db = get_mongodb.db
+    
+    # 사용자 컬렉션 인덱스
+    # await db.users.create_index("email", unique=True)
+    # await db.users.create_index("username")
+    
+    # # 문제 컬렉션 인덱스
+    # await db.problems.create_index("category")
+    # await db.problems.create_index("problem_type")
+    # await db.problems.create_index([("content", "text")])
+    # await db.problems.create_index("related_problems")
+    
+    # # 테스트 컬렉션 인덱스
+    # await db.tests.create_index("user_id")
+    # await db.tests.create_index("test_type")
+    # await db.tests.create_index("test_title")
+    
+    print("MongoDB 인덱스가 생성되었습니다.")
+
 
 # FastAPI 애플리케이션 생성
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description=settings.PROJECT_DESCRIPTION,
-    version=settings.PROJECT_VERSION
+    version=settings.PROJECT_VERSION,
+    lifespan=lifespan
 )
 
-# CORS 미들웨어 설정
-if settings.CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
 
-# 시작 이벤트에 MongoDB 연결 설정
-@app.on_event("startup")
-async def startup_db_client():
-    await connect_to_mongo()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# 종료 이벤트에 MongoDB 연결 종료
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    await close_mongo_connection()
 
 # 라우터 등록
 app.include_router(auth.router, prefix="/api/auth", tags=["인증"])
