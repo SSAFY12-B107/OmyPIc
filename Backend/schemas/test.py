@@ -1,39 +1,72 @@
-from typing import Optional, Dict
-from models.test import ProblemDetail, TestModel
-from pydantic import BaseModel
+from typing import List, Optional, Dict
+from pydantic import BaseModel, Field
+from datetime import datetime
 
-class TestCreate(BaseModel):
-    """테스트 생성 모델 (입력용)"""
+
+# 테스트 히스토리 응답 모델
+
+class TestScoreInfo(BaseModel):
+    """테스트 점수 요약 정보"""
+    total_score: Optional[str] = None
+    comboset_score: Optional[str] = None
+    roleplaying_score: Optional[str] = None
+    unexpected_score: Optional[str] = None
+
+class TestHistoryItem(BaseModel):
+    """테스트 히스토리 항목"""
+    id: str
+    test_date: datetime
     test_type: bool
-    user_id: str  # 사용자의 ObjectId를 문자열로 받음
-    
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "test_type": False,
-                "user_id": "507f1f77bcf86cd799439022"
-            }
-        }
-    }
+    test_score: Optional[TestScoreInfo] = None
+
+class TestHistoryResponse(BaseModel):
+    """테스트 히스토리 응답 모델"""
+    average_score: Optional[str] = None
+    test_history: List[TestHistoryItem] = []
 
 
-class TestUpdate(BaseModel):
-    """테스트 업데이트 모델"""
-    test_score: Optional[str] = None
-    problem_data: Optional[Dict[int, ProblemDetail]] = None
+# 테스트 상세세 응답 모델
+
+class ProblemDetailResponseFeedback(BaseModel):
+    """문제별 피드백 상세 정보 응답 모델"""
+    paragraph: Optional[str] = None
+    vocabulary: Optional[str] = None
+    spoken_amount: Optional[str] = None
+
+class ProblemDetailResponse(BaseModel):
+    """문제 상세 정보 응답 모델"""
+    problem: Optional[str] = None
+    user_response: Optional[str] = None
+    score: Optional[str] = None
+    feedback: Optional[ProblemDetailResponseFeedback] = None
+
+class ScoreDetailResponse(BaseModel):
+    """점수 상세 정보 응답 모델"""
+    total_score: Optional[str] = None
+    comboset_score: Optional[str] = None
+    roleplaying_score: Optional[str] = None
+    unexpected_score: Optional[str] = None
+
+class FeedbackDetailResponse(BaseModel):
+    """피드백 상세 정보 응답 모델"""
+    total_feedback: Optional[str] = None
+    paragraph: Optional[str] = None
+    vocabulary: Optional[str] = None
+    spoken_amount: Optional[str] = None
+
+class TestDetailResponse(BaseModel):
+    """테스트 상세 응답 모델"""
+    id: str = Field(..., alias="_id")
+    test_type: bool
+    test_score: Optional[ScoreDetailResponse] = None
+    test_feedback: Optional[FeedbackDetailResponse] = None
+    problem_data: Dict[str, ProblemDetailResponse] = {}
+    test_date: datetime
+    user_id: Optional[str] = None
     
     model_config = {
-        "json_schema_extra": {
-            "example": {
-                "test_score": "90",
-                "problem_data": {
-                    "1": {
-                        "problem": "문제 내용",
-                        "user_response": "사용자 응답",
-                        "feedback": "피드백",
-                        "score": "5"
-                    }
-                }
-            }
+        "populate_by_name": True,
+        "json_encoders": {
+            datetime: lambda v: v.isoformat()
         }
     }
