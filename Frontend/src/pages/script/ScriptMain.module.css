@@ -1,0 +1,91 @@
+.script-main {
+  margin: 0 2rem;
+}
+
+/* 주제/유형 선택 멘트 */
+.selection-title {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 3rem;
+  /* letter-spacing: -1px; */
+}
+
+.selection-title p {
+  font-size: 1.4rem;
+  text-align: center;
+}
+
+.selection-title img {
+  width: 5rem;
+  height: 5rem;
+  object-fit: contain;
+}
+
+/* 주제, 유형 선택 박스 */
+.category-section {
+  margin-top: 3rem;
+}
+
+.category-title {
+  padding: 0.3rem 1rem 0.4rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #8A63D2;
+  border-radius: 1.5rem;
+  background-color: #E5D8FF;
+}
+
+.category-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1.5rem 0 3rem;
+}
+
+.category-list a {
+  width: calc(50% - 0.5rem);
+}
+
+.category-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 60px; /* 고정 높이 설정 */
+  padding: 1rem;
+  border-radius: 1rem;
+  box-shadow: 1px 1px 6px 0 rgba(0, 0, 0, 0.07);
+}
+
+.icon-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 3rem; /* 최소 너비 설정 */
+  width: 3rem;
+  height: 3rem;
+  margin-right: 1rem; /* 아이콘과 텍스트 사이 간격 */
+  border-radius: 50%;
+  background-color: #F7F3FF;
+}
+
+.category-item p {
+  font-size: 1.4rem;
+  color: #333;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* 최대 2줄 */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  flex: 1; /* 남은 공간 모두 차지 */
+  line-height: 1.4;
+}
+
+.section-divider {
+  border: none;
+  border-top: 1px dashed #8A63D2;
+  margin: 20px 0;
+  width: 100%;
+}

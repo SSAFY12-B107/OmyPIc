@@ -1,0 +1,125 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.scriptModal {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  max-width: 480px;
+  min-width: 320px;
+  height: 60rem;
+  margin: 2rem;
+  padding: 2rem;
+  border-radius: 1rem;
+  background-color: #F9F9F9;
+}
+
+.modalTitle {
+  margin-bottom: 2rem;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+/* 스크립트 생성중일 경우 이미지 */
+.generatingImage {
+  width: 9.5rem;
+  height: 9.5rem;
+  margin-bottom: 6rem;
+  object-fit: contain;
+}
+
+/* 스크립트 생성된 경우 이미지 */
+.completedImage {
+  width: 6rem;
+  height: 6rem;
+  margin-bottom: 1.5rem;
+  object-fit: contain;
+}
+
+/* 스크립트 생성중일 경우 */
+.tipBox {
+  padding: 1rem 1.5rem 2rem;
+  border-radius: 1rem;
+  box-shadow: 1px 1px 6px 0 rgba(0, 0, 0, 0.07);
+  background-color: #fff;
+}
+
+.tipTitleBox {
+  display: flex;
+  align-items: center;
+  font-size: 1.4rem;
+}
+
+.tipTitleBox span {
+  padding: 0 0.8rem 0.2rem;
+  color: #fff;
+  font-weight: 700;
+  border-radius: 1rem;
+  background-color: #C09EFF;
+}
+
+.tipTitleBox p {
+  margin-left: 0.8rem;
+  color: #9057BB;
+  font-weight: 700;
+}
+
+.tipTxt {
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 1.4rem;
+}
+
+/* 스크립트 생생된 경우 */
+.scriptBox {
+  margin-bottom: 2.5rem;
+  padding: 1.5rem 2rem;
+  border-radius: 1rem;
+  font-size: 1.4rem;
+  box-shadow: 1px 1px 6px 0 rgba(0, 0, 0, 0.07);
+  background-color: #fff;
+}
+
+.additionalQ {
+  text-align: center;
+}
+
+.additionalQ p {
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  color: #888;
+}
+
+.btnBox {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.btnBox button {
+  width: 10rem;
+  height: 3rem;
+  border-radius: 1rem;
+}
+
+.yesBtn {
+  color: #fff;
+  font-weight: 700;
+  background-color: #9466E9;
+}
+
+.noBtn {
+  color: #565656;
+  background-color: #E4E4E4;
+}
