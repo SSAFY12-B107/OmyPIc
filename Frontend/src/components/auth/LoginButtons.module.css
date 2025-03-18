@@ -1,0 +1,30 @@
+.loginBtnGroup {
+  position: fixed;
+  bottom: 5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 30rem;
+}
+
+@media screen and (max-height: 700px) {
+  .loginBtnGroup {
+    position: fixed;
+    bottom: 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    width: 25rem;
+  }  
+}
+
+@media screen and (max-height: 600px) {
+  .loginBtnGroup {
+    position: fixed;
+    bottom: 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 20rem;
+  }
+}
