@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import styles from "./ScriptList.module.css";
 import opigi from "../../assets/images/opigi.png";
 import QuestionBox from "../../components/script/QuestionBox";
@@ -21,8 +22,10 @@ function ScriptList({}: Props) {
 
       {/* 질문 리스트 */}
       <div className={styles["question-list"]}>
-        {/* title, content 넣어주기 */}
-        <QuestionBox title="질문 제목" content="질문 내용" />
+        <Link to={"scripts/${category}/${problemId}"}>
+          {/* title, content 넣어주기 */}
+          <QuestionBox type="question" title="질문 제목" content="질문 내용" />
+        </Link>
       </div>
     </div>
   );

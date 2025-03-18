@@ -3,12 +3,13 @@ import QuestionBox from "../../components/script/QuestionBox";
 import styles from "./ScriptWrite.module.css";
 import opigi from "../../assets/images/opigi.png";
 import ScriptModal from "../../components/script/ScriptModal";
+import NavigationButton from "../../components/common/NavigationButton";
 
 type Props = {};
 
 function ScriptWrite({}: Props) {
-  const [currentStep, setCurrentStep] = useState<number>(1);  // 현재 단계 상태 관리
-  const [showModal, setShowModal] = useState(false);  // 모달 표시 여부를 제어하는 state
+  const [currentStep, setCurrentStep] = useState<number>(1); // 현재 단계 상태 관리
+  const [showModal, setShowModal] = useState(false); // 모달 표시 여부를 제어하는 state
   const totalSteps = 3; // 총 단계 수
 
   // 다음 단계로 이동하는 함수
@@ -21,7 +22,7 @@ function ScriptWrite({}: Props) {
 
   // 모달 열기 함수
   // const handleOpenModal = () => {
-    
+
   // };
 
   // 모달 닫기 함수
@@ -34,7 +35,7 @@ function ScriptWrite({}: Props) {
       {/* 공통 header */}
 
       {/* 질문 */}
-      <QuestionBox title="질문" content="질문 내용 넣기" />
+      <QuestionBox type="question" title="질문" content="질문 내용 넣기" />
 
       {/* 프로그래스 바 */}
       <div className={styles.progressBox}>
