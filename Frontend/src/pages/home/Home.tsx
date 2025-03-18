@@ -1,48 +1,76 @@
-import styles from './Home.module.css'
-import CharacterChange from '../../components/home/CharacterChange';
-import LevelChart from '../../components/home/LevelChart'
-import Navbar from '../../components/common/Navbar';
+import styles from "./Home.module.css";
+import CharacterChange from "../../components/home/CharacterChange";
+import LevelChart from "../../components/home/LevelChart";
+import Navbar from "../../components/common/Navbar";
 
 function Home() {
   return (
-    <div className={styles['home']}>
+    <div className={styles["home"]}>
       {/* 메인화면 header */}
-    <header className={styles['home-header']}>
-      <h1 className={styles['logo-txt']}>OmyPIc</h1>
-      <div className={styles['user-info']}>
-        <p>Hello, [username]!</p>
-        {/* user-img 없는 경우 고려해야함(div로 스타일? 아님 기본 img 넣기) */}
-        <img src="" alt="" />
-      </div>
-    </header>
-
-    <div className={styles['home-body']}>
-      {/* 레벨 박스 */}
-      <div className={`${styles['home-box']} ${styles['level-box']}`}>
-        <div className={styles['my-level']}>
-          <p className={styles['level']}>[IM2]</p>
-          <p className={styles['level-title']}>현재 레벨</p>
+      <header className={styles["home-header"]}>
+        <h1 className={styles["logo-txt"]}>OmyPIc</h1>
+        <div className={styles["user-info"]}>
+          <p>Hello, [username]!</p>
+          {/* user-img 없는 경우 */}
+          {/* <div>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="18"
+              viewBox="0 0 16 18"
+              fill="none"
+            >
+              <path
+                fill-rule="evenodd"
+                clip-rule="evenodd"
+                d="M8 0.0416641C6.95018 0.0416641 5.94336 0.458702 5.20103 1.20103C4.4587 1.94336 4.04166 2.95018 4.04166 4C4.04166 5.04981 4.4587 6.05663 5.20103 6.79896C5.94336 7.54129 6.95018 7.95833 8 7.95833C9.04981 7.95833 10.0566 7.54129 10.799 6.79896C11.5413 6.05663 11.9583 5.04981 11.9583 4C11.9583 2.95018 11.5413 1.94336 10.799 1.20103C10.0566 0.458702 9.04981 0.0416641 8 0.0416641ZM5.29166 4C5.29166 3.2817 5.577 2.59283 6.08492 2.08492C6.59283 1.57701 7.2817 1.29166 8 1.29166C8.71829 1.29166 9.40717 1.57701 9.91508 2.08492C10.423 2.59283 10.7083 3.2817 10.7083 4C10.7083 4.71829 10.423 5.40717 9.91508 5.91508C9.40717 6.42299 8.71829 6.70833 8 6.70833C7.2817 6.70833 6.59283 6.42299 6.08492 5.91508C5.577 5.40717 5.29166 4.71829 5.29166 4ZM8 9.20833C6.0725 9.20833 4.29583 9.64666 2.98 10.3867C1.68333 11.1167 0.708329 12.2217 0.708329 13.5833V13.6683C0.707496 14.6367 0.706662 15.8517 1.7725 16.72C2.29666 17.1467 3.03083 17.4508 4.0225 17.6508C5.01583 17.8525 6.31166 17.9583 8 17.9583C9.68833 17.9583 10.9833 17.8525 11.9783 17.6508C12.97 17.4508 13.7033 17.1467 14.2283 16.72C15.2942 15.8517 15.2925 14.6367 15.2917 13.6683V13.5833C15.2917 12.2217 14.3167 11.1167 13.0208 10.3867C11.7042 9.64666 9.92833 9.20833 8 9.20833ZM1.95833 13.5833C1.95833 12.8742 2.47666 12.1042 3.5925 11.4767C4.68916 10.86 6.24583 10.4583 8.00083 10.4583C9.75416 10.4583 11.3108 10.86 12.4075 11.4767C13.5242 12.1042 14.0417 12.8742 14.0417 13.5833C14.0417 14.6733 14.0083 15.2867 13.4383 15.75C13.13 16.0017 12.6133 16.2475 11.73 16.4258C10.8492 16.6042 9.645 16.7083 8 16.7083C6.355 16.7083 5.15 16.6042 4.27 16.4258C3.38666 16.2475 2.87 16.0017 2.56166 15.7508C1.99166 15.2867 1.95833 14.6733 1.95833 13.5833Z"
+                fill="white"
+              />
+            </svg>
+          </div> */}
+          <img src="" alt="" />
         </div>
-        <div className={styles['hope-level']}>
-          <p className={styles['level']}>[IH]</p>
-          <p className={styles['level-title']}>희망 레벨</p>
-        </div>
-      </div>
+      </header>
 
-      {/* 시험 날짜 박스 */}
-      <div className={`${styles['home-box']} ${styles['test-date-box']}`}>
-        <div className={styles['date-info']}>
-          <div className={styles['date-title']}>
-            <p>내 OPIc 시험</p>
-            <div>
-              {/* 아이콘 박스 */}
-              [] 
+      <div className={styles["home-body"]}>
+        {/* 레벨 박스 */}
+        <div className={`${styles["home-box"]} ${styles["level-box"]}`}>
+          <div className={styles["my-level"]}>
+            <p className={styles["level"]}>[IM2]</p>
+            <p className={styles["level-title"]}>현재 레벨</p>
+          </div>
+          <div className={styles["hope-level"]}>
+            <p className={styles["level"]}>[IH]</p>
+            <p className={styles["level-title"]}>희망 레벨</p>
+          </div>
+        </div>
+
+        {/* 시험 날짜 박스 */}
+        <div className={`${styles["home-box"]} ${styles["test-date-box"]}`}>
+          <div className={styles["date-info"]}>
+            <div className={styles["date-title"]}>
+              <p>내 OPIc 시험</p>
+              <div className={styles.calendar}>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="17"
+                  height="17"
+                  viewBox="0 0 17 17"
+                  fill="none"
+                >
+                  <path
+                    d="M3.77419 14.1129C3.46461 14.1129 3.20632 14.0094 2.99933 13.8024C2.79234 13.5954 2.68862 13.3371 2.68817 13.0276V4.44556C2.68817 4.13642 2.79189 3.87836 2.99933 3.67137C3.20676 3.46438 3.46505 3.36066 3.77419 3.36021H4.96304V1.86156H5.68683V3.36021H10.4946V1.86156H11.1667V3.36021H12.3555C12.6647 3.36021 12.9229 3.46393 13.1304 3.67137C13.3378 3.87881 13.4413 4.1371 13.4409 4.44623V13.0276C13.4409 13.3367 13.3374 13.595 13.1304 13.8024C12.9234 14.0099 12.6649 14.1134 12.3548 14.1129H3.77419ZM3.77419 13.4409H12.3555C12.4586 13.4409 12.5533 13.3978 12.6398 13.3118C12.7263 13.2258 12.7693 13.1308 12.7688 13.0269V7.13441H3.36021V13.0276C3.36021 13.1306 3.40323 13.2254 3.48925 13.3118C3.57527 13.3983 3.67003 13.4413 3.77352 13.4409"
+                    fill="#8A8A8A"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div className={styles["test-date"]}>
+              [2025년 3월 22일(토) 14:00]
             </div>
           </div>
-          <div className={styles['test-date']}>[2025년 3월 22일(토) 14:00]</div>
+          <div className={styles["d-day"]}>D-[3]</div>
         </div>
-        <div className={styles['d-day']}>D-[3]</div>
-      </div>
 
         {/* 캐릭터 박스 */}
         <CharacterChange />
@@ -51,10 +79,10 @@ function Home() {
         <LevelChart />
       </div>
 
-        {/* 네브바 */}
-        <Navbar />
+      {/* 네브바 */}
+      <Navbar />
     </div>
-  )
+  );
 }
 
-export default Home
+export default Home;

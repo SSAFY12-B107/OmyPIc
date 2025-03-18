@@ -25,6 +25,16 @@
   font-size: 1.8rem;
 }
 
+.user-info div {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background-color: #C4B1E8;
+}
+
 .user-info img {
   width: 3rem;
   height: 3rem;
@@ -97,7 +107,7 @@
   color: #646464;
 }
 
-.date-title div {
+.date-title .calendar {
   display: flex;
   justify-content: center;
   align-items: center;
