@@ -69,7 +69,6 @@ app.include_router(users.router, prefix="/api/users", tags=["사용자"])
 app.include_router(tests.router, prefix="/api/tests", tags=["모의고사"])
 app.include_router(problems.router, prefix="/api/problems", tags=["문제"])
 
-
 @app.get("/")
 async def root():
     return {
