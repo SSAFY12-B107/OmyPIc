@@ -1,0 +1,122 @@
+.box {
+    height: 263px;
+    position: relative;
+    width: 308px;
+  }
+  
+  .group2 {
+    height: 263px;
+    left: 0;
+    position: relative;
+    top: 0;
+    width: 308px;
+  }
+  
+  .frame {
+    background-color: #ffffff;
+    border: 0.5px solid #bababa;
+    border-radius: 10px;
+    height: 40px;
+    margin-left: 18px;
+    overflow: hidden;
+    position: relative;
+    width: 280px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 15px;
+    transition: all 0.2s ease;
+  }
+  
+  .frame:hover {
+    border-color: #a0a0a0;
+    background-color: #f9f9f9;
+  }
+  
+  .frame.selected {
+    background-color: #9466E9;
+    border-color: #9466E9;
+  }
+  
+  .textWrapper2 {
+    color: #565656;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: -0.15px;
+    line-height: 21px;
+    text-align: center;
+  }
+  
+  .selected .textWrapper2 {
+    color: #fff;
+    font-weight: 700;
+  }
+  
+  .star {
+    color: #C09EFF;
+    font-size: 14px;
+  }
+  
+  /* 질문 헤더 스타일 */
+  .questionHeader {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-left: 18px;
+  }
+  
+  .questionCheck {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: #e6e6fa;
+    color: #8854d0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+    font-weight: bold;
+  }
+  
+  .questionText {
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+    letter-spacing: -0.15px;
+  }
+  
+  /* 팁 컨테이너 스타일 */
+  .tipContainer {
+    display: flex;
+    align-items: flex-start;
+    background-color: #f9f9f9;
+    padding: 12px;
+    border-radius: 8px;
+    margin: 15px 18px 0;
+  }
+  
+  .tipLabel {
+    background-color: #e6e6fa;
+    color: #8854d0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-right: 8px;
+  }
+  
+  .tipStar {
+    color: #8854d0;
+    margin-right: 8px;
+  }
+  
+  .tipText {
+    font-size: 12px;
+    color: #666;
+    margin: 0;
+    flex: 1;
+    letter-spacing: -0.15px;
+    line-height: 18px;
+  }
