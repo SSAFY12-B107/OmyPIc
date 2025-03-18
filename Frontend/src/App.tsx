@@ -24,15 +24,15 @@ function App() {
         <Route path="/auth/profile" element={<Profile />} />
 
         {/* Test 관련 라우트 */}
-        <Route path="/test" element={<TestMain />} />
-        <Route path="/test/exam" element={<TestExam />} />
-        <Route path="/test/feedback/:examId/:questionId" element={<FeedBack />} />
+        <Route path="/tests" element={<TestMain />} />
+        <Route path="/tests/practice" element={<TestExam />} />
+        <Route path="/tests/feedback/:practiceId/:problemId" element={<FeedBack />} />
 
         {/* Script 관련 라우트 */}
-        <Route path="/script" element={<ScriptMain />} />
-        <Route path="/script/list" element={<ScriptList />} />
-        <Route path="/script/detail/:questionId" element={<ScriptDetail />} />
-        <Route path="/script/write/:questionId" element={<ScriptWrite />} />
+        <Route path="/scripts" element={<ScriptMain />} />
+        <Route path="/scripts/:category" element={<ScriptList />} />
+        <Route path="/scripts/:category/:problemId" element={<ScriptDetail />} />
+        <Route path="/scripts/:category/:problemId/write" element={<ScriptWrite />} />
 
         {/* 404 페이지 */}
         <Route path="*" element={<div>페이지를 찾을 수 없습니다.</div>} />
