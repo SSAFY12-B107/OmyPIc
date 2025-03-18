@@ -1,15 +1,11 @@
 .box {
     height: 263px;
     position: relative;
-    /* width: 308px; */
   }
   
   .group2 {
     height: 263px;
-    left: 0;
     position: relative;
-    top: 0;
-    /* width: 308px; */
   }
   
   .frame {
@@ -17,7 +13,6 @@
     border: 0.5px solid #bababa;
     border-radius: 10px;
     height: 40px;
-    margin-left: 18px;
     overflow: hidden;
     position: relative;
     /* width: 280px; */
@@ -25,7 +20,7 @@
     cursor: pointer;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     padding: 0 15px;
     transition: all 0.2s ease;
   }
@@ -55,6 +50,9 @@
   }
   
   .star {
+    position: absolute;
+    top: 0;
+    left: 2px;
     color: #C09EFF;
     font-size: 14px;
   }
@@ -64,7 +62,6 @@
     display: flex;
     align-items: center;
     margin-bottom: 15px;
-    padding-left: 18px;
   }
   
   .questionCheck {
