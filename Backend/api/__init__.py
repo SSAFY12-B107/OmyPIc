@@ -1,4 +1,4 @@
 from fastapi import APIRouter
-from api import auth, users, tests, problems, scripts, questions
+from api import auth, users, tests, problems
 
 router = APIRouter()

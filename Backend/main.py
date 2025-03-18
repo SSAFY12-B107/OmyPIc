@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from api import auth, users, tests, problems, questions, scripts
+from api import auth, users, tests, problems
 from core.config import settings
 from db.mongodb import connect_to_mongo, close_mongo_connection
 
@@ -68,8 +68,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["인증"])
 app.include_router(users.router, prefix="/api/users", tags=["사용자"])
 app.include_router(tests.router, prefix="/api/tests", tags=["모의고사"])
 app.include_router(problems.router, prefix="/api/problems", tags=["문제"])
-app.include_router(questions.router, prefix="/api/questions", tags=["질문"])
-app.include_router(scripts.router, prefix="/api/scripts", tags=["스크립트"])
+
 
 @app.get("/")
 async def root():
@@ -81,4 +80,4 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("main:app", host="127.0.0.1", port=8080, reload=True)

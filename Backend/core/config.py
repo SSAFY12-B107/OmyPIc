@@ -1,6 +1,6 @@
 import os
 from typing import List, Optional
-from pydantic import field_validator
+from pydantic import field_validator, Field
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "YOUR_GOOGLE_CLIENT_SECRET")
     GOOGLE_REDIRECT_URI: str = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/google/callback")
     
+    # AWS S3 설정
+    AWS_ACCESS_KEY_ID: str = Field(..., env="AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY: str = Field(..., env="AWS_SECRET_ACCESS_KEY")
+    AWS_REGION: str = Field(default="ap-northeast-2", env="AWS_REGION")  # 기본값: 서울 리전
+    AWS_S3_BUCKET_NAME: str = Field(..., env="AWS_S3_BUCKET_NAME")
+
     # 프론트엔드 URL
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
     
