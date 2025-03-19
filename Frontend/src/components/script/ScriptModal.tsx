@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 import styles from "./ScriptModal.module.css";
 import opigi from "../../assets/images/opigi.png";
 
@@ -6,10 +6,35 @@ interface Props {
   isGenerating: boolean; // 스크립트 생성 중인지 여부
   onClose?: () => void;
   scriptContent?: string; // 생성된 스크립트 내용
+  detailPagePath?: string; // 상세 페이지 경로
+  onConfirm?: () => void; // 확인(네) 버튼 클릭 시 호출할 함수
 }
 
-function ScriptModal({ isGenerating, onClose, scriptContent = '' }: Props) {
+function ScriptModal({
+  isGenerating,
+  onClose,
+  scriptContent = "",
+  detailPagePath = "/script/detail",
+  onConfirm,
+}: Props) {
   const navigate = useNavigate();
+
+  // 네 버튼 클릭 핸들러
+  const handleYesClick = () => {
+    if (onConfirm) {
+      onConfirm();
+    } else if (onClose) {
+      onClose();
+    }
+  };
+
+  // 아니요 버튼 클릭 핸들러
+  const handleNoClick = () => {
+    if (onClose) {
+      onClose();
+    }
+    navigate(detailPagePath);
+  };
 
   return (
     <div className={styles.overlay}>
@@ -19,7 +44,11 @@ function ScriptModal({ isGenerating, onClose, scriptContent = '' }: Props) {
             ? "스크립트를 생성하고 있어요"
             : "스크립트가 완성되었어요!"}
         </div>
-        <img src={opigi} alt="opigi-img" className={isGenerating ? styles.generatingImage : styles.completedImage} />
+        <img 
+          src={opigi} 
+          alt="opigi-img" 
+          className={isGenerating ? styles.generatingImage : styles.completedImage} 
+        />
 
         {isGenerating ? (
           // 스크립트 생성 중일 경우
@@ -36,9 +65,7 @@ function ScriptModal({ isGenerating, onClose, scriptContent = '' }: Props) {
           // 스크립트 생성 완료된 경우
           <>
             <div className={styles.scriptBox}>
-              <p>
-                {scriptContent}
-              </p>
+              <p>{scriptContent}</p>
             </div>
 
             <div className={styles.additionalQ}>
@@ -47,20 +74,15 @@ function ScriptModal({ isGenerating, onClose, scriptContent = '' }: Props) {
                 <br />더 구체적인 답변을 받아보시겠어요?
               </p>
               <div className={styles.btnBox}>
-              <button 
+                <button 
                   className={styles.yesBtn} 
-                  onClick={() => {
-                    if (onClose) onClose();
-                  }}
+                  onClick={handleYesClick}
                 >
                   네
                 </button>
                 <button 
                   className={styles.noBtn} 
-                  onClick={() => {
-                    if (onClose) onClose();
-                    navigate('/script/detail');
-                  }}
+                  onClick={handleNoClick}
                 >
                   아니요
                 </button>
