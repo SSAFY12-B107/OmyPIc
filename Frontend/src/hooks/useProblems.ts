@@ -9,6 +9,16 @@ export interface Problem {
   content: string;
 }
 
+// 문제 상세 정보 인터페이스 정의
+export interface ProblemDetail {
+  problem: {
+    id: string;
+    content: string;
+  };
+  user_scripts: any[]; // 필요에 따라 더 구체적인 타입 정의 가능
+  test_notes: any[];   // 필요에 따라 더 구체적인 타입 정의 가능
+}
+
 // 문제 목록 조회를 위한 파라미터 인터페이스
 export interface ProblemQueryParams {
   skip: number;
@@ -36,3 +46,14 @@ export const useGetProblems = (category: string) => {
     },
   });
 };
+
+// 문제 상세 조회 API 훅
+export const useGetProblemDetail = (problem_id: string) => {
+  return useQuery<ProblemDetail>({
+    queryKey: ["problem", problem_id],
+    queryFn: async () => {
+      const response = await apiClient.get<ProblemDetail>(`/problems/${problem_id}`);
+      return response.data;
+    }
+  })
+}
