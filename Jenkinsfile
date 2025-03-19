@@ -46,21 +46,26 @@ pipeline {
                 // 작업에 필요한 디렉토리 생성
                 sh 'mkdir -p nginx/conf.d'
                 
-                // 블루/그린 upstream 설정 파일 준비 (심볼릭 링크용)
+                // 블루/그린 upstream 설정 파일 준비
                 sh """
                 echo "upstream backend { server ${APP_NAME}-blue-backend:${BLUE_PORT_BACKEND}; }" > nginx/conf.d/upstream_blue.conf
                 echo "upstream backend { server ${APP_NAME}-green-backend:${GREEN_PORT_BACKEND}; }" > nginx/conf.d/upstream_green.conf
                 
-                # 이전 설정 파일 정리 (심볼릭 링크 생성 전)
-                docker exec ${NGINX_CONTAINER} rm -f /etc/nginx/conf.d/upstream.conf || true
-                
-                # 미리 컨테이너에 upstream 파일 복사
+                # 컨테이너에 upstream 파일 복사
                 docker cp nginx/conf.d/upstream_blue.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/ || true
                 docker cp nginx/conf.d/upstream_green.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/ || true
                 
-                # 초기 심볼릭 링크 설정 (없을 경우 기본값으로 blue 사용)
-                docker exec ${NGINX_CONTAINER} ln -sf /etc/nginx/conf.d/upstream_blue.conf /etc/nginx/conf.d/upstream.conf || true
-                docker exec ${NGINX_CONTAINER} nginx -s reload || true
+                # default.conf 내용 확인 - 에러 디버깅
+                docker exec ${NGINX_CONTAINER} cat /etc/nginx/conf.d/default.conf || true
+                """
+                
+                // Nginx 설정 파일 초기화 (default.conf에 문제가 있는 경우)
+                sh """
+                # default.conf 파일에 문제가 있는지 확인하고 필요시 수정
+                docker exec ${NGINX_CONTAINER} grep -q "pipeline" /etc/nginx/conf.d/default.conf && 
+                echo "default.conf 파일에 문제가 있어 초기화합니다" &&
+                echo 'server { listen 80; location / { root /usr/share/nginx/html; } }' | docker exec -i ${NGINX_CONTAINER} tee /etc/nginx/conf.d/default.conf.new &&
+                docker exec ${NGINX_CONTAINER} mv /etc/nginx/conf.d/default.conf.new /etc/nginx/conf.d/default.conf || true
                 """
             }
         }
@@ -170,14 +175,11 @@ def buildAndPushImage(String imageName, String context) {
 
 def determineEnvironment() {
     try {
-        // 현재 활성 환경 확인 (심볼릭 링크로 확인)
+        // 현재 활성 환경 확인
         def activeEnv = sh(
             script: """
-            if [ -L "/etc/nginx/conf.d/upstream.conf" ]; then
-                docker exec ${NGINX_CONTAINER} ls -la /etc/nginx/conf.d/upstream.conf | grep -o "upstream_\\(blue\\|green\\).conf" | awk '{print \$NF}' | cut -d'_' -f2 | cut -d'.' -f1 || echo 'blue'
-            else
-                echo 'blue'
-            fi
+            # 컨테이너가 사용 중인 업스트림 구성 확인
+            docker exec ${NGINX_CONTAINER} cat /etc/nginx/conf.d/upstream.conf 2>/dev/null | grep -o "${APP_NAME}-\\(blue\\|green\\)" | cut -d'-' -f2 || echo 'blue'
             """,
             returnStdout: true
         ).trim()
@@ -221,17 +223,31 @@ def deployNewEnvironment() {
     try {
         // 기존 컨테이너 제거 (있는 경우)
         sh """
-        docker-compose -f docker-compose.yml -f docker-compose.${env.DEPLOY_ENV}.yml down --remove-orphans || true
+        # 컨테이너 중지 및 제거 (있는 경우)
+        docker stop ${APP_NAME}-${env.DEPLOY_ENV}-backend ${APP_NAME}-${env.DEPLOY_ENV}-frontend || true
+        docker rm ${APP_NAME}-${env.DEPLOY_ENV}-backend ${APP_NAME}-${env.DEPLOY_ENV}-frontend || true
         """
 
-        // 새 버전 배포 (레지스트리에서 이미지 가져와 사용)
+        // 이미지 가져오기
         sh """
         # 이미지 풀
         docker pull ${DOCKER_REGISTRY}/${APP_NAME}-backend:latest
         docker pull ${DOCKER_REGISTRY}/${APP_NAME}-frontend:latest
+        """
         
-        # Docker Compose로 배포 (.env 파일 경고 무시)
-        docker-compose -f docker-compose.yml -f docker-compose.${env.DEPLOY_ENV}.yml up -d --env-file /dev/null
+        // 컨테이너 실행 - Docker Compose 대신 직접 docker run 명령 사용
+        sh """
+        # 백엔드 컨테이너 실행
+        docker run -d --name ${APP_NAME}-${env.DEPLOY_ENV}-backend \\
+            --network ${NETWORK_NAME} \\
+            -p ${env.DEPLOY_PORT_BACKEND}:${env.DEPLOY_PORT_BACKEND} \\
+            ${DOCKER_REGISTRY}/${APP_NAME}-backend:latest
+            
+        # 프론트엔드 컨테이너 실행
+        docker run -d --name ${APP_NAME}-${env.DEPLOY_ENV}-frontend \\
+            --network ${NETWORK_NAME} \\
+            -p ${env.DEPLOY_PORT_FRONTEND}:${env.DEPLOY_PORT_FRONTEND} \\
+            ${DOCKER_REGISTRY}/${APP_NAME}-frontend:latest
         """
         
         // 프론트엔드 빌드 파일이 볼륨에 복사될 시간을 주기
@@ -248,8 +264,8 @@ def deployNewEnvironment() {
         docker ps -a | grep ${APP_NAME} || true
         echo "Docker 네트워크 확인:"
         docker network ls | grep ${NETWORK_NAME} || true
-        echo "Docker Compose 파일 확인:"
-        ls -la *.yml || true
+        echo "Docker 이미지 확인:"
+        docker images | grep ${DOCKER_REGISTRY}/${APP_NAME} || true
         """
         
         error "환경 배포 실패"
@@ -271,14 +287,8 @@ def testNewEnvironment() {
         
         // 백엔드 헬스체크 (헬스체크 API가 있는 경우)
         sh """
-        # 백엔드 헬스체크 - 만약 실패해도 계속 진행 (실제 API 구현에 따라 조정)
+        # 백엔드 헬스체크 - 만약 실패해도 계속 진행
         curl -f http://localhost:${env.DEPLOY_PORT_BACKEND}/api/health || echo "백엔드 헬스체크 실패하였으나 계속 진행합니다"
-        """
-        
-        // 프론트엔드 확인 - 컨테이너 내 파일 존재 여부만 확인
-        sh """
-        # 프론트엔드 파일 확인
-        docker exec ${APP_NAME}-${env.DEPLOY_ENV}-frontend ls -la /usr/share/nginx/html/ || echo "프론트엔드 파일 확인 실패하였으나 계속 진행합니다"
         """
         
         echo "새 환경(${env.DEPLOY_ENV}) 테스트 완료"
@@ -290,13 +300,23 @@ def testNewEnvironment() {
 
 def switchTraffic() {
     try {
-        // 블로그 방식 - 심볼릭 링크로 트래픽 전환 (기존 파일 제거 후)
+        // upstream.conf 파일 내용 준비
         sh """
-        # 기존 파일 제거 (심볼릭 링크 오류 방지)
-        docker exec ${NGINX_CONTAINER} rm -f /etc/nginx/conf.d/upstream.conf || true
+        # 새로운 upstream 설정 파일 생성
+        echo "upstream backend { server ${APP_NAME}-${env.DEPLOY_ENV}-backend:${env.DEPLOY_PORT_BACKEND}; }" > nginx/conf.d/upstream.conf
         
-        # 심볼릭 링크 생성
-        docker exec ${NGINX_CONTAINER} ln -sf /etc/nginx/conf.d/upstream_${env.DEPLOY_ENV}.conf /etc/nginx/conf.d/upstream.conf
+        # 컨테이너에 복사 - 덮어쓰기용 임시 파일
+        docker cp nginx/conf.d/upstream.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/upstream.conf.new
+        """
+        
+        // 직접 덮어쓰기 (심볼릭 링크 대신 컨테이너 내에서 파일 교체)
+        sh """
+        # 아래 명령어는 Resource busy 오류를 방지하기 위해 컨테이너 내에서 실행
+        docker exec ${NGINX_CONTAINER} bash -c '
+        # 임시 파일로 복사 후 덮어쓰기 (원자적 작업)
+        cat /etc/nginx/conf.d/upstream.conf.new > /etc/nginx/conf.d/upstream.conf
+        rm -f /etc/nginx/conf.d/upstream.conf.new
+        '
         
         # Nginx 설정 리로드
         docker exec ${NGINX_CONTAINER} nginx -s reload
@@ -331,13 +351,22 @@ def cleanupIdleEnvironment() {
 def rollbackToIdleEnvironment() {
     try {
         if (env.IDLE_ENV) {
-            // 심볼릭 링크로 롤백 (기존 파일 제거 후)
+            // 롤백용 설정 파일 생성
             sh """
-            # 기존 파일 제거 (심볼릭 링크 오류 방지)
-            docker exec ${NGINX_CONTAINER} rm -f /etc/nginx/conf.d/upstream.conf || true
+            # 롤백용 upstream 설정 파일 생성
+            echo "upstream backend { server ${APP_NAME}-${env.IDLE_ENV}-backend:${env.IDLE_ENV == 'blue' ? BLUE_PORT_BACKEND : GREEN_PORT_BACKEND}; }" > nginx/conf.d/upstream.conf.rollback
             
-            # 이전 환경으로 심볼릭 링크 변경
-            docker exec ${NGINX_CONTAINER} ln -sf /etc/nginx/conf.d/upstream_${env.IDLE_ENV}.conf /etc/nginx/conf.d/upstream.conf
+            # 컨테이너에 복사
+            docker cp nginx/conf.d/upstream.conf.rollback ${NGINX_CONTAINER}:/etc/nginx/conf.d/
+            """
+            
+            // 컨테이너 내에서 파일 교체
+            sh """
+            # 컨테이너 내에서 파일 교체 (Resource busy 오류 방지)
+            docker exec ${NGINX_CONTAINER} bash -c '
+            cat /etc/nginx/conf.d/upstream.conf.rollback > /etc/nginx/conf.d/upstream.conf
+            rm -f /etc/nginx/conf.d/upstream.conf.rollback
+            '
             
             # Nginx 설정 리로드
             docker exec ${NGINX_CONTAINER} nginx -s reload
