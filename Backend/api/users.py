@@ -1,135 +1,114 @@
-from typing import Dict
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, HTTPException, status, Query, Path, Body, Depends
+from typing import List, Optional
+from schemas.user import UserCreate, UserResponse, UserUpdate
+from services import user as user_service
+from api.auth import get_current_user
+import datetime
 
-from models.user import UserModel
-from db.session import get_async_session
-from api.deps import CurrentUser, UserAndDB
-from schemas.user import OnboardingData, UserResponse
+router = APIRouter()
 
-router = APIRouter(tags=["users"], prefix="/users")
-
-@router.get("/me", response_model=UserResponse)
-async def get_user_profile(user: CurrentUser):
-    """현재 로그인한 사용자 정보 반환"""
-    return UserResponse(
-        id=str(user.id),
-        email=user.email,
-        name=user.name,
-        current_opic_score=user.current_opic_score,
-        target_opic_score=user.target_opic_score,
-        target_exam_date=user.target_exam_date,
-        expected_opic_score=user.expected_opic_score,
-        is_active=user.is_active,
-        is_onboarded=user.is_onboarded,
-        auth_provider=user.auth_provider
+@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def create_user(user_data: UserCreate = Body(...)):
+    """새 사용자를 생성합니다."""
+    # 백그라운드 서베이 데이터 처리
+    background_survey = None
+    if user_data.background_survey:
+        background_survey = user_data.background_survey.dict(exclude_unset=True)
+    
+    # 시험 날짜 처리
+    if user_data.target_exam_date:
+        target_exam_date = user_data.target_exam_date
+    else:
+        target_exam_date = None
+    
+    # 사용자 생성
+    user = await user_service.create_user(
+        name=user_data.name,
+        auth_provider=user_data.auth_provider,
+        current_opic_score=user_data.current_opic_score,
+        target_opic_score=user_data.target_opic_score,
+        target_exam_date=target_exam_date,
+        background_survey=background_survey
     )
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="사용자 생성에 실패했습니다."
+        )
+    
+    return user
 
-@router.post("/onboarding", response_model=UserResponse)
-async def complete_onboarding(
-    onboarding_data: OnboardingData,
-    user_and_db: UserAndDB,
+@router.get("/{id}", response_model=UserResponse)
+async def get_user(id: str = Path(..., title="사용자 ID")):
+    """ID로 사용자를 조회합니다."""
+    user = await user_service.get_user_by_id(id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"ID {id}인 사용자를 찾을 수 없습니다."
+        )
+    
+    return user
+
+@router.get("/", response_model=List[UserResponse])
+async def get_users(
+    skip: int = Query(0, ge=0, description="건너뛸 사용자 수"),
+    limit: int = Query(10, ge=1, le=100, description="반환할 최대 사용자 수")
 ):
-    """
-    사용자 온보딩 정보(초기 설문) 저장
-    
-    요구되는 데이터:
-    - target_opic_score: 목표 오픽 성적
-    - expected_opic_score: 예상 오픽 성적
-    - current_opic_score: (선택) 현재 오픽 성적
-    - target_exam_date: (선택) 목표 시험 일자
-    """
-    user, db = user_and_db
-    
-    # 사용자 정보 업데이트
-    user.target_opic_score = onboarding_data.target_opic_score
-    user.expected_opic_score = onboarding_data.expected_opic_score
-    
-    # 선택적 정보 업데이트
-    if onboarding_data.current_opic_score:
-        user.current_opic_score = onboarding_data.current_opic_score
-    
-    if onboarding_data.target_exam_date:
-        # 날짜 문자열을 Date 객체로 변환 (YYYY-MM-DD 형식 가정)
-        try:
-            target_date = datetime.strptime(onboarding_data.target_exam_date, "%Y-%m-%d").date()
-            user.target_exam_date = target_date
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid date format. Expected YYYY-MM-DD"
-            )
-    
-    # 온보딩 완료 상태로 업데이트
-    user.is_onboarded = True
-    
-    # 변경사항 저장
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    
-    # 업데이트된 사용자 정보 반환
-    return UserResponse(
-        id=str(user.id),
-        email=user.email,
-        name=user.name,
-        current_opic_score=user.current_opic_score,
-        target_opic_score=user.target_opic_score,
-        target_exam_date=user.target_exam_date,
-        expected_opic_score=user.expected_opic_score,
-        is_active=user.is_active,
-        is_onboarded=user.is_onboarded,
-        auth_provider=user.auth_provider
-    )
+    """모든 사용자를 조회합니다."""
+    users = await user_service.get_users(skip, limit)
+    return users
 
-@router.patch("/update-profile", response_model=UserResponse)
-async def update_user_profile(
-    user_data: Dict,
-    user_and_db: UserAndDB,
+@router.put("/{id}", response_model=UserResponse)
+async def update_user_info(
+    id: str = Path(..., title="사용자 ID"),
+    user_data: UserUpdate = Body(..., description="업데이트할 사용자 정보"),
+    current_user: dict = Depends(get_current_user)
 ):
-    """사용자 프로필 정보 업데이트"""
-    user, db = user_and_db
+    """사용자 정보를 업데이트합니다."""
+    # 권한 확인: 자신의 정보만 업데이트 가능
+    if str(current_user["_id"]) != id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="다른 사용자의 정보를 수정할 권한이 없습니다"
+        )
     
-    # 업데이트 가능한 필드 목록
-    updatable_fields = [
-        "name", 
-        "current_opic_score", 
-        "target_opic_score", 
-        "expected_opic_score"
-    ]
+    # 업데이트할 데이터 준비
+    update_data = user_data.dict(exclude_unset=True)
     
-    # 요청 데이터에서 업데이트 가능한 필드만 추출하여 사용자 정보 업데이트
-    for field in updatable_fields:
-        if field in user_data:
-            setattr(user, field, user_data[field])
+    # 백그라운드 서베이 데이터 처리
+    if "background_survey" in update_data and update_data["background_survey"]:
+        update_data["background_survey"] = update_data["background_survey"].dict(exclude_unset=True)
     
-    # 날짜 필드 처리
-    if "target_exam_date" in user_data and user_data["target_exam_date"]:
-        try:
-            target_date = datetime.strptime(user_data["target_exam_date"], "%Y-%m-%d").date()
-            user.target_exam_date = target_date
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid date format. Expected YYYY-MM-DD"
-            )
+    # 사용자 업데이트
+    updated_user = await user_service.update_user(id, update_data)
+    if not updated_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"ID {id}인 사용자를 찾을 수 없습니다."
+        )
     
-    # 변경사항 저장
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    return updated_user
+
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user_account(
+    id: str = Path(..., title="사용자 ID"),
+    current_user: dict = Depends(get_current_user)
+):
+    """회원 탈퇴 (사용자 삭제)"""
+    # 권한 확인: 자신의 계정만 삭제 가능
+    if str(current_user["_id"]) != id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="다른 사용자의 계정을 삭제할 권한이 없습니다"
+        )
     
-    # 업데이트된 사용자 정보 반환
-    return UserResponse(
-        id=str(user.id),
-        email=user.email,
-        name=user.name,
-        current_opic_score=user.current_opic_score,
-        target_opic_score=user.target_opic_score,
-        target_exam_date=user.target_exam_date,
-        expected_opic_score=user.expected_opic_score,
-        is_active=user.is_active,
-        is_onboarded=user.is_onboarded,
-        auth_provider=user.auth_provider
-    )
+    deleted = await user_service.delete_user(id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"ID {id}인 사용자를 찾을 수 없습니다."
+        )
+    
+    return None
