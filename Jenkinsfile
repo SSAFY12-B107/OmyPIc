@@ -46,10 +46,14 @@ pipeline {
                 // 작업에 필요한 디렉토리 생성
                 sh 'mkdir -p nginx/conf.d'
                 
-                // 기본 upstream 설정 파일 준비
+                // 블루/그린 upstream 설정 파일 준비 (심볼릭 링크용)
                 sh """
                 echo "upstream backend { server ${APP_NAME}-blue-backend:${BLUE_PORT_BACKEND}; }" > nginx/conf.d/upstream_blue.conf
                 echo "upstream backend { server ${APP_NAME}-green-backend:${GREEN_PORT_BACKEND}; }" > nginx/conf.d/upstream_green.conf
+                
+                # 미리 컨테이너에 upstream 파일 복사
+                docker cp nginx/conf.d/upstream_blue.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/ || true
+                docker cp nginx/conf.d/upstream_green.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/ || true
                 """
             }
         }
@@ -119,20 +123,23 @@ pipeline {
             sh 'docker logout'
             sh 'docker image prune -f'
             archiveArtifacts artifacts: 'deploy-info.txt', allowEmptyArchive: true
-            // 성공 후 마지막에 작업공간 정리
+            // 성공 후 작업공간 정리
             cleanWs()
         }
         failure {
             script {
                 echo "배포 실패! 이전 환경으로 롤백합니다."
-                // 실패 시 롤백 작업 수행 전 로그아웃/이미지 정리는 하지 않음
+                
+                // 실패 시 롤백 작업 수행
                 rollbackToIdleEnvironment()
                 cleanupFailedDeployment()
+                
+                // 로그아웃 및 정리
                 sh 'docker logout'
                 sh 'docker image prune -f'
                 archiveArtifacts artifacts: 'deploy-info.txt', allowEmptyArchive: true
             }
-            // 모든 작업 완료 후 마지막에 작업공간 정리
+            // 모든 작업 완료 후 작업공간 정리
             cleanWs()
         }
     }
@@ -158,7 +165,7 @@ def determineEnvironment() {
     try {
         // 현재 활성 환경 확인 (blue 또는 green)
         def activeEnv = sh(
-            script: "docker exec ${NGINX_CONTAINER} cat /etc/nginx/conf.d/upstream.conf | grep -A1 'upstream backend' | grep 'server' | grep -o '${APP_NAME}-\\(blue\\|green\\)-backend' | cut -d'-' -f2 || echo 'none'",
+            script: "docker exec ${NGINX_CONTAINER} readlink -f /etc/nginx/conf.d/upstream.conf | grep -o 'upstream_\\(blue\\|green\\).conf' | cut -d'_' -f2 | cut -d'.' -f1 || echo 'none'",
             returnStdout: true
         ).trim()
 
@@ -205,7 +212,7 @@ def deployNewEnvironment() {
         docker pull ${DOCKER_REGISTRY}/${APP_NAME}-backend:latest
         docker pull ${DOCKER_REGISTRY}/${APP_NAME}-frontend:latest
         
-        # Docker Compose로 배포
+        # Docker Compose로 배포 (.env 경고는 무시)
         docker-compose -f docker-compose.yml -f docker-compose.${env.DEPLOY_ENV}.yml up -d
         """
         
@@ -246,23 +253,14 @@ def testNewEnvironment() {
 
 def switchTraffic() {
     try {
-        // 무중단 배포를 위한 upstream 설정 교체 방식
-        // 기존 upstream 파일을 백업 (롤백용)
+        // 블로그 방식 - 심볼릭 링크로 트래픽 전환
         sh """
-        docker exec ${NGINX_CONTAINER} cp /etc/nginx/conf.d/upstream.conf /etc/nginx/conf.d/upstream.conf.backup || true
-        """
+        # 이미 복사해둔 upstream 파일을 심볼릭 링크로 연결
+        docker exec ${NGINX_CONTAINER} ln -sf /etc/nginx/conf.d/upstream_${env.DEPLOY_ENV}.conf /etc/nginx/conf.d/upstream.conf
         
-        // 새 환경의 upstream 파일 복사 - Resource busy 오류 방지를 위해 cp 명령 사용
-        sh """
-        # 새 upstream 설정 파일 생성
-        echo "upstream backend { server ${APP_NAME}-${env.DEPLOY_ENV}-backend:${env.DEPLOY_PORT_BACKEND}; }" > nginx/conf.d/upstream.conf
-        
-        # 직접 컨테이너에 복사
-        docker cp nginx/conf.d/upstream.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/upstream.conf
+        # Nginx 설정 리로드
+        docker exec ${NGINX_CONTAINER} nginx -s reload
         """
-
-        // Nginx 설정 리로드 (무중단)
-        sh "docker exec ${NGINX_CONTAINER} nginx -s reload"
 
         echo "트래픽이 ${env.DEPLOY_ENV} 환경으로 전환되었습니다."
     } catch (Exception e) {
@@ -293,20 +291,14 @@ def cleanupIdleEnvironment() {
 def rollbackToIdleEnvironment() {
     try {
         if (env.IDLE_ENV) {
-            // nginx 디렉토리 확인 및 생성
-            sh 'mkdir -p nginx/conf.d'
-            
-            // 롤백을 위한 upstream 설정 생성 및 적용 - Resource busy 오류 방지를 위해 cp 명령 사용
+            // 블로그 방식 - 심볼릭 링크로 롤백
             sh """
-            # 롤백을 위한 upstream 설정 생성
-            echo "upstream backend { server ${APP_NAME}-${env.IDLE_ENV}-backend:${env.IDLE_ENV == 'blue' ? BLUE_PORT_BACKEND : GREEN_PORT_BACKEND}; }" > nginx/conf.d/upstream.conf
+            # 이전 환경으로 심볼릭 링크 변경
+            docker exec ${NGINX_CONTAINER} ln -sf /etc/nginx/conf.d/upstream_${env.IDLE_ENV}.conf /etc/nginx/conf.d/upstream.conf
             
-            # 직접 컨테이너에 복사
-            docker cp nginx/conf.d/upstream.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/upstream.conf
+            # Nginx 설정 리로드
+            docker exec ${NGINX_CONTAINER} nginx -s reload
             """
-            
-            // Nginx 설정 리로드
-            sh "docker exec ${NGINX_CONTAINER} nginx -s reload || true"
             
             echo "트래픽을 이전 환경(${env.IDLE_ENV})으로 롤백했습니다."
         }
