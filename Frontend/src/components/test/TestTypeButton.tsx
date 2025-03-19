@@ -1,15 +1,15 @@
 import styles from "./TestTypeButton.module.css";
 
 interface TestTypeButtonProps {
-  type: "실전" | "속성";
   title: string;
   description: string;
   duration: string;
+  onClick: () => void; // onClick 속성 추가
 }
 
-function TestTypeButton({ type, title, description, duration }: TestTypeButtonProps) {
+function TestTypeButton({title, description, duration, onClick }: TestTypeButtonProps) {
   return (
-    <button className={styles["test-type-btn-box"]}>
+    <button className={styles["test-type-btn-box"]} onClick={onClick}>
       <div className={styles["purple-bar"]}></div>
       <div className={styles["content"]}>
         <div className={styles["header"]}>

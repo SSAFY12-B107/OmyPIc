@@ -1,10 +1,14 @@
 import styles from "./TestExam.module.css";
+import avatar from '../../assets/images/avatar.png'
 
 // 타입 정의
 interface TestExamProps {
   initialValue?: number;
   maxValue?: number;
+
+
 }
+
 
 function TestExam({ initialValue = 1, maxValue = 15 }: TestExamProps) {
   return (
@@ -19,7 +23,7 @@ function TestExam({ initialValue = 1, maxValue = 15 }: TestExamProps) {
           value={initialValue}
           max={maxValue}
         ></progress>
-        <img className={styles.avatarImg} src="" alt="" />
+        <img className={styles.avatarImg} src={avatar} alt="" />
         <button className={styles.playBtn}>
           <span className={styles.headphoneIcon}>🎧</span>
           다시듣기

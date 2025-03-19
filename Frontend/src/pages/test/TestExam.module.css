@@ -6,6 +6,8 @@
 
 .resize {
   padding: 1rem 3rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .numBox {
@@ -40,9 +42,10 @@
 }
 
 .avatarImg {
-  width: 100%;
+  width: 22rem;
   height: 22rem;
   margin-top: 1rem;
+  align-self: center;
 }
 
 .playBtn {
