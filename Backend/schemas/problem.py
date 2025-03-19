@@ -2,58 +2,64 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-
-class ProblemBase(BaseModel):
-    """문제 기본 스키마"""
+class ProblemResponse(BaseModel):
+    """문제 응답 스키마(전체 조회)"""
+    id: str = Field(..., alias="_id")
     topic_category: str
     problem_category: str
-    content: str
-    audio_s3_url: Optional[str] = None
-    high_grade_kit: bool = False
-    connected_problem: Optional[List[str]] = None
+    content: str    
 
+    model_config = {
+        "populate_by_name": True,
+        "json_schema_extra": {
+            "example": {
+                "_id": "507f1f77bcf86cd799439011",
+                "topic_category": "listening",
+                "problem_category": "short_conversation",
+                "content": "What does the woman suggest about the report?",
+            }
+        }
+    }
 
-class ProblemCreate(ProblemBase):
-    """문제 생성 스키마"""
-    pass
+# 다수의 문제 목록을 위한 응답 스키마
+class ProblemListResponse(BaseModel):
+    problems: List[ProblemResponse]
+    total: int
 
-
-class ProblemResponse(ProblemBase):
-    """문제 응답 스키마"""
+class ProblemDetailContentResponse(BaseModel):
+    """문제 응답 스키마(개별 조회 시, 문제 내용)"""
     id: str = Field(..., alias="_id")
-    
-    model_config = {
-        "populate_by_name": True,
-        "json_schema_extra": {
-            "example": {
-                "_id": "507f1f77bcf86cd799439011",
-                "topic_category": "listening",
-                "problem_category": "short_conversation",
-                "content": "What does the woman suggest about the report?",
-                "audio_s3_url": "https://example-bucket.s3.amazonaws.com/audio/problem123.mp3",
-                "high_grade_kit": True,
-                "connected_problem": ["507f1f77bcf86cd799439012", "507f1f77bcf86cd799439013"]
-            }
-        }
-    }
+    content: str
+
+# 문제 세부 조회 응답 모델
+class ProblemDetailScriptResponse(BaseModel):
+    id: Optional[str] = Field(default=None, alias="_id")
+    content: str
+    created_at: datetime
+    is_script: bool
+
+class ProblemDetailResponse(BaseModel):
+    """문제 응답 스키마(개별 조회)"""
+    problem: ProblemDetailContentResponse
+    user_scripts: Optional[List[ProblemDetailScriptResponse]] = []
+    test_notes: Optional[List[ProblemDetailScriptResponse]] = []
 
 
-# 데이터베이스 모델 (MongoDB에 저장될 형태)
-class ProblemModel(ProblemBase):
-    """문제 모델"""
-    id: Optional[str] = Field(default=None, alias="_id")  # MongoDB의 _id를 문자열로 표현
-    
-    model_config = {
-        "populate_by_name": True,
-        "json_schema_extra": {
-            "example": {
-                "_id": "507f1f77bcf86cd799439011",
-                "topic_category": "listening",
-                "problem_category": "short_conversation",
-                "content": "What does the woman suggest about the report?",
-                "audio_s3_url": "https://example-bucket.s3.amazonaws.com/audio/problem123.mp3",
-                "high_grade_kit": True,
-                "connected_problem": ["507f1f77bcf86cd799439012", "507f1f77bcf86cd799439013"]
-            }
-        }
-    }
+# 스크립트 기본 질문 응답 모델
+class BasicQuestionResponse(BaseModel):
+    questions: List[str]
+
+
+# 스크립트 응답 모델
+class ScriptResponse(BaseModel):
+    id: str = Field(..., alias="_id")
+    content: str
+    created_at: datetime
+    is_script: bool
+
+    class Config:
+        populate_by_name = True
+
+# 스크립트 업데이트를 위한 요청 모델
+class ScriptUpdateRequest(BaseModel):
+    content: str = Field(..., description="수정할 스크립트 내용")

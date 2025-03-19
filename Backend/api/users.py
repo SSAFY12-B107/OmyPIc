@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Query, Body
+from fastapi import APIRouter, HTTPException, status, Query, Path, Body, Depends
 from typing import List, Optional
 from schemas.user import UserCreate, UserResponse, UserUpdate
 from services import user as user_service
@@ -8,24 +8,20 @@ import datetime
 router = APIRouter()
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(user_data: UserCreate):
-    """
-    새 사용자 생성 엔드포인트
-    """
-    # 백그라운드 서베이 정보 준비
+async def create_user(user_data: UserCreate = Body(...)):
+    """새 사용자를 생성합니다."""
+    # 백그라운드 서베이 데이터 처리
     background_survey = None
     if user_data.background_survey:
         background_survey = user_data.background_survey.dict(exclude_unset=True)
     
+    # 시험 날짜 처리
     if user_data.target_exam_date:
-        # date를 datetime으로 변환 (자정 시간으로 설정)
-        target_exam_date = datetime.datetime.combine(
-            user_data.target_exam_date, 
-            datetime.time(0, 0, 0)
-        )
+        target_exam_date = user_data.target_exam_date
     else:
         target_exam_date = None
-
+    
+    # 사용자 생성
     user = await user_service.create_user(
         name=user_data.name,
         auth_provider=user_data.auth_provider,
@@ -59,19 +55,17 @@ async def get_user(user_id: str):
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"ID {user_id}인 사용자를 찾을 수 없습니다."
+            detail=f"ID {id}인 사용자를 찾을 수 없습니다."
         )
     
     return user
 
 @router.get("/", response_model=List[UserResponse])
 async def get_users(
-    skip: int = Query(0, ge=0, description="건너뛸 항목 수"),
-    limit: int = Query(10, ge=1, le=100, description="가져올 최대 항목 수")
+    skip: int = Query(0, ge=0, description="건너뛸 사용자 수"),
+    limit: int = Query(10, ge=1, le=100, description="반환할 최대 사용자 수")
 ):
-    """
-    사용자 목록 조회 엔드포인트
-    """
+    """모든 사용자를 조회합니다."""
     users = await user_service.get_users(skip, limit)
     return users
 
@@ -93,7 +87,7 @@ async def update_user(
     # 업데이트할 데이터 준비 (None이 아닌 값만 포함)
     update_data = user_data.dict(exclude_unset=True)
     
-    # 백그라운드 서베이 정보 처리
+    # 백그라운드 서베이 데이터 처리
     if "background_survey" in update_data and update_data["background_survey"]:
         update_data["background_survey"] = update_data["background_survey"].dict(exclude_unset=True)
     
@@ -103,7 +97,7 @@ async def update_user(
     if not updated_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"ID {user_id}인 사용자를 찾을 수 없습니다."
+            detail=f"ID {id}인 사용자를 찾을 수 없습니다."
         )
     
     return updated_user
@@ -123,7 +117,8 @@ async def delete_user(user_id: str):
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"ID {user_id}인 사용자를 찾을 수 없습니다."
+            detail=f"ID {id}인 사용자를 찾을 수 없습니다."
         )
     
     return None
+

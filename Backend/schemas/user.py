@@ -26,7 +26,7 @@ class UserCreate(BaseModel):
     auth_provider: str = "google"  # "kakao", "google" 등
     current_opic_score: Optional[str] = None
     target_opic_score: Optional[str] = None
-    target_exam_date: Optional[date] = None
+    target_exam_date: Optional[datetime] = None  # date 대신 datetime 사용
     is_onboarded: bool = False
     background_survey: Optional[BackgroundSurvey] = None
 
@@ -35,7 +35,7 @@ class UserUpdate(BaseModel):
     name: Optional[str] = None
     current_opic_score: Optional[str] = None
     target_opic_score: Optional[str] = None
-    target_exam_date: Optional[date] = None
+    target_exam_date: Optional[datetime] = None  # date 대신 datetime 사용
     is_onboarded: Optional[bool] = None
     background_survey: Optional[BackgroundSurvey] = None
 
@@ -46,7 +46,7 @@ class UserResponse(BaseModel):
     auth_provider: str
     current_opic_score: Optional[str] = None
     target_opic_score: Optional[str] = None
-    target_exam_date: Optional[date] = None
+    target_exam_date: Optional[datetime] = None  # date 대신 datetime 사용
     is_onboarded: bool
     created_at: datetime
     background_survey: Optional[Dict] = None

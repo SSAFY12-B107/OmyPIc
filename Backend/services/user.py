@@ -28,6 +28,11 @@ async def create_user(
         "info": []
     }
     
+    # date 객체를 datetime 객체로 변환 (MongoDB 호환성을 위해)
+    converted_target_exam_date = None
+    if target_exam_date:
+        converted_target_exam_date = datetime.combine(target_exam_date, datetime.min.time())
+    
     # 사용자 문서 생성
     user_doc = {
         "name": name,
@@ -40,11 +45,12 @@ async def create_user(
         "background_survey": bg_survey
     }
     
-    # MongoDB에 삽입
+    # MongoDB에 사용자 추가
     result = await users_collection.insert_one(user_doc)
     
     # 삽입된 ID로 전체 문서 검색
     user = await users_collection.find_one({"_id": result.inserted_id})
+    user["_id"] = str(user["_id"])  # ObjectId를 문자열로 변환
     return user
 
 async def get_user_by_id(user_id: ObjectId) -> Optional[Dict]:
@@ -67,6 +73,7 @@ async def get_users(skip: int = 0, limit: int = 10) -> List[Dict]:
     users = []
     cursor = users_collection.find().skip(skip).limit(limit)
     async for document in cursor:
+        document["_id"] = str(document["_id"])  # ObjectId를 문자열로 변환
         users.append(document)
     return users
 
