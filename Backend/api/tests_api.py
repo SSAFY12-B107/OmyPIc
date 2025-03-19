@@ -14,7 +14,7 @@ import io
 from gtts import gTTS
 from services.s3_service import upload_audio_to_s3
 
-from schemas.test import TestHistoryResponse, TestDetailResponse
+from schemas.test import TestHistoryResponse, TestDetailResponse, TestCreationResponse
 from services.test_service import create_test
 
 router = APIRouter()
@@ -112,14 +112,14 @@ async def get_test_detail(
         )
 
 
-@router.post("/{test_type}", response_model=TestDetailResponse)
+@router.post("/{test_type}", response_model=TestCreationResponse)
 async def make_test(
     test_type: int = Path(..., ge=0, le=1, description="테스트 유형: 0은 7문제, 1은 15문제"),
     user_id: str = Query(..., description="사용자 ID"),
     db: Database = Depends(get_mongodb)
-) -> TestDetailResponse:
+) -> TestCreationResponse:
     """
-    모의고사 생성 API 체크 합니다
+    모의고사 생성 API
     - test_type 0: 7문제 (콤보셋 3, 롤플레잉 2, 돌발 2)
     - test_type 1: 15문제 (자기소개 1, 콤보셋 9, 롤플레잉 3, 돌발 2)
     
@@ -152,8 +152,8 @@ async def make_test(
         # ObjectId를 문자열로 변환
         test_data["_id"] = str(test_data["_id"])
         
-        # TestDetailResponse 모델로 변환하여 반환
-        return TestDetailResponse(**test_data)
+        # TestCreationResponse 모델로 변환하여 반환
+        return TestCreationResponse(**test_data)
     except bson_errors.InvalidId as e:
         # ObjectId 변환 오류
         raise HTTPException(status_code=400, detail=f"잘못된 ID 형식: {str(e)}")
