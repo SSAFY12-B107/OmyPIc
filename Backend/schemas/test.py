@@ -88,6 +88,28 @@ class CreateTestRequest(BaseModel):
         }
     }
 
+class TestCreationProblemDetail(BaseModel):
+    """테스트 생성시 문제 상세 정보 응답 모델"""
+    problem_id: Optional[str] = None
+    problem_category: Optional[str] = None
+    topic_category: Optional[str] = None
+    problem: Optional[str] = None
+
+class TestCreationResponse(BaseModel):
+    """테스트 생성 응답 모델"""
+    id: str = Field(..., alias="_id")
+    user_id: Optional[str] = None
+    test_type: bool
+    test_date: datetime
+    problem_data: Dict[str, TestCreationProblemDetail] = {}
+    
+    model_config = {
+        "populate_by_name": True,
+        "json_encoders": {
+            datetime: lambda v: v.isoformat()
+        }
+    }
+
 
 # 테스트 결과 업데이트를 위한 요청 모델
 class ProblemDetailFeedbackUpdate(BaseModel):
