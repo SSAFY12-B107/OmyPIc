@@ -45,6 +45,20 @@ pipeline {
             }
         }
 
+        stage('Docker Login') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: "DOCKER_USERNAME",
+                        passwordVariable: "DOCKER_PASSWORD"
+                    )]) {
+                        sh "echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin"
+                    }
+                }
+            }
+        }
+
         stage('Build & Push Images') {
             parallel {
                 stage('Backend') {
@@ -102,6 +116,7 @@ pipeline {
             }
         }
         always {
+            sh 'docker logout'
             sh 'docker image prune -f'
             cleanWs()
             archiveArtifacts artifacts: 'deploy-info.txt', allowEmptyArchive: true
@@ -111,15 +126,13 @@ pipeline {
 
 // 이미지 빌드 및 푸시 함수
 def buildAndPushImage(String imageName, String context) {
-    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
-        def image = docker.build(
-            "${imageName}:${GIT_COMMIT_SHORT}",
-            "--cache-from ${imageName}:latest ${context}"
-        )
+    def image = docker.build(
+        "${imageName}:${GIT_COMMIT_SHORT}",
+        "--no-cache ${context}"
+    )
 
-        image.push()
-        image.push('latest')
-    }
+    image.push()
+    image.push('latest')
 }
 
 def determineEnvironment() {
