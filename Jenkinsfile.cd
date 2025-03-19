@@ -2,7 +2,7 @@ pipeline {
     agent any
     
     environment {
-        EC2_HOST = 'ip-172-26-8-209'
+        EC2_HOST = '3.35.220.45'
         EC2_USER = 'ubuntu'
         DEPLOY_DIR = '/home/ubuntu/OmyPIC'
         DOCKER_REGISTRY = "kst1040"
