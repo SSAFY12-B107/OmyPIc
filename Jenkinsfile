@@ -178,7 +178,7 @@ def determineEnvironment() {
 def deployNewEnvironment() {
     // 기존 컨테이너 제거 (있는 경우)
     sh """
-    docker-compose -f docker-compose.yml -f docker-compose.${env.DEPLOY_ENV}.yml down --env-file /dev/null || true
+    docker-compose -f docker-compose.yml -f docker-compose.${env.DEPLOY_ENV}.yml down || true
     """
 
     // 새 버전 배포 (레지스트리에서 이미지 가져와 사용)
@@ -188,7 +188,7 @@ def deployNewEnvironment() {
     docker pull ${DOCKER_REGISTRY}/${APP_NAME}-frontend:latest
     
     # Docker Compose로 배포
-    docker-compose -f docker-compose.yml -f docker-compose.${env.DEPLOY_ENV}.yml up -d --env-file /dev/null
+    docker-compose -f docker-compose.yml -f docker-compose.${env.DEPLOY_ENV}.yml up -d
     """
     
     // 프론트엔드 빌드 파일이 볼륨에 복사될 시간을 주기
@@ -218,32 +218,30 @@ def testNewEnvironment() {
 }
 
 def switchTraffic() {
-    // nginx 설정 디렉토리 확인
-    sh 'mkdir -p nginx/conf.d'
-    
-    // 전환 전 현재 설정 백업 (롤백용)
+    // 무중단 배포를 위한 upstream 설정 교체 방식
+    // 기존 upstream 파일을 백업 (롤백용)
     sh """
-    docker exec ${NGINX_CONTAINER} cat /etc/nginx/conf.d/upstream.conf > nginx/conf.d/upstream_backup.conf || true
+    docker exec ${NGINX_CONTAINER} cp /etc/nginx/conf.d/upstream.conf /etc/nginx/conf.d/upstream.conf.backup || true
     """
     
-    // 새로운 임시 파일 생성 및 적용
+    // 새 환경의 upstream 파일 복사
     sh """
-    # 설정 파일 생성
-    echo "upstream backend { server ${APP_NAME}-${env.DEPLOY_ENV}-backend:${env.DEPLOY_PORT_BACKEND}; }" > nginx/conf.d/upstream_temp.conf
+    # 새 upstream 설정 파일 생성
+    echo "upstream backend { server ${APP_NAME}-${env.DEPLOY_ENV}-backend:${env.DEPLOY_PORT_BACKEND}; }" > nginx/conf.d/upstream.conf
     
-    # 임시 파일을 컨테이너에 복사
-    docker cp nginx/conf.d/upstream_temp.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/upstream_temp.conf
+    # 새 upstream 파일을 별도 위치에 복사
+    docker cp nginx/conf.d/upstream.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/upstream.conf.new
     
-    # 컨테이너 내에서 파일 이름 변경 (atomic operation)
-    docker exec ${NGINX_CONTAINER} sh -c 'mv /etc/nginx/conf.d/upstream_temp.conf /etc/nginx/conf.d/upstream.conf'
+    # 컨테이너 내에서 심볼릭 링크로 교체 (원자적 작업)
+    docker exec ${NGINX_CONTAINER} sh -c '(ln -sf /etc/nginx/conf.d/upstream.conf.new /etc/nginx/conf.d/upstream.conf.temp && mv -f /etc/nginx/conf.d/upstream.conf.temp /etc/nginx/conf.d/upstream.conf) || true'
     """
 
     // Nginx에 마운트된 볼륨을 변경하기 위해 재시작
     sh """
-    docker-compose -f docker-compose.yml -f docker-compose.${env.DEPLOY_ENV}.yml up -d nginx --env-file /dev/null
+    docker-compose -f docker-compose.yml -f docker-compose.${env.DEPLOY_ENV}.yml up -d nginx
     """
 
-    // Nginx 설정 리로드
+    // Nginx 설정 리로드 (무중단)
     sh "docker exec ${NGINX_CONTAINER} nginx -s reload"
 
     echo "트래픽이 ${env.DEPLOY_ENV} 환경으로 전환되었습니다."
@@ -269,21 +267,21 @@ def rollbackToIdleEnvironment() {
         // nginx 디렉토리 확인 및 생성
         sh 'mkdir -p nginx/conf.d'
         
-        // 새 설정 파일 생성 및 적용
+        // 백업 파일이 있으면 복원, 없으면 새로 생성
         sh """
-        # 설정 파일 생성
-        echo "upstream backend { server ${APP_NAME}-${env.IDLE_ENV}-backend:${env.IDLE_ENV == 'blue' ? BLUE_PORT_BACKEND : GREEN_PORT_BACKEND}; }" > nginx/conf.d/upstream_temp.conf
+        # 롤백을 위한 upstream 설정 생성
+        echo "upstream backend { server ${APP_NAME}-${env.IDLE_ENV}-backend:${env.IDLE_ENV == 'blue' ? BLUE_PORT_BACKEND : GREEN_PORT_BACKEND}; }" > nginx/conf.d/upstream.conf
         
-        # 임시 파일을 컨테이너에 복사
-        docker cp nginx/conf.d/upstream_temp.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/upstream_temp.conf
+        # 새 upstream 파일을 별도 위치에 복사
+        docker cp nginx/conf.d/upstream.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/upstream.conf.rollback
         
-        # 컨테이너 내에서 파일 이름 변경 (atomic operation)
-        docker exec ${NGINX_CONTAINER} sh -c 'mv /etc/nginx/conf.d/upstream_temp.conf /etc/nginx/conf.d/upstream.conf'
+        # 컨테이너 내에서 심볼릭 링크로 교체 (원자적 작업)
+        docker exec ${NGINX_CONTAINER} sh -c '(ln -sf /etc/nginx/conf.d/upstream.conf.rollback /etc/nginx/conf.d/upstream.conf.temp && mv -f /etc/nginx/conf.d/upstream.conf.temp /etc/nginx/conf.d/upstream.conf) || true'
         """
-
+        
         // Nginx에 마운트된 볼륨을 원래대로 되돌리기 위해 재시작
         sh """
-        docker-compose -f docker-compose.yml -f docker-compose.${env.IDLE_ENV}.yml up -d nginx --env-file /dev/null
+        docker-compose -f docker-compose.yml -f docker-compose.${env.IDLE_ENV}.yml up -d nginx
         """
         
         // Nginx 설정 리로드
