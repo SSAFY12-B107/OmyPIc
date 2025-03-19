@@ -3,7 +3,7 @@ pipeline {
     stages {
         stage('Git Clone') {
             steps {
-                git branch : 'master', cerdentialsId :'gitlab-user-pwd', url: 'https://lab.ssafy.com/s12-ai-speech-sub1/S12P21B107.git'
+                git branch : 'dev', cerdentialsId :'gitlab-user-pwd', url: 'https://lab.ssafy.com/s12-ai-speech-sub1/S12P21B107.git'
             }
             post {
                 failure {
