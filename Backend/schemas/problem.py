@@ -30,7 +30,6 @@ class ProblemDetailContentResponse(BaseModel):
     """문제 응답 스키마(개별 조회 시, 문제 내용)"""
     id: str = Field(..., alias="_id")
     content: str
-    audio_s3_url: Optional[str] = None
 
 # 문제 세부 조회 응답 모델
 class ProblemDetailScriptResponse(BaseModel):

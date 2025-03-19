@@ -1,76 +1,61 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Path, Body
+from fastapi.responses import HTMLResponse, FileResponse
 from typing import Any, List, Dict, Optional, Union
 from bson import ObjectId
-from pymongo.database import Database
+from motor.motor_asyncio import AsyncIOMotorDatabase as Database
 
 from db.mongodb import get_mongodb
 from schemas.problem import ProblemResponse, ProblemDetailResponse, BasicQuestionResponse, ScriptUpdateRequest, ScriptResponse
 
+from gtts import gTTS
+import os
+import base64
+
 router = APIRouter()
 
-@router.get("/", response_model=Dict[str, Union[List[str], List[ProblemResponse]]], status_code=status.HTTP_200_OK)
-async def get_problems_by_topics(
+@router.get("/{category}", response_model=List[ProblemResponse], status_code=status.HTTP_200_OK)
+async def get_problems_by_category(
+    category: str = Path(..., description="검색할 카테고리"),
     skip: int = Query(0, description="건너뛸 문서 수"),
-    limit: int = Query(10, description="각 토픽당 가져올 문서 수", ge=1, le=100),
+    limit: int = Query(10, description="가져올 문서 수", ge=1, le=100),
     db: Database = Depends(get_mongodb)
-) -> Dict[str, List[Dict[str, Any]]]:
+) -> List[Dict[str, Any]]:
     """
-    문제를 그룹별로 조회합니다
-    - topic_group이 빈출/고난도인 경우: 해당 그룹으로 분류
-    - topic_group이 null인 경우: problem_category 분류
-    - skip: 건너뛸 문서 수
-    - limit: 각 토픽당 가져올 최대 문서 수
+    특정 카테고리에 해당하는 문제들을 조회합니다.
+    
+    - "고난도" 카테고리일 경우: topic_category가 국가설명, 산업/회사, 기술인 문제들 조회
+    - "빈출" 카테고리일 경우: topic_category가 모임/축하, 예약/약속, 날씨, 재활용, 친구/가족, 은행, 패션인 문제들 조회
+    - 그 외 카테고리: 해당 topic_category 값을 가진 문제들 조회
     """
-    # 결과 저장할 딕셔너리
-    result = {}
-
-    # 3. topic_group이 null인 문제를 problem_category별로 조회
-    categories = [
-        "주거", "해외여행", "여행", "음악감상", "술집/바에 가기", "영화보기", 
-        "국내여행", "식당/카페 가기", "공연/콘서트보기", "집에서 보내는 휴가", 
-        "걷기", "쇼핑하기", "하이킹, 트레킹", "해변 가기", "공원 가기", 
-        "캠핑하기", "차 드라이브 하기", "요리하기", "헬스", 
-        "혼자 노래 부르거나 합창하기", "자전거"
-    ]
-
-    result["카테고리"] = categories
     
-    # 1. topic_group이 '빈출'인 문제 조회
-    cursor_frequent = db.problems.find({"topic_group": "빈출"}).skip(skip).limit(limit)
-    frequent_problems = await cursor_frequent.to_list(length=limit)
+    # 검색 조건 설정
+    filter_condition = {}
     
-    # ObjectId를 문자열로 변환
-    for problem in frequent_problems:
-        problem["_id"] = str(problem["_id"])
-    
-    result["빈출"] = frequent_problems
-    
-    # 2. topic_group이 '고난도'인 문제 조회
-    cursor_difficult = db.problems.find({"topic_group": "고난도"}).skip(skip).limit(limit)
-    difficult_problems = await cursor_difficult.to_list(length=limit)
-    
-    # ObjectId를 문자열로 변환
-    for problem in difficult_problems:
-        problem["_id"] = str(problem["_id"])
-    
-    result["고난도"] = difficult_problems
-    
-    
-    for category in categories:
-        cursor = db.problems.find({
+    if category == "고난도":
+        # 고난도 카테고리에 해당하는 topic_category 값들
+        filter_condition = {
+            "topic_category": {"$in": ["국가설명", "산업/회사", "기술"]}
+        }
+    elif category == "빈출":
+        # 빈출 카테고리에 해당하는 topic_category 값들
+        filter_condition = {
+            "topic_category": {"$in": ["모임/축하", "예약/약속", "날씨", "재활용", "친구/가족", "은행", "패션"]}
+        }
+    else:
+        # 그 외 일반 카테고리일 경우 해당 topic_category 값을 직접 검색
+        filter_condition = {
             "topic_category": category
-        }).skip(skip).limit(limit)
-        
-        problems = await cursor.to_list(length=limit)
-        
-        # ObjectId를 문자열로 변환
-        for problem in problems:
-            problem["_id"] = str(problem["_id"])
-        
-        # 결과에 추가
-        result[category] = problems
+        }
     
-    return result
+    # 데이터베이스 쿼리 실행
+    cursor = db.problems.find(filter_condition).skip(skip).limit(limit)
+    problems = await cursor.to_list(length=limit)
+    
+    # ObjectId를 문자열로 변환
+    for problem in problems:
+        problem["_id"] = str(problem["_id"])
+    
+    return problems
 
 
 @router.get("/{problem_id}", response_model=ProblemDetailResponse, status_code=status.HTTP_200_OK)
@@ -299,16 +284,191 @@ async def delete_script(
         )
 
 
-@router.post("/scripts/{script_pk}/listen", response_model="", status_code=status.HTTP_201_CREATED)
+@router.post("/scripts/{script_pk}/audio", status_code=status.HTTP_200_OK)
 async def listen_script(
-    script_pk: str = Path(..., description="조회할 문제 ID"),
+    script_pk: str = Path(..., description="조회할 스크립트 ID"),
     db: Database = Depends(get_mongodb)
-) -> Any:
+) -> Dict[str, Any]:
     """
-    스크립트 발음 듣기
-    """
-    pass
+    스크립트 발음을 TTS로 변환하여 Base64 인코딩된 오디오 데이터 반환
 
+    Args:
+        script_pk (str): MongoDB에서 조회할 스크립트의 고유 ID
+        db (Database): MongoDB 데이터베이스 연결 세션
+
+    Returns:
+        Dict[str, Any]: 다음 키를 포함하는 딕셔너리
+        - audio_base64 (str): Base64로 인코딩된 MP3 오디오 데이터
+        - audio_type (str): 오디오 파일 유형 (mp3)
+        - file_size_bytes (int): 오디오 파일의 바이트 크기
+        - file_size_kb (float): 오디오 파일의 킬로바이트 크기
+
+    Raises:
+        HTTPException: 
+            - 404: 스크립트를 찾을 수 없는 경우
+            - 400: 스크립트 내용이 없는 경우
+            - 500: 오디오 생성 중 예상치 못한 오류 발생 시
+    """
+    try:
+        # MongoDB에서 스크립트 조회
+        script = await db.scripts.find_one({"_id": ObjectId(script_pk)})
+        
+        if not script:
+            raise HTTPException(status_code=404, detail="Script not found")
+        
+        # 스크립트 내용 추출
+        script_content = script.get('content', '')
+        
+        if not script_content:
+            raise HTTPException(status_code=400, detail="No content available for TTS")
+        
+        # 임시 오디오 파일 생성
+        tts = gTTS(text=script_content, lang='en')
+        temp_audio_path = f"./temp_script_audio_{script_pk}.mp3"
+        tts.save(temp_audio_path)
+        
+        # 파일 크기 계산
+        file_size = os.path.getsize(temp_audio_path)
+        
+        # 파일을 Base64로 인코딩
+        with open(temp_audio_path, 'rb') as audio_file:
+            encoded_audio = base64.b64encode(audio_file.read()).decode('utf-8')
+        
+        # 임시 파일 삭제
+        os.remove(temp_audio_path)
+        
+        return {
+            "audio_base64": encoded_audio,
+            "audio_type": "mp3",
+            "file_size_bytes": file_size,
+            "file_size_kb": round(file_size / 1024, 2)
+        }
+    
+    except Exception as e:
+        # 오류 처리
+        raise HTTPException(status_code=500, detail=f"Error generating script audio: {str(e)}")
+
+
+# 테스트용 라우터
+@router.get("/scripts/{script_pk}/preview/play")
+async def play_script_preview(
+    script_pk: str = Path(..., description="스크립트 ID"),
+    db: Database = Depends(get_mongodb)
+) -> HTMLResponse:
+    """
+    브라우저에서 직접 스크립트 프리뷰 오디오를 재생할 수 있는 HTML 페이지 반환
+
+    Args:
+        script_pk (str): 스크립트 ID
+        db (Database): MongoDB 데이터베이스 연결 세션
+
+    Returns:
+        HTMLResponse: 오디오 재생 HTML 페이지
+    """
+    try:
+        # MongoDB에서 스크립트 조회
+        script = await db.scripts.find_one({"_id": ObjectId(script_pk)})
+        
+        if not script:
+            raise HTTPException(status_code=404, detail="Script not found")
+        
+        script_content = script.get('content', '')
+        
+        if not script_content:
+            raise HTTPException(status_code=400, detail="No content available for TTS")
+        
+        # 임시 오디오 파일 생성
+        tts = gTTS(text=script_content, lang='en')
+        temp_audio_path = f"./temp_script_preview_{script_pk}.mp3"
+        tts.save(temp_audio_path)
+        
+        # HTML 페이지 생성
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Script Preview Audio Playback</title>
+            <style>
+                body {{ 
+                    display: flex; 
+                    justify-content: center; 
+                    align-items: center; 
+                    height: 100vh; 
+                    margin: 0; 
+                    font-family: Arial, sans-serif; 
+                }}
+                .container {{ 
+                    text-align: center; 
+                    padding: 20px; 
+                    border: 1px solid #ddd; 
+                    border-radius: 10px; 
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Script Preview Audio Playback</h1>
+                <audio controls autoplay style="width: 300px;">
+                    <source src="./download" type="audio/mp3">
+                    Your browser does not support the audio element.
+                </audio>
+                <p>스크립트 내용: {script_content}</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return HTMLResponse(content=html_content)
+    
+    except Exception as e:
+        # 오류 처리
+        raise HTTPException(status_code=500, detail=f"Error generating script preview audio: {str(e)}")
+
+# 테스트용 라우터
+@router.get("/scripts/{script_pk}/preview/download")
+async def download_script_preview(
+    script_pk: str = Path(..., description="스크립트 ID"),
+    db: Database = Depends(get_mongodb)
+) -> FileResponse:
+    """
+    스크립트 프리뷰 오디오 파일 다운로드
+
+    Args:
+        script_pk (str): 스크립트 ID
+        db (Database): MongoDB 데이터베이스 연결 세션
+
+    Returns:
+        FileResponse: 오디오 파일 다운로드
+    """
+    try:
+        # MongoDB에서 스크립트 조회
+        script = await db.scripts.find_one({"_id": ObjectId(script_pk)})
+        
+        if not script:
+            raise HTTPException(status_code=404, detail="Script not found")
+        
+        script_content = script.get('content', '')
+        
+        if not script_content:
+            raise HTTPException(status_code=400, detail="No content available for TTS")
+        
+        # 임시 오디오 파일 생성
+        tts = gTTS(text=script_content, lang='en')
+        temp_audio_path = f"./temp_script_preview_{script_pk}.mp3"
+        tts.save(temp_audio_path)
+        
+        # 파일 다운로드 응답
+        return FileResponse(
+            path=temp_audio_path, 
+            media_type="audio/mp3", 
+            filename=f"script_preview_{script_pk}.mp3"
+        )
+    
+    except Exception as e:
+        # 오류 처리
+        raise HTTPException(status_code=500, detail=f"Error generating script preview audio: {str(e)}")
+
+# 2차 배포 시 기능 추가
 @router.post("/scripts/{script_pk}/record", response_model="", status_code=status.HTTP_201_CREATED)
 async def practice_script(
     script_pk: str = Path(..., description="조회할 문제 ID"),
