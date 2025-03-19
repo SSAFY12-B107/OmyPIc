@@ -50,10 +50,10 @@ pipeline {
                 script {
                     withCredentials([usernamePassword(
                         credentialsId: 'dockerhub-credentials',
-                        usernameVariable: "DOCKER_USERNAME",
-                        passwordVariable: "DOCKER_PASSWORD"
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
                     )]) {
-                        sh "echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin"
+                        sh 'echo "$DOCKER_PASSWORD" | docker login -u $DOCKER_USERNAME --password-stdin'
                     }
                 }
             }
@@ -169,28 +169,25 @@ def determineEnvironment() {
 def deployNewEnvironment() {
     // 기존 컨테이너 제거 (있는 경우)
     sh """
-    docker stop ${APP_NAME}-${env.DEPLOY_ENV}-backend ${APP_NAME}-${env.DEPLOY_ENV}-frontend || true
-    docker rm ${APP_NAME}-${env.DEPLOY_ENV}-backend ${APP_NAME}-${env.DEPLOY_ENV}-frontend || true
+    docker-compose -f docker-compose.${env.DEPLOY_ENV}.yml down || true
     """
 
     // 새 버전 배포 (레지스트리에서 이미지 가져와 사용)
     sh """
-    # 필요하면 이미지 풀
+    # 이미지 풀
     docker pull ${DOCKER_REGISTRY}/${APP_NAME}-backend:${GIT_COMMIT_SHORT}
     docker pull ${DOCKER_REGISTRY}/${APP_NAME}-frontend:${GIT_COMMIT_SHORT}
     
-    # 백엔드 컨테이너 실행
-    docker run -d --name ${APP_NAME}-${env.DEPLOY_ENV}-backend \\
-        -p ${env.DEPLOY_PORT_BACKEND}:8000 \\
-        --network ${NETWORK_NAME} \\
-        ${DOCKER_REGISTRY}/${APP_NAME}-backend:${GIT_COMMIT_SHORT}
-    
-    # 프론트엔드 컨테이너 실행
-    docker run -d --name ${APP_NAME}-${env.DEPLOY_ENV}-frontend \\
-        -p ${env.DEPLOY_PORT_FRONTEND}:80 \\
-        --network ${NETWORK_NAME} \\
-        ${DOCKER_REGISTRY}/${APP_NAME}-frontend:${GIT_COMMIT_SHORT}
+    # 환경 변수 설정 및 Docker Compose로 배포
+    export IMAGE_TAG=${GIT_COMMIT_SHORT}
+    export FRONTEND_IMAGE=${FRONTEND_IMAGE}
+    export BACKEND_IMAGE=${BACKEND_IMAGE}
+    docker-compose -f docker-compose.yml -f docker-compose.${env.DEPLOY_ENV}.yml up -d
     """
+    
+    // 프론트엔드 빌드 파일이 볼륨에 복사될 시간을 주기
+    echo "프론트엔드 빌드 파일 복사를 위해 10초 대기..."
+    sleep 10
     
     echo "새 환경(${env.DEPLOY_ENV}) 배포 완료 - 이미지 버전: ${GIT_COMMIT_SHORT}"
 }
@@ -204,9 +201,11 @@ def testNewEnvironment() {
     sh """
     # 백엔드 헬스체크
     curl -f http://localhost:${env.DEPLOY_PORT_BACKEND}/api/health || exit 1
-
+    """
+    
+    sh """
     # 프론트엔드 헬스체크
-    curl -f http://localhost:${env.DEPLOY_PORT_FRONTEND} || exit 1
+    docker exec ${APP_NAME}-${env.DEPLOY_ENV}-frontend ls -la /usr/share/nginx/html/ | grep -q "index.html" || exit 1
     """
     
     echo "새 환경(${env.DEPLOY_ENV}) 테스트 완료"
@@ -218,6 +217,15 @@ def switchTraffic() {
     
     // Nginx 업스트림 파일 교체
     sh "docker cp nginx/conf.d/upstream_${env.DEPLOY_ENV}.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/upstream.conf"
+
+    // Nginx에 마운트된 볼륨을 변경하기 위해 재시작
+    sh """
+    export IMAGE_TAG=${GIT_COMMIT_SHORT}
+    export DEPLOY_ENV=${env.DEPLOY_ENV}
+    export FRONTEND_IMAGE=${FRONTEND_IMAGE}
+    export BACKEND_IMAGE=${BACKEND_IMAGE}
+    docker-compose -f docker-compose.yml -f docker-compose.${env.DEPLOY_ENV}.yml up -d nginx
+    """
 
     // Nginx 설정 리로드
     sh "docker exec ${NGINX_CONTAINER} nginx -s reload"
@@ -252,6 +260,12 @@ def rollbackToIdleEnvironment() {
             // 백업 파일이 없으면 이전 환경의 설정 파일 사용
             sh "docker cp nginx/conf.d/upstream_${env.IDLE_ENV}.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/upstream.conf"
         }
+
+        // Nginx에 마운트된 볼륨을 원래대로 되돌리기 위해 재시작
+        sh """
+        export DEPLOY_ENV=${env.IDLE_ENV}
+        docker-compose -f docker-compose.yml -f docker-compose.${env.IDLE_ENV}.yml up -d nginx
+        """
         
         // Nginx 설정 리로드
         sh "docker exec ${NGINX_CONTAINER} nginx -s reload || true"
