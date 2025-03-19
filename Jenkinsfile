@@ -42,6 +42,15 @@ pipeline {
                         url: env.GIT_REPO
                     ]]
                 ])
+                
+                // 작업에 필요한 디렉토리 생성
+                sh 'mkdir -p nginx/conf.d'
+                
+                // 기본 upstream 설정 파일 준비
+                sh """
+                echo "upstream backend { server ${APP_NAME}-blue-backend:${BLUE_PORT_BACKEND}; }" > nginx/conf.d/upstream_blue.conf
+                echo "upstream backend { server ${APP_NAME}-green-backend:${GREEN_PORT_BACKEND}; }" > nginx/conf.d/upstream_green.conf
+                """
             }
         }
 
@@ -169,19 +178,20 @@ def determineEnvironment() {
 def deployNewEnvironment() {
     // 기존 컨테이너 제거 (있는 경우)
     sh """
-    docker-compose -f docker-compose.${env.DEPLOY_ENV}.yml down || true
+    docker-compose -f docker-compose.yml -f docker-compose.${env.DEPLOY_ENV}.yml down || true
     """
 
     // 새 버전 배포 (레지스트리에서 이미지 가져와 사용)
     sh """
     # 이미지 풀
-    docker pull ${DOCKER_REGISTRY}/${APP_NAME}-backend:${GIT_COMMIT_SHORT}
-    docker pull ${DOCKER_REGISTRY}/${APP_NAME}-frontend:${GIT_COMMIT_SHORT}
+    docker pull ${DOCKER_REGISTRY}/${APP_NAME}-backend:latest
+    docker pull ${DOCKER_REGISTRY}/${APP_NAME}-frontend:latest
     
     # 환경 변수 설정 및 Docker Compose로 배포
-    export IMAGE_TAG=${GIT_COMMIT_SHORT}
+    export IMAGE_TAG=latest
     export FRONTEND_IMAGE=${FRONTEND_IMAGE}
     export BACKEND_IMAGE=${BACKEND_IMAGE}
+    export DEPLOY_ENV=${env.DEPLOY_ENV}
     docker-compose -f docker-compose.yml -f docker-compose.${env.DEPLOY_ENV}.yml up -d
     """
     
@@ -189,7 +199,7 @@ def deployNewEnvironment() {
     echo "프론트엔드 빌드 파일 복사를 위해 10초 대기..."
     sleep 10
     
-    echo "새 환경(${env.DEPLOY_ENV}) 배포 완료 - 이미지 버전: ${GIT_COMMIT_SHORT}"
+    echo "새 환경(${env.DEPLOY_ENV}) 배포 완료 - 이미지 버전: latest (커밋: ${GIT_COMMIT_SHORT})"
 }
 
 def testNewEnvironment() {
@@ -200,27 +210,38 @@ def testNewEnvironment() {
     // 백엔드 및 프론트엔드 상태 확인
     sh """
     # 백엔드 헬스체크
-    curl -f http://localhost:${env.DEPLOY_PORT_BACKEND}/api/health || exit 1
+    curl -f http://localhost:${env.DEPLOY_PORT_BACKEND}/api/health || { echo "백엔드 헬스체크 실패"; exit 1; }
     """
     
     sh """
     # 프론트엔드 헬스체크
-    docker exec ${APP_NAME}-${env.DEPLOY_ENV}-frontend ls -la /usr/share/nginx/html/ | grep -q "index.html" || exit 1
+    docker exec ${APP_NAME}-${env.DEPLOY_ENV}-frontend ls -la /usr/share/nginx/html/ | grep -q "index.html" || { echo "프론트엔드 헬스체크 실패"; exit 1; }
     """
     
     echo "새 환경(${env.DEPLOY_ENV}) 테스트 완료"
 }
 
 def switchTraffic() {
+    // nginx 설정 디렉토리 확인
+    sh 'mkdir -p nginx/conf.d'
+    
     // 전환 전 현재 설정 백업 (롤백용)
     sh "docker cp ${NGINX_CONTAINER}:/etc/nginx/conf.d/upstream.conf nginx/conf.d/upstream_backup.conf || true"
     
     // Nginx 업스트림 파일 교체
-    sh "docker cp nginx/conf.d/upstream_${env.DEPLOY_ENV}.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/upstream.conf"
+    sh """
+    # 설정 파일이 없으면 생성
+    if [ ! -f nginx/conf.d/upstream_${env.DEPLOY_ENV}.conf ]; then
+        echo "upstream backend { server ${APP_NAME}-${env.DEPLOY_ENV}-backend:${env.DEPLOY_PORT_BACKEND}; }" > nginx/conf.d/upstream_${env.DEPLOY_ENV}.conf
+    fi
+    
+    # 설정 파일 복사
+    docker cp nginx/conf.d/upstream_${env.DEPLOY_ENV}.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/upstream.conf
+    """
 
     // Nginx에 마운트된 볼륨을 변경하기 위해 재시작
     sh """
-    export IMAGE_TAG=${GIT_COMMIT_SHORT}
+    export IMAGE_TAG=latest
     export DEPLOY_ENV=${env.DEPLOY_ENV}
     export FRONTEND_IMAGE=${FRONTEND_IMAGE}
     export BACKEND_IMAGE=${BACKEND_IMAGE}
@@ -228,7 +249,7 @@ def switchTraffic() {
     """
 
     // Nginx 설정 리로드
-    sh "docker exec ${NGINX_CONTAINER} nginx -s reload"
+    sh "docker exec ${NGINX_CONTAINER} nginx -s reload || true"
 
     echo "트래픽이 ${env.DEPLOY_ENV} 환경으로 전환되었습니다."
 }
@@ -236,7 +257,7 @@ def switchTraffic() {
 def logDeploymentInfo() {
     def deploymentTime = new Date().format("yyyy-MM-dd HH:mm:ss")
     echo "배포 완료 시간: ${deploymentTime}"
-    echo "배포된 버전: ${GIT_COMMIT_SHORT}"
+    echo "배포된 버전: latest (커밋: ${GIT_COMMIT_SHORT})"
 }
 
 def cleanupIdleEnvironment() {
@@ -250,6 +271,9 @@ def cleanupIdleEnvironment() {
 
 def rollbackToIdleEnvironment() {
     if (env.IDLE_ENV) {
+        // nginx 디렉토리 확인 및 생성
+        sh 'mkdir -p nginx/conf.d'
+        
         // 백업 파일 확인
         def backupExists = fileExists('nginx/conf.d/upstream_backup.conf')
         
@@ -257,13 +281,19 @@ def rollbackToIdleEnvironment() {
             // 백업 파일이 있으면 이를 사용해 롤백
             sh "docker cp nginx/conf.d/upstream_backup.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/upstream.conf"
         } else {
-            // 백업 파일이 없으면 이전 환경의 설정 파일 사용
-            sh "docker cp nginx/conf.d/upstream_${env.IDLE_ENV}.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/upstream.conf"
+            // 백업 파일이 없으면 이전 환경의 설정 파일 생성 후 사용
+            sh """
+            echo "upstream backend { server ${APP_NAME}-${env.IDLE_ENV}-backend:${env.IDLE_ENV == 'blue' ? BLUE_PORT_BACKEND : GREEN_PORT_BACKEND}; }" > nginx/conf.d/upstream_${env.IDLE_ENV}.conf
+            docker cp nginx/conf.d/upstream_${env.IDLE_ENV}.conf ${NGINX_CONTAINER}:/etc/nginx/conf.d/upstream.conf
+            """
         }
 
         // Nginx에 마운트된 볼륨을 원래대로 되돌리기 위해 재시작
         sh """
+        export IMAGE_TAG=latest
         export DEPLOY_ENV=${env.IDLE_ENV}
+        export FRONTEND_IMAGE=${FRONTEND_IMAGE}
+        export BACKEND_IMAGE=${BACKEND_IMAGE}
         docker-compose -f docker-compose.yml -f docker-compose.${env.IDLE_ENV}.yml up -d nginx
         """
         
