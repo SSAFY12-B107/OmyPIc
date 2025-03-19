@@ -35,10 +35,10 @@ class Settings(BaseSettings):
             return v
         return []
     
-    # 카카오 OAuth 설정
-    KAKAO_CLIENT_ID: str = os.getenv("KAKAO_CLIENT_ID", "YOUR_KAKAO_CLIENT_ID")
-    KAKAO_CLIENT_SECRET: str = os.getenv("KAKAO_CLIENT_SECRET", "YOUR_KAKAO_CLIENT_SECRET")
-    KAKAO_REDIRECT_URI: str = os.getenv("KAKAO_REDIRECT_URI", "http://localhost:8000/api/auth/kakao/callback")
+    # spdlqj OAuth 설정
+    NAVER_CLIENT_ID: str = os.getenv("NAVER_CLIENT_ID", "NAVER_CLIENT_ID")
+    NAVER_CLIENT_SECRET: str = os.getenv("NAVER_CLIENT_SECRET", "NAVER_CLIENT_SECRET")
+    NAVER_REDIRECT_URI: str = os.getenv("NAVER_REDIRECT_URI", "http://localhost:8000/api/auth/naver/callback")
     
     # Google OAuth 설정 (추후 구현을 위한 설정)
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "YOUR_GOOGLE_CLIENT_ID")

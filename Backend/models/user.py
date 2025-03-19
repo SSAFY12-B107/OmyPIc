@@ -1,12 +1,13 @@
-# models/user.py (또는 다른 파일 위치)
+# Backend/models/user.py
 from datetime import datetime, date
 from typing import List, Dict, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from bson import ObjectId
 
 class User(BaseModel):
     id: Optional[str] = Field(default=None, alias="_id")  # MongoDB의 _id를 문자열로 표현
     name: str
+    email: Optional[str] = None  # 이메일 필드 추가
     auth_provider: str = "google"
     current_opic_score: Optional[str] = None
     target_opic_score: Optional[str] = None
