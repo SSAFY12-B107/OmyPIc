@@ -8,23 +8,25 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from bson import ObjectId
 import json
 from core.config import settings  # 설정 모듈 가져오기
+from api.deps import get_next_groq_key, get_next_gemini_key  # API 키 순환 함수 가져오기
 
-# LLM 선택 및 설정
-# 환경 변수 대신 settings에서 API 키 가져오기
-# 모델 설정 (원하는 모델 선택)
-# Groq의 Llama 모델 (더 빠른 응답)
-llama_llm = ChatGroq(
-    model="llama-3.3-70b-versatile", 
-    temperature=0.3,
-    api_key=settings.GROQ_API_KEY  # 직접 API 키 전달
-)
 
-# 또는 Google의 Gemini 모델
-# gemini_llm = ChatGoogleGenerativeAI(
-#     model="gemini-pro", 
-#     temperature=0.3,
-#     api_key=settings.GOOGLE_API_KEY
-# )
+# 대신 함수로 LLM을 초기화하는 함수 구현
+def get_llama_llm():
+    """Llama 모델 인스턴스를 반환하는 함수"""
+    return ChatGroq(
+        model="llama-3.3-70b-versatile", 
+        temperature=0.3,
+        api_key=get_next_groq_key()  # 순환 API 키 사용
+    )
+
+def get_gemini_llm():
+    """Gemini 모델 인스턴스를 반환하는 함수"""
+    return ChatGoogleGenerativeAI(
+        model="gemini-pro", 
+        temperature=0.3,
+        api_key=get_next_gemini_key()  # 순환 API 키 사용
+    )
 
 
 # 오픽 레벨 정의
@@ -298,6 +300,9 @@ async def evaluate_problem_response(
         # JSON 파서 생성
         parser = EvaluationResponseParser()
         
+        # 매번 새로운 LLM 인스턴스 생성 (API 키 순환)
+        llama_llm = get_llama_llm()
+
         # 최신 API 방식으로 체인 구성
         chain = prompt | llama_llm | parser
         
@@ -417,6 +422,9 @@ async def evaluate_overall_test(
         # JSON 파서 생성
         parser = OverallEvaluationResponseParser()
         
+        # 매번 새로운 LLM 인스턴스 생성 (API 키 순환)
+        llama_llm = get_llama_llm()
+
         # 최신 API 방식으로 체인 구성
         chain = prompt | llama_llm | parser
         

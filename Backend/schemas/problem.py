@@ -47,6 +47,7 @@ class ProblemDetailResponse(BaseModel):
 
 # 스크립트 기본 질문 응답 모델
 class BasicQuestionResponse(BaseModel):
+    content: str
     questions: List[str]
 
 

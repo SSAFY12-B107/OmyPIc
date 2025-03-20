@@ -1,24 +1,13 @@
 # Backend/api/deps.py
 from fastapi import Depends, HTTPException, status, Cookie
 from fastapi.security import OAuth2PasswordBearer
-from typing import Dict, Any, Optional
-from services.auth import get_current_user, get_current_user_id
+from typing import Dict, Any
+from services import auth as auth_service
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+# OAuth2 스키마 설정
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
-async def get_optional_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[Dict[str, Any]]:
-    """
-    현재 인증된 사용자 정보 가져오기 (선택적)
-    """
-    if not token:
-        return None
-        
-    try:
-        return await get_current_user(token)
-    except HTTPException:
-        return None
-
-async def get_required_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
     """
     현재 인증된 사용자 정보 가져오기 (필수)
     """
@@ -41,5 +30,4 @@ async def get_current_user_id_from_token(token: str = Depends(oauth2_scheme)) ->
             detail="인증이 필요합니다",
             headers={"WWW-Authenticate": "Bearer"},
         )
-        
-    return await get_current_user_id(token)
+    return user

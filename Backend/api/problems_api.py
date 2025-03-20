@@ -76,40 +76,82 @@ async def get_problem_detail(
     """
     # 1. 문제 정보 조회
     try:
-        problem = await db.problems.find_one({"_id": ObjectId(problem_id)})
+        # ObjectId로 변환 시도
+        try:
+            object_id = ObjectId(problem_id)
+        except:
+            # 유효하지 않은 ObjectId인 경우 오류 처리
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"유효하지 않은 문제 ID 형식입니다: {problem_id}"
+            )
+            
+        problem = await db.problems.find_one({"_id": object_id})
         if not problem:
+            # 디버깅을 위해 로그 추가
+            print(f"문제를 찾을 수 없음: {problem_id}")
+            
+            # 데이터베이스에 존재하는 문제 ID 확인 (디버깅용)
+            sample_problems = await db.problems.find().limit(3).to_list(length=3)
+            sample_ids = [str(p.get("_id")) for p in sample_problems]
+            print(f"데이터베이스에 존재하는 일부 문제 ID: {sample_ids}")
+            
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"ID가 {problem_id}인 문제를 찾을 수 없습니다."
             )
         
         # ObjectId를 문자열로 변환
-        problem["_id"] = str(problem["_id"])
+        problem_str_id = str(problem["_id"])
+        problem["_id"] = problem_str_id
         
-        # 2. 스크립트 쿼리 구성
-        scripts_query = {"problem_id": problem_id}
+        # 2. 실제 데이터베이스에 저장된 스크립트 조회하기 위한 준비
+        
+        # 스크립트 쿼리 구성 - 실제 데이터 형식에 맞게 수정
+        # 스크립트 예시에 따르면 problem_id 필드에 "string" 값이 들어있으므로 
+        # 현재는 이를 기준으로 조회합니다. 추후 실제 problem_id가 저장되도록 수정해야 합니다.
+        scripts_query = {}  # 모든 스크립트를 불러오는 것으로 시작
         
         # 특정 사용자의 스크립트만 조회하는 경우
         if user_id:
             scripts_query["user_id"] = user_id
         
-        # 3. 사용자 스크립트 조회 (is_script=true)
+        # 3. 사용자 스크립트 및 오답노트 조회 전 전체 스크립트를 불러와서 디버깅
+        all_scripts_cursor = db.scripts.find().limit(10)
+        all_scripts = await all_scripts_cursor.to_list(length=10)
+        
+        print(f"데이터베이스에서 찾은 스크립트 예시: {all_scripts}")
+        
+        # problem_id 필드가 있는지 확인하고 어떤 값이 있는지 확인
+        problem_id_values = set()
+        for script in all_scripts:
+            if "problem_id" in script:
+                problem_id_values.add(script["problem_id"])
+        
+        print(f"스크립트에서 발견된 problem_id 값들: {problem_id_values}")
+        
+        # 4. 사용자 스크립트 조회 (is_script=true)
         user_scripts_cursor = db.scripts.find({**scripts_query, "is_script": True}).sort("created_at", -1)
         user_scripts = await user_scripts_cursor.to_list(length=100)  # 최대 100개 조회
         
-        # ObjectId를 문자열로 변환
-        for script in user_scripts:
-            script["_id"] = str(script["_id"])
-        
-        # 4. 모의고사 오답노트 조회 (is_script=false)
+        # 5. 모의고사 오답노트 조회 (is_script=false)
         test_notes_cursor = db.scripts.find({**scripts_query, "is_script": False}).sort("created_at", -1)
         test_notes = await test_notes_cursor.to_list(length=100)  # 최대 100개 조회
         
         # ObjectId를 문자열로 변환
-        for note in test_notes:
-            note["_id"] = str(note["_id"])
+        for script in user_scripts:
+            if "_id" in script:
+                script["_id"] = str(script["_id"])
         
-        # 5. 결과 반환
+        for note in test_notes:
+            if "_id" in note:
+                note["_id"] = str(note["_id"])
+        
+        # 디버깅용 로그
+        print(f"조회된 스크립트 수: {len(user_scripts)}")
+        print(f"조회된 오답노트 수: {len(test_notes)}")
+        
+        # 6. 결과 반환
         return {
             "problem": problem,
             "user_scripts": user_scripts,
@@ -117,6 +159,11 @@ async def get_problem_detail(
         }
         
     except Exception as e:
+        # 상세한 오류 메시지 표시
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"오류 상세 정보: {error_details}")
+        
         # 유효하지 않은 ObjectId 형식 등의 오류 처리
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -167,6 +214,7 @@ async def get_basic_questions(
         
         # 4. 결과 반환
         return {
+            "content": problem.get('content',[]),
             "questions": question_doc.get("content", [])
         }
         
