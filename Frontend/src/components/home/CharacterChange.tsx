@@ -1,5 +1,5 @@
 import styles from './CharacterChange.module.css'
-import opigi from '../../assets/images/opigi.png'
+import opigi from '@/assets/images/opigi.png'
 
 type Props = {}
 

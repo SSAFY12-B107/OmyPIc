@@ -1,8 +1,8 @@
 // FeedBack.tsx
 import { useState } from "react";
 import styles from "./Feedback.module.css";
-import DetailFeedBack from "../../components/test/DetailFeedback";
-import OveralFeedBack from "../../components/test/OveralFeedback";
+import DetailFeedBack from "@/components/test/DetailFeedback";
+import OveralFeedBack from "@/components/test/OveralFeedback";
 
 interface TestFeedbackProps {
   totalSteps?: number;

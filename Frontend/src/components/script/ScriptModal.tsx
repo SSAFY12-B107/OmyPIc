@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import styles from "./ScriptModal.module.css";
-import opigi from "../../assets/images/opigi.png";
+import opigi from "@/assets/images/opigi.png";
 
 interface Props {
   isGenerating: boolean; // 스크립트 생성 중인지 여부

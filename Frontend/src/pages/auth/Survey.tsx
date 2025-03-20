@@ -1,6 +1,6 @@
 import styles from "./Survey.module.css";
-import Tip from "../../components/survey/Tip";
-import GeneralSurvey from '../../components/survey/GeneralSurvey';
+import Tip from "@/components/survey/Tip";
+import GeneralSurvey from '@/components/survey/GeneralSurvey';
 
 const Survey = () => {
     return (

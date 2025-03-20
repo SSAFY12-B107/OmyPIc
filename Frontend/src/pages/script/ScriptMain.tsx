@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import styles from "./ScriptMain.module.css";
-import opigi from "../../assets/images/opigi.png";
-import Navbar from "../../components/common/Navbar";
+import opigi from "@/assets/images/opigi.png";
+import Navbar from "@/components/common/Navbar";
 
 function ScriptMain() {
   return (

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import styles from "./Profile.module.css";
-import NavigationButton from "../../components/common/NavigationButton";
+import NavigationButton from "@/components/common/NavigationButton";
 import { useNavigate } from "react-router-dom";
 
 function ProfilePage() {

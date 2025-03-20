@@ -2,10 +2,10 @@ import { useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useInView } from "react-intersection-observer";
 import styles from "./ScriptList.module.css";
-import opigi from "../../assets/images/opigi.png";
-import QuestionBox from "../../components/script/QuestionBox";
-import { useGetProblems } from "../../hooks/useProblems";
-import LoadingSpinner from "../../components/common/LoadingSpinner";
+import opigi from "@/assets/images/opigi.png";
+import QuestionBox from "@/components/script/QuestionBox";
+import { useGetProblems } from "@/hooks/useProblems";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 
 
 function ScriptList() {
