@@ -6,7 +6,8 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
-from core.config import settings
+
+from api.deps import get_next_groq_key, get_next_gemini_key
 
 # 로깅 설정
 logger = logging.getLogger(__name__)
@@ -134,23 +135,14 @@ OVERALL_EVALUATION_PROMPT_TEMPLATE = """
 class ResponseEvaluator:
     """OPIC 응답 평가 클래스"""
     
-    def __init__(self, api_key: Optional[str] = None, model_name: str = "llama-3.3-70b-versatile"):
+    def __init__(self, model_name: str = "llama-3.3-70b-versatile"):
         """
         평가기 초기화
         
         Args:
-            api_key: API 키 (None이면 settings에서 가져옴)
             model_name: 사용할 LLM 모델 이름
         """
-        self.api_key = api_key or settings.GROQ_API_KEYS
         self.model_name = model_name
-        
-        # LLM 모델 초기화
-        self.llm = ChatGroq(
-            model=model_name,
-            temperature=0.3,
-            api_key=self.api_key
-        )
         
         # 프롬프트 템플릿 및 파서 초기화
         self.evaluation_prompt = PromptTemplate(
@@ -172,6 +164,19 @@ class ResponseEvaluator:
         # JSON 파서
         self.evaluation_parser = JsonOutputParser()
         self.overall_parser = JsonOutputParser()
+    
+    def _get_llm(self):
+        """
+        API 키 순환을 적용한 LLM 인스턴스 반환
+        """
+        # 매 호출마다 새로운 API 키 사용
+        api_key = get_next_groq_key()
+        
+        return ChatGroq(
+            model=self.model_name,
+            temperature=0.3,
+            api_key=api_key
+        )
     
     async def evaluate_response(
         self, 
@@ -207,8 +212,11 @@ class ResponseEvaluator:
                     }
                 }
             
+            # API 키 순환을 적용한 LLM 인스턴스 생성
+            llm = self._get_llm()
+            
             # 최신 API 방식으로 체인 구성
-            chain = self.evaluation_prompt | self.llm | self.evaluation_parser
+            chain = self.evaluation_prompt | llm | self.evaluation_parser
             
             # 체인 실행
             result = await chain.ainvoke({
@@ -314,8 +322,11 @@ class ResponseEvaluator:
             
             total_score = self._calculate_average_level(all_scores) if all_scores else "N/A"
             
+            # API 키 순환을 적용한 LLM 인스턴스 생성
+            llm = self._get_llm()
+            
             # 종합 평가 체인 구성 및 실행
-            chain = self.overall_prompt | self.llm | self.overall_parser
+            chain = self.overall_prompt | llm | self.overall_parser
             
             result = await chain.ainvoke({
                 "problem_responses": problem_responses_text,
