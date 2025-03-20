@@ -1,0 +1,26 @@
+/* Survey.module.css */
+.surveyContainer {
+    max-width: 768px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+  
+  .header {
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+  
+  .title {
+    font-size: 14px;
+    font-weight: bold;
+    color: #565656;
+    margin-bottom: 0.5rem;
+  }
+  
+  .content {
+    margin-bottom: 2rem;
+  }
+  
+  .choice {
+    margin-bottom: 3rem;
+  }

@@ -1,0 +1,25 @@
+.script-detail-container {
+  margin: 0 2rem;
+}
+
+.category {
+  display: inline-block;
+  margin: 1.5rem 0;
+  padding: 0.3rem 1rem 0.4rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #8A63D2;
+  border-radius: 1.5rem;
+  background-color: #E5D8FF;
+}
+
+.create-btn {
+  width: calc(100% - 2rem);
+  margin: 1rem;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #fff;
+  background-color: #9466E9;
+}
