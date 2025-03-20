@@ -100,6 +100,7 @@ class TestCreationProblemDetail(BaseModel):
     problem_category: Optional[str] = None
     topic_category: Optional[str] = None
     problem: Optional[str] = None
+    audio_s3_url: Optional[str] = None
     processing_status: Optional[str] = "pending"
     processing_message: Optional[str] = "문제가 생성되었습니다."
 
