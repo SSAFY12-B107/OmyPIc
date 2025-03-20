@@ -1,33 +1,24 @@
 import styles from "./DetailFeedBack.module.css";
+import { ProblemData } from "../../hooks/useFeedBack";
 
 interface DetailFeedBackProps {
-  question?: string;
-  answer?: string;
-  feedback?: string;
-  expectedGrade?: string;
-  evaluations?: {
-    paragraphStructure: boolean;
-    vocabulary: boolean;
-    fluency: boolean;
-  };
+  data: ProblemData | null;
 }
 
-function DetailFeedBack({
-  question = "Tell me about your home.",
-  answer = "I live in apartment.",
-  feedback = "여행에 대한 기본 정보는 제공했으나, 더 구체적인 경험을 묘사해주세요.",
-  expectedGrade = "IH",
-  evaluations = {
-    paragraphStructure: true,
-    vocabulary: false,
-    fluency: false,
-  }
-}: DetailFeedBackProps) {
+function DetailFeedBack({ data }: DetailFeedBackProps) {
+  // 피드백 데이터에서 값 추출
+  const question = data.problem || "문제 정보가 없습니다.";
+  const answer = data.user_response || "답변이 기록되지 않았습니다.";
+  const score = data.score || "평가 대기중";
+
+  // 피드백이 없는 경우를 위한 기본값 설정
+  const paragraph = data.feedback?.paragraph || "피드백이 아직 제공되지 않았습니다.";
+  const vocabulary = data.feedback?.vocabulary || "피드백이 아직 제공되지 않았습니다.";
+  const spokenAmount = data.feedback?.spoken_amount || "피드백이 아직 제공되지 않았습니다.";
   
-  
+
   return (
     <div className={styles.container}>
-
       <div className={styles.gradeCard}>
         <div className={styles.iconWrapper}>
           <div className={styles.circleIcon}>
@@ -35,7 +26,7 @@ function DetailFeedBack({
           </div>
           <span className={styles.gradeTitle}>예상등급</span>
         </div>
-        <div className={styles.gradeBadge}>{expectedGrade}</div>
+        <div className={styles.gradeBadge}>{}</div>
       </div>
 
       <div className={styles.feedbackCard}>
@@ -69,20 +60,22 @@ function DetailFeedBack({
           </div>
           <span className={styles.sectionTitle}>피드백</span>
         </div>
-
-        <div className={styles.evaluationTags}>
-          <div className={`${styles.tag} ${evaluations.paragraphStructure ? styles.activeTag : ''}`}>
-            문단구성
+        <div className={styles.feedbackDetails}>
+          <div className={styles.feedbackItem}>
+            <h4>문단 구성</h4>
+            <p className={styles.feedbackText}>{paragraph}</p>
           </div>
-            <div className={`${styles.tag} ${evaluations.vocabulary ? styles.activeTag : ''}`}>
-              어휘력
-            </div>
-            <div className={`${styles.tag} ${evaluations.fluency ? styles.activeTag : ''}`}>
-              발화량
-            </div>
+          
+          <div className={styles.feedbackItem}>
+            <h4>어휘력</h4>
+            <p className={styles.feedbackText}>{vocabulary}</p>
+          </div>
+          
+          <div className={styles.feedbackItem}>
+            <h4>발화량</h4>
+            <p className={styles.feedbackText}>{spokenAmount}</p>
+          </div>
         </div>
-
-        <p className={styles.feedbackText}>{feedback}</p>
       </div>
     </div>
   );
