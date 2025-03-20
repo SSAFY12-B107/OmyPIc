@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+from typing import List, Optional, Any
 from pydantic import field_validator, Field
 from pydantic_settings import BaseSettings
 
@@ -25,16 +25,8 @@ class Settings(BaseSettings):
     MONGODB_DB_NAME: str = os.getenv("MONGODB_DB_NAME", "omypic_db")
     
     # CORS
-    CORS_ORIGINS: List[str] = []
-    
-    @field_validator("CORS_ORIGINS", mode="before")
-    def assemble_cors_origins(cls, v):
-        if isinstance(v, str):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, list):
-            return v
-        return []
-    
+    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:5173")
+
     # spdlqj OAuth 설정
     NAVER_CLIENT_ID: str = os.getenv("NAVER_CLIENT_ID", "NAVER_CLIENT_ID")
     NAVER_CLIENT_SECRET: str = os.getenv("NAVER_CLIENT_SECRET", "NAVER_CLIENT_SECRET")
@@ -51,12 +43,18 @@ class Settings(BaseSettings):
     AWS_REGION: str = Field(default="ap-northeast-2", env="AWS_REGION")  # 기본값: 서울 리전
     AWS_S3_BUCKET_NAME: str = Field(..., env="AWS_S3_BUCKET_NAME")
 
-    # 프론트엔드 URL
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
-
-    # AI API KEY
-    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "GOOGLE_API_KEY")
-    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "GROQ_API_KEY")
+    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:5173")
+    GEMINI_API_KEYS: str = os.getenv("GEMINI_API_KEYS")
+    GROQ_API_KEYS: str = os.getenv("GROQ_API_KEYS")
+    
+    def cors_origins(self) -> List[str]:
+        return [i.strip() for i in self.CORS_ORIGINS.split(",") if i.strip()]
+    
+    def gemini_api_keys(self) -> List[str]:
+        return [i.strip() for i in self.GEMINI_API_KEYS.split(",") if i.strip()]
+    
+    def groq_api_keys(self) -> List[str]:
+        return [i.strip() for i in self.GROQ_API_KEYS.split(",") if i.strip()]
 
     
     class Config:

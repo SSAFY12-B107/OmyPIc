@@ -142,7 +142,7 @@ class ResponseEvaluator:
             api_key: API 키 (None이면 settings에서 가져옴)
             model_name: 사용할 LLM 모델 이름
         """
-        self.api_key = api_key or settings.GROQ_API_KEY
+        self.api_key = api_key or settings.GROQ_API_KEYS
         self.model_name = model_name
         
         # LLM 모델 초기화
