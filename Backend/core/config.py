@@ -53,6 +53,11 @@ class Settings(BaseSettings):
 
     # 프론트엔드 URL
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+    # AI API KEY
+    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "GOOGLE_API_KEY")
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "GROQ_API_KEY")
+
     
     class Config:
         env_file = ".env"
