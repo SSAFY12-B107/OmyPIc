@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:5173")
 
-    # spdlqj OAuth 설정
+    # OAuth 설정
     NAVER_CLIENT_ID: str = os.getenv("NAVER_CLIENT_ID", "NAVER_CLIENT_ID")
     NAVER_CLIENT_SECRET: str = os.getenv("NAVER_CLIENT_SECRET", "NAVER_CLIENT_SECRET")
     NAVER_REDIRECT_URI: str = os.getenv("NAVER_REDIRECT_URI", "http://localhost:8000/api/auth/naver/callback")
@@ -43,19 +43,28 @@ class Settings(BaseSettings):
     AWS_REGION: str = Field(default="ap-northeast-2", env="AWS_REGION")  # 기본값: 서울 리전
     AWS_S3_BUCKET_NAME: str = Field(..., env="AWS_S3_BUCKET_NAME")
 
-    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:5173")
-    GEMINI_API_KEYS: str = os.getenv("GEMINI_API_KEYS")
-    GROQ_API_KEYS: str = os.getenv("GROQ_API_KEYS")
+    # AI API 키 설정
+    GEMINI_API_KEYS: str = os.getenv("GEMINI_API_KEYS", "")
+    GROQ_API_KEYS: str = os.getenv("GROQ_API_KEYS", "")
     
-    def cors_origins(self) -> List[str]:
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """CORS 허용 출처를 리스트로 반환합니다."""
         return [i.strip() for i in self.CORS_ORIGINS.split(",") if i.strip()]
     
-    def gemini_api_keys(self) -> List[str]:
+    @property
+    def gemini_api_keys_list(self) -> List[str]:
+        """Gemini API 키 목록을 리스트로 반환합니다."""
+        if not self.GEMINI_API_KEYS:
+            return []
         return [i.strip() for i in self.GEMINI_API_KEYS.split(",") if i.strip()]
     
-    def groq_api_keys(self) -> List[str]:
+    @property
+    def groq_api_keys_list(self) -> List[str]:
+        """Groq API 키 목록을 리스트로 반환합니다."""
+        if not self.GROQ_API_KEYS:
+            return []
         return [i.strip() for i in self.GROQ_API_KEYS.split(",") if i.strip()]
-
     
     class Config:
         env_file = ".env"

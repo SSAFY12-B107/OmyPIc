@@ -259,8 +259,11 @@ async def process_audio_background(
                 }
             }
         else:
-            # 7. LangChain 평가 모델 호출
-            evaluation_result = await evaluator.evaluate_response(
+            # 7. 매번 새로운 API 키로 평가기 생성
+            evaluator_instance = ResponseEvaluator()
+            
+            # LangChain 평가 모델 호출
+            evaluation_result = await evaluator_instance.evaluate_response(
                 user_response=transcribed_text,
                 problem_category=problem_category,
                 topic_category=topic_category,
@@ -329,69 +332,60 @@ async def process_audio_background(
 
 async def evaluate_overall_test_background(db: Database, test_id: str):
     """
-    백그라운드에서 전체 테스트 종합 평가 수행
+    백그라운드에서 전체 테스트 평가 수행
     
     Args:
         db: MongoDB 데이터베이스
         test_id: 테스트 ID
     """
     try:
-        # 1. 종합 평가 진행 중 상태 업데이트
+        # 상태 업데이트
         await db.tests.update_one(
             {"_id": ObjectId(test_id)},
             {"$set": {
                 "overall_feedback_status": "processing",
-                "overall_feedback_message": "전체 테스트 피드백 생성 중입니다."
+                "overall_feedback_message": "전체 평가 진행 중입니다."
             }}
         )
         
-        # 2. 업데이트된 테스트 정보 가져오기
-        updated_test = await db.tests.find_one({"_id": ObjectId(test_id)})
+        # 테스트 정보 조회
+        test = await db.tests.find_one({"_id": ObjectId(test_id)})
+        if not test:
+            logger.error(f"테스트 ID {test_id}에 해당하는 테스트를 찾을 수 없습니다.")
+            return
         
-        # 3. LangChain 종합 평가 모델 호출
-        overall_result = await evaluator.evaluate_overall_test(
-            test_data=updated_test,
-            problem_details=updated_test.get("problem_data", {})
-        )
+        # 평가기 생성 (API 키 순환 적용된 평가기)
+        evaluator = ResponseEvaluator()
         
-        # 4. 종합 점수 및 피드백 추출
-        test_score = overall_result.get("test_score", {})
-        test_feedback = overall_result.get("test_feedback", {})
+        # 종합 평가 수행
+        overall_evaluation = await evaluator.evaluate_overall_test(test, test.get("problem_data", {}))
         
-        # 5. 테스트 종합 평가 결과 업데이트
-        await db.tests.update_one(
-            {"_id": ObjectId(test_id)},
-            {
-                "$set": {
-                    "test_score": test_score,
-                    "test_feedback": test_feedback,
-                    "overall_feedback_status": "completed",
-                    "overall_feedback_message": "전체 테스트 평가가 완료되었습니다.",
-                    "overall_feedback_completed_at": datetime.now()
-                }
-            }
-        )
-        
-        logger.info(f"테스트 {test_id} 종합 평가 완료 - 총점: {test_score.get('total_score', 'N/A')}")
-        
-    except Exception as e:
-        logger.error(f"종합 평가 중 오류: {str(e)}", exc_info=True)
-        
-        # 오류 발생 시 상태 업데이트
+        # 평가 결과 업데이트
         await db.tests.update_one(
             {"_id": ObjectId(test_id)},
             {"$set": {
-                "overall_feedback_status": "failed",
-                "overall_feedback_message": f"전체 평가 중 오류가 발생했습니다: {str(e)}",
+                "test_score": overall_evaluation.get("test_score", {}),
+                "test_feedback": overall_evaluation.get("test_feedback", {}),
+                "overall_feedback_status": "completed",
+                "overall_feedback_message": "종합 평가가 완료되었습니다.",
                 "overall_feedback_completed_at": datetime.now()
             }}
         )
         
-        # 오류 로깅
-        await db.errors.insert_one({
-            "test_id": test_id,
-            "error": str(e),
-            "traceback": traceback.format_exc(),
-            "timestamp": datetime.now(),
-            "source": "evaluate_overall_test_background"
-        })
+        logger.info(f"테스트 ID {test_id}의 종합 평가 완료")
+        
+    except Exception as e:
+        logger.error(f"종합 평가 중 오류 발생: {str(e)}", exc_info=True)
+        
+        # 오류 발생 시 상태 업데이트
+        try:
+            await db.tests.update_one(
+                {"_id": ObjectId(test_id)},
+                {"$set": {
+                    "overall_feedback_status": "failed",
+                    "overall_feedback_message": f"종합 평가 중 오류가 발생했습니다: {str(e)}",
+                    "overall_feedback_completed_at": datetime.now()
+                }}
+            )
+        except Exception as inner_error:
+            logger.error(f"오류 상태 업데이트 중 추가 오류: {str(inner_error)}", exc_info=True)
