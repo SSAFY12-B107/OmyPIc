@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     # AWS S3 설정
     AWS_ACCESS_KEY_ID: str = Field(..., env="AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY: str = Field(..., env="AWS_SECRET_ACCESS_KEY")
-    AWS_REGION: str = Field(default="ap-northeast-2", env="AWS_REGION")  # 기본값: 서울 리전
+    AWS_REGION: str = Field(..., env="AWS_REGION")
     AWS_S3_BUCKET_NAME: str = Field(..., env="AWS_S3_BUCKET_NAME")
 
     CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:5173")
