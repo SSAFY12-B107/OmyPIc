@@ -35,9 +35,9 @@ async def get_mongodb():
     """MongoDB 데이터베이스 세션 의존성"""
     return mongo_db.db
 
-async def get_collection(collectonn_name: str):
+async def get_collection(collection_name: str):
     """
     MongoDB 컬렉션 가져오기
     """
     db = await get_mongodb()
-    return db[collectonn_name]
+    return db[collection_name]
