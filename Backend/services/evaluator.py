@@ -7,7 +7,7 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from api.deps import get_next_groq_key, get_next_gemini_key
+# from api.deps import get_next_groq_key, get_next_gemini_key
 
 # 로깅 설정
 logger = logging.getLogger(__name__)
