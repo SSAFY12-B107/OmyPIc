@@ -1,0 +1,43 @@
+
+.feedbackCard {
+    width: 32rem;
+    min-height: 37rem;
+    background-color: white;
+    border-radius: 10px;
+    padding: 1.6rem;
+    box-shadow: 1px 1px 6px rgba(0, 0, 0, 0.07);
+  }
+  
+  .feedbackHeader {
+    display: flex;
+    align-items: center;
+    gap: 1.3rem;
+    margin-bottom: 26px;
+  }
+  
+  .iconCircle {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    background-color: #EFE6FF;
+    opacity: 0.5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .personIcon {
+    color: #5E5E5E;
+  }
+  
+  .feedbackTitle {
+    color: #565656;
+    font-size: 1.6rem;
+    font-weight: 700;
+  }
+  
+  .feedbackContent {
+    color: #565656;
+    font-size: 1.4rem;
+    padding: 0 0.4rem;
+  }
