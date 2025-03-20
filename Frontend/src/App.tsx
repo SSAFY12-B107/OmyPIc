@@ -12,6 +12,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 // import ScriptDetail from "./pages/script/ScriptDetail";
 // import ScriptWrite from "./pages/script/ScriptWrite";
 
+
 function App() {
   return (
     <BrowserRouter>

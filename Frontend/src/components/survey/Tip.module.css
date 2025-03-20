@@ -1,0 +1,87 @@
+.tipContainer {
+  background-color: #ffffff;
+  border-radius: 1rem;
+  position: relative;
+  margin: 0 1rem 2rem;
+  padding: 1.5rem 1rem;
+  box-shadow: 0.1rem 0.1rem 0.6rem 0px rgba(0, 0, 0, 0.07);
+  overflow: hidden;
+  height: auto;
+}
+
+.tipHeader {
+  display: flex;
+  align-items: center;
+}
+
+.tipLabel {
+  background-color: #c09eff;
+  border-radius: 1rem;
+  height: 2.2rem;
+  width: 3.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.8rem;
+}
+
+.tipLabel span {
+  color: #ffffff;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.015rem;
+  line-height: 2.1rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.starIcon {
+  display: flex;
+  align-items: center;
+  margin-left: -0.5rem;
+}
+
+.starIcon svg {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
+.tipContent {
+  margin-top: 0.8rem;
+}
+
+.tipText {
+  color: #565656;
+  font-size: 1.4rem;
+  font-weight: 400;
+  letter-spacing: -0.015rem;
+  line-height: 2.1rem;
+  margin: 0;
+  padding-left: 0;
+  text-align: center;
+}
+
+.tipText strong {
+  font-weight: 700;
+}
+
+.characterContainer {
+  position: absolute;
+  bottom: -1.5rem;
+  left: 1rem;
+  width: 6.5rem;
+  height: 6.5rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1;
+}
+
+.character {
+  position: absolute;
+  bottom: 0px;
+  left: -1rem;
+  width: 7rem;
+  height: auto;
+  transform: translate(-20%, 10%) rotate(20deg);
+}
