@@ -24,16 +24,19 @@ import apiClient from "../api/apiClient";
 //   });
 // };
 
-export interface AudioResponse  {
+
+// 문제 음성 (다시듣기 기능)
+export interface ProblemAudio  {
+  problem_pk : number,
+  audioUrl : string
   // 응답 데이터에 따라 설정(MP3 파일 받아오기)
 }
 
 // 문제 듣기 버튼
-// 최대 2번 듣기로 설정 필요 
 export const useTestListen = () => {
-  return useMutation<AudioResponse , Error, number>({
+  return useMutation<ProblemAudio , Error, number>({
     mutationFn: async (problem_pk: number) => {
-      const { data } = await apiClient.post<AudioResponse>(
+      const { data } = await apiClient.post<ProblemAudio>(
         `/tests/${problem_pk}/audio`
       );
       return data

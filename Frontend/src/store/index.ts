@@ -12,9 +12,6 @@ export interface Test {
       problem_category: string;
       topic_category: string;
       problem: string;
-      user_response: string | null;
-      score: number | null;
-      feedback: string | null;
     };
   };
 }
