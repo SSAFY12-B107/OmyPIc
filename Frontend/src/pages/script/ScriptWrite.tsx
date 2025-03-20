@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import QuestionBox from "../../components/script/QuestionBox";
 import styles from "./ScriptWrite.module.css";
 import opigi from "../../assets/images/opigi.png";
@@ -12,17 +12,24 @@ import {
   useGenerateCustomQuestions,
 } from "../../hooks/useScripts";
 
-type Props = {
-  problemId: string;
-  category: string;
-};
+// 답변용 인터페이스 정의
+interface AnswersType {
+  [key: number]: string;
+}
 
-function ScriptWrite({ problemId, category }: Props) {
+function ScriptWrite() {
+  const { category, problemId } = useParams()
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [showModal, setShowModal] = useState(false);
   const [questions, setQuestions] = useState<string[]>([]);
-  const [answers, setAnswers] = useState<string[]>(["", "", ""]);
+  const [content, setContent] = useState<string>("");
+  // 객체 형태로 answers 상태 변경
+  const [answers, setAnswers] = useState<AnswersType>({
+    1: '', 
+    2: '', 
+    3: ''
+  });
   const [scriptContent, setScriptContent] = useState<string>("");
   const [isCustomQuestions, setIsCustomQuestions] = useState<boolean>(false);
   const totalSteps = 3;
@@ -32,27 +39,30 @@ function ScriptWrite({ problemId, category }: Props) {
 
   // API 훅 사용
   const { data: basicQuestionsData, isLoading: isQuestionsLoading } =
-    useGetBasicQuestions(problemId);
+    useGetBasicQuestions(problemId || '');
 
   const createScriptMutation = useCreateScript();
   const generateCustomQuestionsMutation = useGenerateCustomQuestions();
 
-  // 기본 질문 데이터 로딩 시 상태 업데이트
+  // 기본 질문 데이터 로딩 시 상태 업데이트 - content, questions 모두 반영
   useEffect(() => {
-    if (
-      basicQuestionsData?.questions &&
-      basicQuestionsData.questions.length > 0
-    ) {
-      setQuestions(basicQuestionsData.questions);
+    if (basicQuestionsData) {
+      if (basicQuestionsData.content) {
+        setContent(basicQuestionsData.content.toString());
+      }
+      if (basicQuestionsData.questions && basicQuestionsData.questions.length > 0) {
+        setQuestions(basicQuestionsData.questions);
+      }
     }
   }, [basicQuestionsData]);
 
   // 사용자 답변 저장 함수
   const handleAnswerChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const newAnswers = [...answers];
-      newAnswers[currentStep - 1] = e.target.value;
-      setAnswers(newAnswers);
+      setAnswers({
+        ...answers,
+        [currentStep]: e.target.value
+      });
     },
     [answers, currentStep]
   );
@@ -67,7 +77,7 @@ function ScriptWrite({ problemId, category }: Props) {
   // 다음 단계로 이동
   const handleNext = useCallback((): void => {
     // 현재 단계의 답변이 비어있는지 확인
-    if (!answers[currentStep - 1]?.trim()) {
+    if (!answers[currentStep]?.trim()) {
       alert("답변을 입력해주세요.");
       return;
     }
@@ -81,14 +91,24 @@ function ScriptWrite({ problemId, category }: Props) {
     }
   }, [currentStep, answers, totalSteps]);
 
-  // AI 꼬리 질문 생성 함수
+  // AI 꼬리 질문 생성 함수 - content 추가
   const generateCustomQuestions = useCallback(() => {
     setShowModal(false);
 
     generateCustomQuestionsMutation.mutate(problemId, {
       onSuccess: (data) => {
-        setQuestions(data.questions);
-        setAnswers(["", "", ""]);
+        if (data.content) {
+          setContent(data.content.toString());
+        }
+        if (data.questions) {
+          setQuestions(data.questions);
+        }
+        // 객체 형태로 초기화
+        setAnswers({
+          1: '',
+          2: '',
+          3: ''
+        });
         setCurrentStep(1);
         setIsCustomQuestions(true);
       },
@@ -105,39 +125,47 @@ function ScriptWrite({ problemId, category }: Props) {
   }, []);
 
   // 스크립트 생성 API 요청 함수
-const generateScript = useCallback(() => {
-  // 이미 커스텀 질문 모드라면 스크립트 생성 후 페이지 이동 (모달 없이)
-  if (isCustomQuestions) {
+  const generateScript = useCallback(() => {
+    // 객체를 배열로 변환하거나, API가 객체 형태를 지원하도록 수정
+    const answersArray = Object.values(answers);
+    
+    // 이미 커스텀 질문 모드라면 스크립트 생성 후 페이지 이동 (모달 없이)
+    if (isCustomQuestions) {
+      createScriptMutation.mutate({ 
+        problemId, 
+        answers: answersArray // 배열로 변환하여 전달
+      }, {
+        onSuccess: () => {
+          // 스크립트 생성 후 스크립트 상세 페이지로 바로 이동
+          navigate(detailPagePath);
+        },
+        onError: (error) => {
+          console.error("스크립트 생성 중 오류가 발생했습니다.", error);
+        }
+      });
+      return;
+    }
+
+    // 기본 질문 모드라면 모달 표시
+    setShowModal(true);
     createScriptMutation.mutate({ 
       problemId, 
-      answers 
+      answers: answersArray // 배열로 변환하여 전달
     }, {
-      onSuccess: () => {
-        // 스크립트 생성 후 스크립트 상세 페이지로 바로 이동
-        navigate(detailPagePath);
+      onSuccess: (data) => {
+        // content를 가정한 경우 (API 응답에 따라 다를 수 있음)
+        if (data.script) {
+          setScriptContent(data.script);
+        } else if (data.content) {
+          setScriptContent(data.content.toString());
+        }
       },
       onError: (error) => {
         console.error("스크립트 생성 중 오류가 발생했습니다.", error);
+        setShowModal(false);
       }
     });
-    return;
-  }
-
-  // 기본 질문 모드라면 모달 표시
-  setShowModal(true);
-  createScriptMutation.mutate({ 
-    problemId, 
-    answers 
-  }, {
-    onSuccess: (data) => {
-      setScriptContent(data.script);
-    },
-    onError: (error) => {
-      console.error("스크립트 생성 중 오류가 발생했습니다.", error);
-      setShowModal(false);
-    }
-  });
-}, [isCustomQuestions, problemId, answers, navigate, detailPagePath, createScriptMutation]);
+  }, [isCustomQuestions, problemId, answers, navigate, detailPagePath, createScriptMutation]);
 
   // 로딩 스피너 표시 조건
   if (
@@ -149,11 +177,9 @@ const generateScript = useCallback(() => {
 
   return (
     <div className={styles.scriptWriteContainer}>
-      {/* 공통 header */}
-
       {/* 질문 */}
-      {questions.length > 0 && (
-        <QuestionBox title="질문" content={questions[currentStep - 1]} />
+      {content  && (
+        <QuestionBox title="질문" content={content } />
       )}
 
       {/* 프로그래스 바 */}
@@ -183,7 +209,7 @@ const generateScript = useCallback(() => {
               <textarea
                 className={styles.chat}
                 placeholder="답변 입력하기"
-                value={answers[currentStep - 1] || ''}
+                value={answers[currentStep] || ''}
                 onChange={handleAnswerChange}
               ></textarea>
               <div className={styles.imgBox}>

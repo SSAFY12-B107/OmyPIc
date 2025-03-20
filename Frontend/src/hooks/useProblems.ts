@@ -1,9 +1,9 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import apiClient from "./apiClient";
+import apiClient from "../api/apiClient";
 
 // 문제 정보 인터페이스 정의
 export interface Problem {
-  id: string;
+  _id: string;
   topic_category: string;
   problem_category: string;
   content: string;
@@ -12,7 +12,7 @@ export interface Problem {
 // 문제 상세 정보 인터페이스 정의
 export interface ProblemDetail {
   problem: {
-    id: string;
+    _id: string;
     content: string;
   };
   user_scripts: any[]; // 필요에 따라 더 구체적인 타입 정의 가능
@@ -52,7 +52,7 @@ export const useGetProblemDetail = (problem_id: string) => {
   return useQuery<ProblemDetail>({
     queryKey: ["problem", problem_id],
     queryFn: async () => {
-      const response = await apiClient.get<ProblemDetail>(`/problems/${problem_id}`);
+      const response = await apiClient.get<ProblemDetail>(`/problems/detail/${problem_id}`);
       return response.data;
     }
   })

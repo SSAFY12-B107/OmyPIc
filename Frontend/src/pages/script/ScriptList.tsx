@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useInView } from "react-intersection-observer";
 import styles from "./ScriptList.module.css";
 import opigi from "../../assets/images/opigi.png";
@@ -7,11 +7,20 @@ import QuestionBox from "../../components/script/QuestionBox";
 import { useGetProblems } from "../../hooks/useProblems";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 
-type Props = {
-  category?: string; // 선택된 카테고리
-};
 
-function ScriptList({ category = "빈출 문제" }: Props) {
+function ScriptList() {
+  const { category } = useParams<string>();
+
+  // 받침 여부 확인 함수
+  const hasBatchim = (str: string): boolean => {
+    const lastChar = str[str.length - 1];
+    const code = lastChar.charCodeAt(0);
+    return (code - 44032) % 28 !== 0;  // 한글 음절의 유니코드 값에서 받침이 있는지 확인
+  };
+
+  // 받침 여부에 따라 "을" 또는 "를" 선택
+  const particle = category && hasBatchim(category) ? "을" : "를";
+
   // Intersection Observer 설정
   const { ref, inView } = useInView({
     // 요소의 20%만 보여도 감지 (기본값 0)
@@ -28,7 +37,7 @@ function ScriptList({ category = "빈출 문제" }: Props) {
     isFetchingNextPage, // 다음 페이지 로딩 중인지 여부
     isLoading,
     error,
-  } = useGetProblems(category);
+  } = useGetProblems(category || '');
 
   // 스크롤 감지 시 다음 페이지 로드
   useEffect(() => {
@@ -52,7 +61,7 @@ function ScriptList({ category = "빈출 문제" }: Props) {
       {/* 질문 선택 멘트 */}
       <div className={styles["selection-title"]}>
         <p>
-          <span>{category}</span>을 선택하셨네요!
+          <span>{category}</span>{particle} 선택하셨네요!
           <br />
           무슨 질문으로 대화를 나눌까요?
         </p>
@@ -77,8 +86,8 @@ function ScriptList({ category = "빈출 문제" }: Props) {
                   const shouldAttachRef = isLastPage && isLastItem;
 
                   return (
-                    <div key={problem.id} ref={shouldAttachRef ? ref : null}>
-                      <Link to={"scripts/${category}/${problemId}"}>
+                    <div key={problem._id} ref={shouldAttachRef ? ref : null}>
+                      <Link to={`/scripts/${category}/${problem._id}`}>
                         <QuestionBox
                           title={`Q${pageIndex * 10 + problemIndex + 1}`}
                           content={problem.content}
@@ -94,9 +103,9 @@ function ScriptList({ category = "빈출 문제" }: Props) {
             {isFetchingNextPage && <LoadingSpinner />}
 
             {/* 비어있는 요소 - 더 이상 불러올 데이터가 없을 때 */}
-            {/* {!hasNextPage && data?.pages[0]?.length > 0 && (
+            {!hasNextPage && data?.pages[0]?.length > 0 && (
               <div style={{ height: '10px' }}></div> // 간격 유지를 위한 빈 요소
-            )} */}
+            )}
           </>
         )}
       </div>

@@ -21,38 +21,34 @@ function ScriptDetail({}: Props) {
     error,
   } = useGetProblemDetail(problemId || "");
 
-  // 기존 조건부 렌더링에서 상태 변수로 변경
-  const hasError = !!error;
-  const hasNoData = !isLoading && !problemDetail;
+  // early return으로 상태 처리
+  if (isLoading) {
+    return (
+      <div className={styles["script-detail-container"]}>
+        {/* 공통 헤더 */}
+        <span className={styles["category"]}>{category}</span>
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
-    // early return으로 상태 처리
-    if (isLoading) {
-      return (
-        <div className={styles["script-detail-container"]}>
-          {/* 공통 헤더 */}
-          <span className={styles["category"]}>{category}</span>
-          <LoadingSpinner />
-        </div>
-      );
-    }
-  
-    if (error) {
-      return (
-        <div className={styles["script-detail-container"]}>
-          {/* 공통 헤더 */}
-          <div>문제 정보를 불러오는데 오류가 발생했습니다.</div>
-        </div>
-      );
-    }
-  
-    if (!problemDetail) {
-      return (
-        <div className={styles["script-detail-container"]}>
-          {/* 공통 헤더 */}
-          <div>문제 정보를 찾을 수 없습니다.</div>
-        </div>
-      );
-    }
+  if (error) {
+    return (
+      <div className={styles["script-detail-container"]}>
+        {/* 공통 헤더 */}
+        <div>문제 정보를 불러오는데 오류가 발생했습니다.</div>
+      </div>
+    );
+  }
+
+  if (!problemDetail) {
+    return (
+      <div className={styles["script-detail-container"]}>
+        {/* 공통 헤더 */}
+        <div>문제 정보를 찾을 수 없습니다.</div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles["script-detail-container"]}>
@@ -98,7 +94,6 @@ function ScriptDetail({}: Props) {
           )}
         </div>
       </div>
-
 
       <Link to={`/scripts/${category}/${problemId}/write`}>
         <button className={styles["create-btn"]}>스크립트 생성하기</button>

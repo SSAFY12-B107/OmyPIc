@@ -3,6 +3,7 @@ import apiClient from "../api/apiClient";
 
 // 기본 질문 응답 인터페이스 정의
 export interface QuestionsResponse {
+  content: String,
   questions: string[];
 }
 
@@ -22,7 +23,7 @@ export const useGetBasicQuestions = (problemId: string) => {
     queryKey: ["basic-questions", problemId],
     queryFn: async () => {
       const response = await apiClient.get<QuestionsResponse>(
-        `/problems/${problemId}/basic-questions`
+        `/problems/${problemId}/basic-question`
       );
       return response.data;
     },

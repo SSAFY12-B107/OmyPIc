@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import apiClient from "./apiClient";
+import apiClient from "../api/apiClient";
 
 // API 응답 타입 정의
 interface PronunciationAudioResponse {
@@ -14,7 +14,7 @@ export const usePronunciationAudio = (scriptId: number) => {
   return useQuery<PronunciationAudioResponse, Error>({
     queryKey: ['pronunciation-audio', scriptId],
     queryFn: async () => {
-      const response = await apiClient.get<PronunciationAudioResponse>(`/problems/scripts/${scriptId}/audio`);
+      const response = await apiClient.post<PronunciationAudioResponse>(`/problems/scripts/${scriptId}/audio`);
       return response.data;
     },
     enabled: !!scriptId, // scriptId가 존재할 때만 쿼리 활성화

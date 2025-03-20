@@ -3,9 +3,7 @@ import styles from "./ScriptMain.module.css";
 import opigi from "../../assets/images/opigi.png";
 import Navbar from "../../components/common/Navbar";
 
-type Props = {};
-
-function ScriptMain({}: Props) {
+function ScriptMain() {
   return (
     <div className={styles["script-main-container"]}>
       {/* 공통 헤더 */}
@@ -25,8 +23,8 @@ function ScriptMain({}: Props) {
         <div className={styles["category-section"]}>
           <span className={styles["category-title"]}>유형별</span>
           <div className={styles["category-list"]}>
-            {/* 빈출 문제 : 경로 수정 필요 */}
-            <Link to={"/scripts/${category}"}>
+            {/* 빈출 문제 */}
+            <Link to={`/scripts/${encodeURIComponent('빈출')}`}>
               <div className={styles["category-item"]}>
                 <div className={styles["icon-box"]}>
                   <svg
@@ -45,8 +43,8 @@ function ScriptMain({}: Props) {
                 <p>빈출 문제</p>
               </div>
             </Link>
-            {/* 고난도 : 경로 수정 필요 */}
-            <Link to={"/scripts/${category}"}>
+            {/* 고난도 문제 */}
+            <Link to={`/scripts/${encodeURIComponent('고난도')}`}>
               <div className={styles["category-item"]}>
                 <div className={styles["icon-box"]}>
                   <svg
@@ -75,7 +73,7 @@ function ScriptMain({}: Props) {
           <span className={styles["category-title"]}>주제별</span>
           <div className={styles["category-list"]}>
             {/* 경로 수정 필요 */}
-            <Link to={"/scripts/${category}"}>
+            <Link to={'/scripts/${encodeURIComponent(category)}'}>
               <div className={styles["category-item"]}>
                 <div className={styles["icon-box"]}>
                   <svg
