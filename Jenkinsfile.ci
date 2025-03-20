@@ -37,7 +37,7 @@ pipeline {
         stage('Build & Push Images') {
             parallel {
                 stage('Backend') {
-                    when { changeset "backend/**" }
+                    when { changeset "Backend/**" }
                     steps {
                         script {
                             buildAndPushImage("${BACKEND_IMAGE}", "./backend")
@@ -46,7 +46,7 @@ pipeline {
                 }
 
                 stage('Frontend') {
-                    when { changeset "frontend/**" }
+                    when { changeset "Frontend/**" }
                     steps {
                         script {
                             buildAndPushImage("${FRONTEND_IMAGE}", "./frontend")
