@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Path, status, Query, Response
+from fastapi import APIRouter, HTTPException, Depends, Path, status, Query, Response, UploadFile, File, BackgroundTasks, Body
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from typing import Any, Dict
 from bson import ObjectId, errors as bson_errors
@@ -9,13 +9,22 @@ from db.mongodb import get_mongodb
 
 import base64
 import os
-from gtts import gTTS
 import io
 from gtts import gTTS
-from services.s3_service import upload_audio_to_s3
+import logging
 
 from schemas.test import TestHistoryResponse, TestDetailResponse, TestCreationResponse
-from services.test_service import create_test
+from services.audio_processor import AudioProcessor
+from services.evaluator import ResponseEvaluator
+from services.test_service import create_test, process_audio_background
+from services.s3_service import upload_audio_to_s3
+
+# 로깅 설정
+logger = logging.getLogger(__name__)
+
+# 싱글톤 인스턴스 생성
+audio_processor = AudioProcessor(model_name="small")
+evaluator = ResponseEvaluator()
 
 router = APIRouter()
 
@@ -58,6 +67,7 @@ async def get_test_history(
 
         return response
     except Exception as e:
+        logger.error(f"테스트 히스토리 조회 중 오류 발생: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"테스트 히스토리 조회 중 오류 발생: {str(e)}"
@@ -106,6 +116,7 @@ async def get_test_detail(
             detail="잘못된 테스트 ID 형식입니다."
         )
     except Exception as e:
+        logger.error(f"테스트 상세 조회 중 오류 발생: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"테스트 상세 조회 중 오류 발생: {str(e)}"
@@ -158,10 +169,8 @@ async def make_test(
         # ObjectId 변환 오류
         raise HTTPException(status_code=400, detail=f"잘못된 ID 형식: {str(e)}")
     except Exception as e:
-        # 로깅 추가 가능
-        import traceback
-        print(f"오류 발생: {str(e)}")
-        print(traceback.format_exc())
+        # 로깅 추가
+        logger.error(f"테스트 생성 중 오류 발생: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"테스트 생성 중 오류 발생: {str(e)}")
 
 
@@ -226,7 +235,7 @@ async def get_problem_audio(
         }
     
     except Exception as e:
-        # 오류 처리
+        logger.error(f"오디오 생성 중 오류 발생: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating audio: {str(e)}")
 
 
@@ -271,7 +280,7 @@ async def download_problem_audio(
         )
     
     except Exception as e:
-        # 오류 처리
+        logger.error(f"오디오 다운로드 중 오류 발생: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating audio: {str(e)}")
 
 
@@ -347,15 +356,201 @@ async def play_problem_audio(
         return HTMLResponse(content=html_content)
     
     except Exception as e:
-        # 오류 처리
+        logger.error(f"오디오 재생 페이지 생성 중 오류 발생: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating audio: {str(e)}")
 
 
-@router.post("/{test_pk}/end")
-async def complete_test(
+@router.post("/{test_pk}/record/{problem_pk}")
+async def record_answer(
+    test_pk: str,
+    problem_pk: str,
+    audio_file: UploadFile = File(...),
+    is_last_problem: bool = Body(False),
+    background_tasks: BackgroundTasks = None,
     db: Database = Depends(get_mongodb)
 ) -> Any:
     """
-    시험 완료 - 마지막 문제 완료 또는 40분이 지났을 경우, 완료 처리
+    시험 보기 - 사용자의 녹음을 프론트에서 mp3로 넘겨주면, whisper가 텍스트로 변환.
+    변환한 텍스트를 langchain 모델이 평가해서 해당 test의 test에 대한 점수와 피드백을 저장한다.
+    
+    만약, 요청을 보낼 때, 마지막 문제인 경우, 프론트에서 body parameter로 마지막 문제임을 넘겨주면,
+    마지막 문제에 대한 평가를 한 이후에, 해당 test에 있는 모든 feedback을 종합하여 test에 대한 점수와 피드백을 저장한다.
+    
+    해당 로직은 front에서 다음 버튼을 누르면 다음 페이지로 바로 넘어가야 하기 때문에, 비동기 방식으로 작동하도록 한다.
     """
-    pass
+    try:
+        # ObjectId 유효성 검사
+        if not ObjectId.is_valid(test_pk) or not ObjectId.is_valid(problem_pk):
+            raise HTTPException(status_code=400, detail="유효하지 않은 ID 형식입니다.")
+        
+        # 테스트 존재 확인
+        test = await db.tests.find_one({"_id": ObjectId(test_pk)})
+        if not test:
+            raise HTTPException(status_code=404, detail="해당 테스트를 찾을 수 없습니다.")
+            
+        # 문제 존재 확인
+        problem = await db.problems.find_one({"_id": ObjectId(problem_pk)})
+        if not problem:
+            raise HTTPException(status_code=404, detail="해당 문제를 찾을 수 없습니다.")
+        
+        # 테스트에 해당 문제가 포함되어 있는지 확인 및 문제 번호 찾기
+        problem_number = None
+        problem_exists = False
+        for key, value in test.get("problem_data", {}).items():
+            if value.get("problem_id") == problem_pk:
+                problem_exists = True
+                problem_number = key
+                break
+                
+        if not problem_exists:
+            raise HTTPException(status_code=404, detail="해당 테스트에 이 문제가 포함되어 있지 않습니다.")
+        
+        # 상태 필드 초기화
+        await db.tests.update_one(
+            {"_id": ObjectId(test_pk)},
+            {"$set": {
+                f"problem_data.{problem_number}.processing_status": "processing",
+                f"problem_data.{problem_number}.processing_started_at": datetime.now()
+            }}
+        )
+        
+        if is_last_problem:
+            # 마지막 문제인 경우 전체 피드백 상태 초기화
+            await db.tests.update_one(
+                {"_id": ObjectId(test_pk)},
+                {"$set": {
+                    "overall_feedback_status": "pending",
+                    "overall_feedback_started_at": datetime.now()
+                }}
+            )
+        
+        # 파일 내용을 미리 읽어 메모리에 저장
+        audio_content = await audio_file.read()
+        audio_filename = audio_file.filename
+        
+        # 파일 유형 검사
+        file_extension = audio_filename.split(".")[-1].lower() if audio_filename else ""
+        if file_extension not in ["mp3", "wav", "webm", "m4a"]:
+            raise HTTPException(
+                status_code=400, 
+                detail="지원되지 않는 파일 형식입니다. MP3, WAV, WEBM, M4A 형식만 지원합니다."
+            )
+        
+        # 파일 크기 제한 (10MB)
+        max_size = 10 * 1024 * 1024  # 10MB
+        if len(audio_content) > max_size:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"파일 크기가 너무 큽니다. 최대 10MB까지만 지원합니다. (현재 크기: {len(audio_content)/1024/1024:.2f}MB)"
+            )
+        
+        # 백그라운드 태스크로 오디오 처리 및 평가 진행
+        background_tasks.add_task(
+            process_audio_background,
+            db,
+            test_pk,
+            problem_pk,
+            problem_number,
+            audio_content,
+            is_last_problem
+        )
+        
+        # 응답 생성
+        return JSONResponse(
+            status_code=202,
+            content={
+                "message": f"{problem_number}번째 문제의 녹음이 성공적으로 제출되었습니다. 평가가 진행 중입니다.",
+                "test_id": test_pk,
+                "problem_id": problem_pk,
+                "problem_number": problem_number,
+                "is_last_problem": is_last_problem
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"녹음 제출 중 오류 발생: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"오류가 발생했습니다: {str(e)}")
+
+
+# 모의고사 점수, 피드백 생성 비동기 처리를 위한 상태 확인 엔드포인트 - 개별 문제
+@router.get("/{test_pk}/status/{problem_pk}")
+async def check_problem_status(
+    test_pk: str,
+    problem_pk: str,
+    db: Database = Depends(get_mongodb)
+) -> Any:
+    """문제별 처리 상태 확인 엔드포인트"""
+    if not ObjectId.is_valid(test_pk) or not ObjectId.is_valid(problem_pk):
+        raise HTTPException(status_code=400, detail="유효하지 않은 ID 형식입니다.")
+    
+    # 테스트 조회
+    test = await db.tests.find_one({"_id": ObjectId(test_pk)})
+    if not test:
+        raise HTTPException(status_code=404, detail="해당 테스트를 찾을 수 없습니다.")
+    
+    # 문제 데이터 찾기
+    problem_data = None
+    for data in test.get("problem_data", {}).values():
+        if data.get("problem_id") == problem_pk:
+            problem_data = data
+            break
+    
+    if not problem_data:
+        raise HTTPException(status_code=404, detail="해당 문제를 찾을 수 없습니다.")
+    
+    # 상태 정보 추출
+    processing_status = problem_data.get("processing_status", "not_started")
+    processing_message = problem_data.get("processing_message", "아직 처리가 시작되지 않았습니다.")
+    
+    return {
+        "status": processing_status,
+        "message": processing_message,
+        "started_at": problem_data.get("processing_started_at"),
+        "completed_at": problem_data.get("processing_completed_at")
+    }
+
+
+# 모의고사 점수, 피드백 생성 비동기 처리를 위한 상태 확인 엔드포인트 - 전체 문제
+@router.get("/{test_pk}/overall-status")
+async def check_overall_test_status(
+    test_pk: str,
+    db: Database = Depends(get_mongodb)
+) -> Any:
+    """테스트 전체 상태 확인 엔드포인트"""
+    if not ObjectId.is_valid(test_pk):
+        raise HTTPException(status_code=400, detail="유효하지 않은 ID 형식입니다.")
+    
+    # 테스트 정보 조회
+    test = await db.tests.find_one({"_id": ObjectId(test_pk)})
+    if not test:
+        raise HTTPException(status_code=404, detail="해당 테스트를 찾을 수 없습니다.")
+    
+    # 전체 피드백 상태 확인
+    overall_status = test.get("overall_feedback_status", "not_started")
+    overall_message = test.get("overall_feedback_message", "")
+    
+    # 문제별 상태 수집
+    problem_statuses = []
+    for key, data in test.get("problem_data", {}).items():
+        problem_statuses.append({
+            "problem_id": data.get("problem_id"),
+            "status": data.get("processing_status", "not_started"),
+            "message": data.get("processing_message", "")
+        })
+    
+    # 모든 문제가 완료되었는지 확인
+    all_problems_completed = all(
+        status["status"] == "completed" 
+        for status in problem_statuses
+    )
+    
+    return {
+        "overall_status": overall_status,
+        "overall_message": overall_message,
+        "all_problems_completed": all_problems_completed,
+        "problem_statuses": problem_statuses,
+        "started_at": test.get("overall_feedback_started_at"),
+        "completed_at": test.get("overall_feedback_completed_at")
+    }

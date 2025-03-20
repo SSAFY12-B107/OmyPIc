@@ -42,6 +42,10 @@ class ProblemDetailResponse(BaseModel):
     user_response: Optional[str] = None
     score: Optional[str] = None
     feedback: Optional[ProblemDetailResponseFeedback] = None
+    processing_status: Optional[str] = None
+    processing_message: Optional[str] = None
+    processing_started_at: Optional[datetime] = None
+    processing_completed_at: Optional[datetime] = None
 
 class ScoreDetailResponse(BaseModel):
     """점수 상세 정보 응답 모델"""
@@ -66,6 +70,8 @@ class TestDetailResponse(BaseModel):
     test_score: Optional[ScoreDetailResponse] = None
     test_feedback: Optional[FeedbackDetailResponse] = None
     problem_data: Dict[str, ProblemDetailResponse] = {}
+    overall_feedback_status: Optional[str] = None
+    overall_feedback_message: Optional[str] = None
     
     model_config = {
         "populate_by_name": True,
@@ -94,6 +100,8 @@ class TestCreationProblemDetail(BaseModel):
     problem_category: Optional[str] = None
     topic_category: Optional[str] = None
     problem: Optional[str] = None
+    processing_status: Optional[str] = "pending"
+    processing_message: Optional[str] = "문제가 생성되었습니다."
 
 class TestCreationResponse(BaseModel):
     """테스트 생성 응답 모델"""
@@ -123,6 +131,8 @@ class ProblemDetailUpdate(BaseModel):
     user_response: Optional[str] = None
     score: Optional[str] = None
     feedback: Optional[ProblemDetailFeedbackUpdate] = None
+    processing_status: Optional[str] = None
+    processing_message: Optional[str] = None
 
 class ScoreDetailUpdate(BaseModel):
     """점수 상세 정보 업데이트 모델"""
@@ -143,3 +153,5 @@ class UpdateTestRequest(BaseModel):
     test_score: Optional[ScoreDetailUpdate] = None
     test_feedback: Optional[FeedbackDetailUpdate] = None
     problem_data: Optional[Dict[str, ProblemDetailUpdate]] = None
+    overall_feedback_status: Optional[str] = None
+    overall_feedback_message: Optional[str] = None
