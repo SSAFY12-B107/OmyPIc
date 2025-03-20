@@ -12,6 +12,7 @@ import ScriptList from "./pages/script/ScriptList";
 import ScriptDetail from "./pages/script/ScriptDetail";
 import ScriptWrite from "./pages/script/ScriptWrite";
 
+
 function App() {
   return (
     <BrowserRouter>
