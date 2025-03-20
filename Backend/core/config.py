@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     PROJECT_VERSION: str = "0.1.0"
     
     # SECURITY
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "default_secret_key_for_dev")  # 액세스 토큰용 시크릿 키
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "default_secret_key_for_dev")  # 액세스 토큰용 시크릿 키
     REFRESH_TOKEN_SECRET_KEY: str = os.getenv("REFRESH_TOKEN_SECRET_KEY", "default_refresh_key_for_dev")  # 리프레시 토큰용 시크릿 키
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15  # 액세스 토큰 만료 시간(분) - 짧게 설정
@@ -43,18 +43,12 @@ class Settings(BaseSettings):
     AWS_REGION: str = Field(default="ap-northeast-2", env="AWS_REGION")  # 기본값: 서울 리전
     AWS_S3_BUCKET_NAME: str = Field(..., env="AWS_S3_BUCKET_NAME")
 
-    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:5173")
-    GEMINI_API_KEYS: str = os.getenv("GEMINI_API_KEYS")
-    GROQ_API_KEYS: str = os.getenv("GROQ_API_KEYS")
-    
-    def cors_origins(self) -> List[str]:
-        return [i.strip() for i in self.CORS_ORIGINS.split(",") if i.strip()]
-    
-    def gemini_api_keys(self) -> List[str]:
-        return [i.strip() for i in self.GEMINI_API_KEYS.split(",") if i.strip()]
-    
-    def groq_api_keys(self) -> List[str]:
-        return [i.strip() for i in self.GROQ_API_KEYS.split(",") if i.strip()]
+    # 프론트엔드 URL
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+    # AI API KEY
+    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "GOOGLE_API_KEY")
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "GROQ_API_KEY")
 
     
     class Config:

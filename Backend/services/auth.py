@@ -1,155 +1,82 @@
 # Backend/services/auth.py
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from typing import Dict, Optional, Any
 import jwt
+from datetime import datetime, timedelta
 from fastapi import HTTPException, status
 from core.config import settings
-from db.mongodb import get_mongodb
-from bson import ObjectId
+from core.jwt_utils import decode_jwt
 
-async def create_tokens(data: Dict[str, Any]) -> Dict[str, str]:
+
+async def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     """
-    액세스 토큰과 리프레시 토큰 생성
+    액세스 토큰 생성
     """
-    # 사용자 ID를 문자열로 변환
-    if "user_id" in data and isinstance(data["user_id"], ObjectId):
-        data["user_id"] = str(data["user_id"])
+    to_encode = data.copy()
     
-    # 액세스 토큰 생성
-    access_token_expires = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token_data = {
-        **data,
-        "exp": access_token_expires.timestamp()
-    }
-    access_token = jwt.encode(
-        access_token_data, 
-        settings.SECRET_KEY, 
+    # 만료 시간 설정
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    to_encode.update({"exp": expire})
+    
+    # JWT 토큰 생성
+    encoded_jwt = jwt.encode(
+        to_encode, 
+        settings.JWT_SECRET_KEY, 
         algorithm=settings.JWT_ALGORITHM
     )
     
-    # 리프레시 토큰 생성
-    refresh_token_expires = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    refresh_token_data = {
-        **data,
-        "exp": refresh_token_expires.timestamp()
-    }
-    refresh_token = jwt.encode(
-        refresh_token_data, 
-        settings.REFRESH_TOKEN_SECRET_KEY, 
+    return encoded_jwt
+
+async def create_refresh_token(data: Dict[str, Any]) -> str:
+    """
+    리프레시 토큰 생성
+    """
+    to_encode = data.copy()
+    
+    # 만료 시간 설정 (리프레시 토큰 - 일반적으로 더 긴 만료 시간)
+    expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire})
+    
+    # JWT 토큰 생성
+    encoded_jwt = jwt.encode(
+        to_encode, 
+        settings.JWT_REFRESH_SECRET_KEY, 
         algorithm=settings.JWT_ALGORITHM
     )
     
-    # MongoDB에 리프레시 토큰 저장
-    await store_refresh_token(refresh_token, data.get("user_id"), refresh_token_expires)
-    
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token
-    }
-
-async def store_refresh_token(refresh_token: str, user_id: str, expires_at: datetime) -> None:
-    """
-    리프레시 토큰을 데이터베이스에 저장
-    """
-    db = await get_mongodb()
-    tokens_collection = db.refresh_tokens
-    
-    # 기존 토큰이 있다면 삭제
-    await tokens_collection.delete_many({"user_id": user_id})
-    
-    # 새 토큰 저장
-    token_doc = {
-        "token": refresh_token,
-        "user_id": user_id,
-        "expires_at": expires_at,
-        "created_at": datetime.utcnow()
-    }
-    
-    await tokens_collection.insert_one(token_doc)
+    return encoded_jwt
 
 async def refresh_access_token(refresh_token: str) -> Dict[str, str]:
     """
-    리프레시 토큰을 사용하여 새 액세스 토큰 발급
+    리프레시 토큰으로 새 액세스 토큰 발급
     """
     try:
         # 리프레시 토큰 검증
-        payload = jwt.decode(
-            refresh_token, 
-            settings.REFRESH_TOKEN_SECRET_KEY, 
-            algorithms=[settings.JWT_ALGORITHM]
+        payload = decode_jwt(refresh_token, settings.JWT_REFRESH_SECRET_KEY)
+        
+        # 사용자 정보 추출
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="유효하지 않은 리프레시 토큰"
+            )
+        
+        # 새 액세스 토큰 발급
+        access_token = await create_access_token({"sub": user_id})
+        
+        return {"access_token": access_token, "token_type": "bearer"}
+        
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="리프레시 토큰이 만료되었습니다"
         )
-        
-        user_id = payload.get("user_id")
-        if not user_id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="유효하지 않은 토큰",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # 데이터베이스에서 토큰 확인
-        db = await get_mongodb()
-        tokens_collection = db.refresh_tokens
-        stored_token = await tokens_collection.find_one({
-            "token": refresh_token,
-            "user_id": user_id
-        })
-        
-        if not stored_token:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="리프레시 토큰이 유효하지 않습니다",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # 새 액세스 토큰 생성
-        access_token_data = {"user_id": user_id}
-        tokens = await create_tokens(access_token_data)
-        
-        return tokens
-        
     except jwt.PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="토큰이 만료되었거나 유효하지 않습니다",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-async def get_current_user(token: str) -> Dict[str, Any]:
-    """
-    JWT 토큰으로부터 현재 인증된 사용자 정보 가져오기
-    """
-    from services.user import get_user_by_id  # 순환 참조 방지를 위한 지연 임포트
-    
-    try:
-        # 토큰 검증
-        payload = jwt.decode(
-            token, 
-            settings.SECRET_KEY, 
-            algorithms=[settings.JWT_ALGORITHM]
-        )
-        
-        user_id = payload.get("user_id")
-        if not user_id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="유효하지 않은 토큰",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # 사용자 정보 조회
-        user = await get_user_by_id(ObjectId(user_id))
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="사용자를 찾을 수 없습니다",
-            )
-        
-        return user
-        
-    except jwt.PyJWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="토큰이 만료되었거나 유효하지 않습니다",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="유효하지 않은 리프레시 토큰"
         )

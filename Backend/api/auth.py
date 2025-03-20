@@ -1,83 +1,133 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Cookie
-from fastapi.responses import RedirectResponse, JSONResponse
-from typing import Dict, Any, Optional
+# Backend/api/auth.py
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie, Query
+from fastapi.responses import RedirectResponse
+from fastapi.security import OAuth2PasswordBearer
 from core.config import settings
-from services import oauth as oauth_service
-from services import auth as auth_service
-from schemas.user import Token, UserResponse
+from services.oauth import get_google_auth_url, google_callback, get_naver_auth_url, naver_callback
+from services.auth import refresh_access_token
+from typing import Dict, Any, Optional
+import secrets
 
 router = APIRouter()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+# 구글 로그인 관련 엔드포인트
 @router.get("/google/login")
-async def google_login():
+async def google_login(redirect_uri: str = Query(None)):
     """
-    구글 OAuth 로그인 시작 엔드포인트
+    구글 로그인 URL 반환 (프론트엔드에서 리다이렉트 처리)
     """
-    redirect_url = await oauth_service.get_google_auth_url()
-    return {"auth_url": redirect_url}
+    # 상태 값 생성 (CSRF 방지 + 리다이렉트 URI 포함)
+    state = secrets.token_urlsafe(16)
+    
+    # 리다이렉트 URI가 있는 경우 상태 값에 포함
+    if redirect_uri:
+        state = f"{state}:{redirect_uri}"
+    
+    # 구글글 인증 URL 생성
+    auth_url = await get_google_auth_url(state)
+    
+    # URL만 반환 (리다이렉트하지 않음)
+    return {"auth_url": auth_url}
 
 @router.get("/google/callback")
-async def google_callback(code: str, state: Optional[str] = None):
+async def google_auth_callback(
+    code: str = Query(...), 
+    state: str = Query(None),
+    response: Response = None
+):
     """
-    구글 OAuth 콜백 처리 엔드포인트
+    구글 OAuth 콜백 처리
     """
-    # 구글 OAuth 콜백 처리
-    result = await oauth_service.google_callback(code)
+    # 구글 인증 처리
+    auth_result = await google_callback(code, response)
     
-    # 응답 반환
-    return result
-
-@router.get("/naver/login")
-async def naver_login():
-    """
-    네이버 OAuth 로그인 시작 엔드포인트
-    """
-    # 상태 토큰 생성 (CSRF 방지용)
-    state = "random_state"  # 실제로는 랜덤 문자열을 생성해야 함
-    redirect_url = await oauth_service.get_naver_auth_url(state)
-    return {"auth_url": redirect_url, "state": state}
-
-@router.get("/naver/callback")
-async def naver_callback(code: str, state: str):
-    """
-    네이버 OAuth 콜백 처리 엔드포인트
-    """
-    # 네이버 OAuth 콜백 처리
-    result = await oauth_service.naver_callback(code, state)
+    # 상태 값에서 리다이렉트 URI 추출
+    redirect_uri = None
+    if state and ":" in state:
+        _, redirect_uri = state.split(":", 1)
     
-    # 응답 반환
-    return result
-
-@router.post("/refresh", response_model=Token)
-async def refresh_token(refresh_token: str):
-    """
-    리프레시 토큰을 사용하여 새 액세스 토큰 발급
-    """
-    tokens = await auth_service.refresh_access_token(refresh_token)
-    return tokens
-
-@router.get("/me", response_model=UserResponse)
-async def get_current_user(token: str = Depends(auth_service.get_current_user)):
-    """
-    현재 인증된 사용자 정보 조회
-    """
-    return token
-
-@router.post("/logout")
-async def logout(refresh_token: str):
-    """
-    로그아웃 처리 (리프레시 토큰 무효화)
-    """
-    # MongoDB에서 해당 리프레시 토큰 삭제
-    db = await get_mongodb()
-    tokens_collection = db.refresh_tokens
-    
-    result = await tokens_collection.delete_one({"token": refresh_token})
-    
-    if result.deleted_count == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="유효하지 않은 토큰"
+    # 클라이언트 리다이렉트가 필요한 경우
+    if redirect_uri:
+        # 토큰과 사용자 정보를 쿼리 파라미터로 전달
+        return RedirectResponse(
+            url=f"{redirect_uri}?access_token={auth_result['access_token']}"
         )
     
-    return {"message": "로그아웃 성공"}
+    # 기본 응답: 토큰과 사용자 정보 반환
+    return auth_result
+
+# 네이버 로그인 관련 엔드포인트
+@router.get("/naver/login")
+async def naver_login(redirect_uri: str = Query(None)):
+    """
+    네이버 로그인 URL 반환 (프론트엔드에서 리다이렉트 처리)
+    """
+    # 상태 값 생성 (CSRF 방지 + 리다이렉트 URI 포함)
+    state = secrets.token_urlsafe(16)
+    
+    # 리다이렉트 URI가 있는 경우 상태 값에 포함
+    if redirect_uri:
+        state = f"{state}:{redirect_uri}"
+    
+    # 네이버 인증 URL 생성
+    auth_url = await get_naver_auth_url(state)
+    
+    # URL만 반환 (리다이렉트하지 않음)
+    return {"auth_url": auth_url}
+
+@router.get("/naver/callback")
+async def naver_auth_callback(
+    code: str = Query(...), 
+    state: str = Query(...),
+    response: Response = None
+):
+    """
+    네이버 OAuth 콜백 처리
+    """
+    # 네이버 인증 처리
+    auth_result = await naver_callback(code, state, response)
+    
+    # 상태 값에서 리다이렉트 URI 추출
+    redirect_uri = None
+    if state and ":" in state:
+        _, redirect_uri = state.split(":", 1)
+    
+    # 클라이언트 리다이렉트가 필요한 경우
+    if redirect_uri:
+        # 토큰과 사용자 정보를 쿼리 파라미터로 전달
+        return RedirectResponse(
+            url=f"{redirect_uri}?access_token={auth_result['access_token']}"
+        )
+    
+    # 기본 응답: 토큰과 사용자 정보 반환
+    return auth_result
+
+# 리프레시 토큰으로 액세스 토큰 갱신
+@router.post("/refresh")
+async def refresh_token_endpoint(refresh_token: str = Cookie(None)):
+    """
+    리프레시 토큰으로 새 액세스 토큰 발급
+    """
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="리프레시 토큰이 없습니다"
+        )
+    
+    # 토큰 갱신 처리
+    token_result = await refresh_access_token(refresh_token)
+    
+    return token_result
+
+@router.post("/logout")
+async def logout(response: Response):
+    """
+    로그아웃 - 클라이언트의 쿠키에서 토큰 삭제
+    """
+    # 쿠키에서 액세스 토큰과 리프레시 토큰 삭제
+    response.delete_cookie(key="access_token")
+    response.delete_cookie(key="refresh_token")
+    
+    # 로그아웃 성공 메시지 반환
+    return {"message": "로그아웃 되었습니다"}

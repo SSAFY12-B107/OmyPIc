@@ -122,3 +122,9 @@ async def delete_user(user_id: str):
     
     return None
 
+async def get_user_by_id(user_id: str):
+    # MongoDB를 사용하는 경우 (로그를 보면 MongoDB를 사용하고 있음)
+    from db.mongodb import db
+    
+    user = await db.users.find_one({"_id": user_id})
+    return user

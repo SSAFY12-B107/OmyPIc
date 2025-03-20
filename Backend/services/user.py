@@ -55,7 +55,6 @@ async def create_user(
     user["_id"] = str(user["_id"])  # ObjectId를 문자열로 변환
     return user
 
-# 이메일로 사용자 조회 함수 추가
 async def get_user_by_email(email: str) -> Optional[Dict]:
     """
     이메일로 사용자 조회
@@ -70,5 +69,71 @@ async def get_user_by_email(email: str) -> Optional[Dict]:
     
     return user
 
-# 나머지 기존 함수들...
-# get_user_by_id, get_users, update_user, delete_user 등 유지
+async def get_user_by_id(user_id: ObjectId) -> Optional[Dict]:
+    """
+    ID로 사용자 조회
+    """
+    db = await get_mongodb()
+    users_collection = db.users
+    
+    user = await users_collection.find_one({"_id": user_id})
+    
+    if user and "_id" in user:
+        user["_id"] = str(user["_id"])  # ObjectId를 문자열로 변환
+    
+    return user
+
+async def get_users(skip: int = 0, limit: int = 10) -> List[Dict]:
+    """
+    모든 사용자 조회
+    """
+    db = await get_mongodb()
+    users_collection = db.users
+    
+    cursor = users_collection.find().skip(skip).limit(limit)
+    users = []
+    
+    async for user in cursor:
+        user["_id"] = str(user["_id"])  # ObjectId를 문자열로 변환
+        users.append(user)
+    
+    return users
+
+async def update_user(user_id: ObjectId, update_data: Dict) -> Optional[Dict]:
+    """
+    사용자 정보 업데이트
+    """
+    db = await get_mongodb()
+    users_collection = db.users
+    
+    # 업데이트할 필드 필터링 (None 값은 업데이트하지 않음)
+    filtered_update = {k: v for k, v in update_data.items() if v is not None}
+    
+    if not filtered_update:
+        # 업데이트할 데이터가 없으면 기존 사용자 반환
+        return await get_user_by_id(user_id)
+    
+    # 업데이트 수행
+    result = await users_collection.update_one(
+        {"_id": user_id},
+        {"$set": filtered_update}
+    )
+    
+    if result.modified_count == 0 and result.matched_count == 0:
+        # 문서가 존재하지 않음
+        return None
+    
+    # 업데이트된 사용자 반환
+    return await get_user_by_id(user_id)
+
+async def delete_user(user_id: ObjectId) -> bool:
+    """
+    사용자 삭제
+    """
+    db = await get_mongodb()
+    users_collection = db.users
+    
+    result = await users_collection.delete_one({"_id": user_id})
+    
+    # 삭제된 문서가 있는지 확인
+    return result.deleted_count > 0
