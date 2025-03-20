@@ -77,3 +77,12 @@ textarea.chat {
   font-size: 1.2rem;
   color: #8B8B8B;
 }
+
+/* 이전 다음 버튼 그룹 */
+.navigationContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  margin-top: 3rem;
+}
