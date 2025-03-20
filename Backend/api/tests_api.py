@@ -17,7 +17,6 @@ from schemas.test import TestHistoryResponse, TestDetailResponse, TestCreationRe
 from services.audio_processor import AudioProcessor
 from services.evaluator import ResponseEvaluator
 from services.test_service import create_test, process_audio_background
-from services.s3_service import upload_audio_to_s3
 
 # 로깅 설정
 logger = logging.getLogger(__name__)

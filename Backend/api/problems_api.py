@@ -58,29 +58,19 @@ async def get_problems_by_category(
     return problems
 
 
-@router.get("/{problem_id}", response_model=ProblemDetailResponse, status_code=status.HTTP_200_OK)
+@router.get("/detail/{problem_id}", response_model=ProblemDetailResponse, status_code=status.HTTP_200_OK)
 async def get_problem_detail(
     problem_id: str = Path(..., description="조회할 문제 ID"),
     user_id: Optional[str] = Query(None, description="사용자 ID (제공 시 해당 사용자의 스크립트와 오답노트만 반환)"),
     db: Database = Depends(get_mongodb)
 ) -> ProblemDetailResponse:
-    """
-    문제 세부 정보 조회
-    - problem_id: 조회할 문제 ID
-    - user_id: (선택) 특정 사용자의 스크립트와 오답노트만 반환
+    """문제 세부 정보 조회"""
     
-    반환:
-    - 문제 정보
-    - 사용자 스크립트 (is_script=true)
-    - 모의고사 오답노트 (is_script=false)
-    """
-    # 1. 문제 정보 조회
     try:
-        # ObjectId로 변환 시도
+        # 1. ObjectId 변환 및 문제 조회
         try:
             object_id = ObjectId(problem_id)
-        except:
-            # 유효하지 않은 ObjectId인 경우 오류 처리
+        except Exception:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"유효하지 않은 문제 ID 형식입니다: {problem_id}"
@@ -88,83 +78,66 @@ async def get_problem_detail(
             
         problem = await db.problems.find_one({"_id": object_id})
         if not problem:
-            # 디버깅을 위해 로그 추가
-            print(f"문제를 찾을 수 없음: {problem_id}")
-            
-            # 데이터베이스에 존재하는 문제 ID 확인 (디버깅용)
-            sample_problems = await db.problems.find().limit(3).to_list(length=3)
-            sample_ids = [str(p.get("_id")) for p in sample_problems]
-            print(f"데이터베이스에 존재하는 일부 문제 ID: {sample_ids}")
-            
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"ID가 {problem_id}인 문제를 찾을 수 없습니다."
             )
         
-        # ObjectId를 문자열로 변환
-        problem_str_id = str(problem["_id"])
-        problem["_id"] = problem_str_id
-        
-        # 2. 실제 데이터베이스에 저장된 스크립트 조회하기 위한 준비
-        
-        # 스크립트 쿼리 구성 - 실제 데이터 형식에 맞게 수정
-        # 스크립트 예시에 따르면 problem_id 필드에 "string" 값이 들어있으므로 
-        # 현재는 이를 기준으로 조회합니다. 추후 실제 problem_id가 저장되도록 수정해야 합니다.
-        scripts_query = {}  # 모든 스크립트를 불러오는 것으로 시작
-        
-        # 특정 사용자의 스크립트만 조회하는 경우
+        # 2. 쿼리 필터 준비
+        query_filter = {"problem_id": problem_id}
         if user_id:
-            scripts_query["user_id"] = user_id
+            query_filter["user_id"] = user_id
+            
+        # 3. 스크립트와 오답노트 동시 조회 (파이프라인 활용)
+        scripts_pipeline = [
+            {"$match": query_filter},
+            {"$sort": {"created_at": -1}},
+            {"$group": {
+                "_id": "$is_script",
+                "docs": {"$push": "$$ROOT"}
+            }},
+            {"$project": {
+                "is_script": "$_id",
+                "docs": {"$slice": ["$docs", 1]}  # 각 그룹에서 최신 1개만
+            }}
+        ]
         
-        # 3. 사용자 스크립트 및 오답노트 조회 전 전체 스크립트를 불러와서 디버깅
-        all_scripts_cursor = db.scripts.find().limit(10)
-        all_scripts = await all_scripts_cursor.to_list(length=10)
+        scripts_result = await db.scripts.aggregate(scripts_pipeline).to_list(length=None)
         
-        print(f"데이터베이스에서 찾은 스크립트 예시: {all_scripts}")
+        # 4. 결과 정리
+        user_scripts = []
+        test_notes = []
         
-        # problem_id 필드가 있는지 확인하고 어떤 값이 있는지 확인
-        problem_id_values = set()
-        for script in all_scripts:
-            if "problem_id" in script:
-                problem_id_values.add(script["problem_id"])
+        for group in scripts_result:
+            if group["docs"]:
+                # _id를 문자열로 변환
+                for doc in group["docs"]:
+                    if "_id" in doc:
+                        doc["_id"] = str(doc["_id"])
+                
+                # 스크립트와 오답노트 구분
+                if group["is_script"]:
+                    user_scripts = group["docs"]
+                else:
+                    test_notes = group["docs"]
         
-        print(f"스크립트에서 발견된 problem_id 값들: {problem_id_values}")
-        
-        # 4. 사용자 스크립트 조회 (is_script=true)
-        user_scripts_cursor = db.scripts.find({**scripts_query, "is_script": True}).sort("created_at", -1)
-        user_scripts = await user_scripts_cursor.to_list(length=100)  # 최대 100개 조회
-        
-        # 5. 모의고사 오답노트 조회 (is_script=false)
-        test_notes_cursor = db.scripts.find({**scripts_query, "is_script": False}).sort("created_at", -1)
-        test_notes = await test_notes_cursor.to_list(length=100)  # 최대 100개 조회
-        
-        # ObjectId를 문자열로 변환
-        for script in user_scripts:
-            if "_id" in script:
-                script["_id"] = str(script["_id"])
-        
-        for note in test_notes:
-            if "_id" in note:
-                note["_id"] = str(note["_id"])
-        
-        # 디버깅용 로그
-        print(f"조회된 스크립트 수: {len(user_scripts)}")
-        print(f"조회된 오답노트 수: {len(test_notes)}")
-        
-        # 6. 결과 반환
+        # 5. 결과 반환
         return {
-            "problem": problem,
+            "problem": {
+                "_id": str(problem["_id"]),  # 반드시 _id로 반환
+                "content": problem.get("content", "")
+            },
             "user_scripts": user_scripts,
             "test_notes": test_notes
         }
         
+    except HTTPException:
+        # 이미 처리된 HTTP 예외는 그대로 전달
+        raise
     except Exception as e:
-        # 상세한 오류 메시지 표시
-        import traceback
-        error_details = traceback.format_exc()
-        print(f"오류 상세 정보: {error_details}")
-        
-        # 유효하지 않은 ObjectId 형식 등의 오류 처리
+        # 기타 예외는 로그로 남기고 400 오류로 처리
+        import logging
+        logging.error(f"문제 조회 중 오류: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"문제 조회 중 오류가 발생했습니다: {str(e)}"
