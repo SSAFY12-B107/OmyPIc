@@ -1,9 +1,9 @@
-# Backend/api/auth.py
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie, Query
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
 from core.config import settings
-from services.oauth import get_google_auth_url, google_callback, get_naver_auth_url, naver_callback
+import urllib.parse  # 추가된 import
+from services.oauth import google_callback, get_naver_auth_url, naver_callback
 from services.auth import refresh_access_token
 from typing import Dict, Any, Optional
 import secrets
@@ -24,11 +24,31 @@ async def google_login(redirect_uri: str = Query(None)):
     if redirect_uri:
         state = f"{state}:{redirect_uri}"
     
-    # 구글글 인증 URL 생성
+    # 구글 인증 URL 생성
     auth_url = await get_google_auth_url(state)
     
     # URL만 반환 (리다이렉트하지 않음)
     return {"auth_url": auth_url}
+
+
+async def get_google_auth_url(state: str) -> str:
+    """
+    구글 OAuth 인증 URL 생성
+    """
+    client_id = settings.GOOGLE_CLIENT_ID
+    redirect_uri = urllib.parse.quote(settings.GOOGLE_REDIRECT_URI)
+    
+    auth_url = (
+        f"https://accounts.google.com/o/oauth2/auth"
+        f"?response_type=code"
+        f"&client_id={client_id}"
+        f"&redirect_uri={redirect_uri}"
+        f"&scope=email%20profile"
+        f"&state={state}"
+        f"&access_type=offline"
+    )
+    
+    return auth_url
 
 @router.get("/google/callback")
 async def google_auth_callback(
