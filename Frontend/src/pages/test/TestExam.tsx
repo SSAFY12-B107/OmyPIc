@@ -98,7 +98,7 @@ function TestExam() {
 
       // API 호출 (Content-Type 헤더 제거: FormData가 자동으로 처리)
       const response = await apiClient.post(
-        `/api/tests/${test_pk}/record/${currentProblem}`,
+        `/api/tests/${test_pk}/record/${currentProblem}`,// problem_pk
         formData
       );
 
@@ -112,7 +112,7 @@ function TestExam() {
           setIsPlaying(false);
           setRecordedFile(null); // 녹음 파일 초기화
         } else {
-          navigate(`/tests/feedback/${test_pk}/${currentProblem}`);
+          navigate(`/tests/feedback/${test_pk}/${currentProblem}`); //problem_pk
         }
       }
     } catch (error) {
@@ -126,7 +126,7 @@ function TestExam() {
     if (recordedFile) {
       handleRecordSubmit(recordedFile);
     } else {
-      alert("답변을 녹음해 주세요.");
+      // 그다음 currentProblem으로 컴포넌트 내 다른 정보 띄우기 ;
     }
   };
 
