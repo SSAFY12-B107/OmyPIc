@@ -1,19 +1,55 @@
 import React, { useState } from "react";
 import styles from "./Profile.module.css";
 import NavigationButton from "../../components/common/NavigationButton";
+import { useNavigate } from "react-router-dom";
 
-type Props = {};
+function ProfilePage() {
+  const navigate = useNavigate();
 
-function ProfilePage({}: Props) {
+  // 폼 데이터 상태 관리
+  const [formData, setFormData] = useState({
+    wishGrade: "",
+    currentGrade: "",
+    examDate: "",
+    agreeToTerms: false
+  });
+
+  // 입력값 변경 처리
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const {name, value, type} = e.target as HTMLInputElement;
+
+    if(type === "checkbox") {
+      const {checked} = e.target as HTMLInputElement;
+      setFormData({
+        ...formData,
+        [name]: checked
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value
+      });
+    }
+  };
+
   const handlePrev = () => {
-    // 이전 페이지로 이동하는 로직
+    navigate(-1);
     console.log("이전 버튼 클릭");
   };
 
   const handleNext = () => {
-    // 다음 페이지로 이동하는 로직
-    console.log("다음 버튼 클릭");
+    if(!formData.wishGrade || !formData.currentGrade || !formData.examDate || !formData.agreeToTerms) {
+      alert("모든 항목을 입력해주세요.");
+      console.log("다음 버튼 클릭");
+      return;
+    }
   };
+  navigate("/auth/survey", {state: {profileData: formData}});
+
+  localStorage.setItem("profileData", JSON.stringify(formData));
+  navigate("/auth/survey");
+  console.log("다음 버튼 클릭");
+
 
   return (
     <div className={styles["profile-container"]}>
