@@ -1,4 +1,3 @@
-import React from "react";
 import styles from "./Tip.module.css";
 import opigi from "../../assets/images/opigi.png";
 

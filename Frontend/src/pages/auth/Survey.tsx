@@ -1,4 +1,3 @@
-import React from 'react';
 import styles from "./Survey.module.css";
 import Tip from "../../components/survey/Tip";
 import GeneralSurvey from '../../components/survey/GeneralSurvey';
