@@ -40,7 +40,7 @@ pipeline {
                     when { changeset "Backend/**" }
                     steps {
                         script {
-                            buildAndPushImage("${BACKEND_IMAGE}", "./backend")
+                            buildAndPushImage("${BACKEND_IMAGE}", "./Backend")
                         }
                     }
                 }
@@ -49,7 +49,7 @@ pipeline {
                     when { changeset "Frontend/**" }
                     steps {
                         script {
-                            buildAndPushImage("${FRONTEND_IMAGE}", "./frontend")
+                            buildAndPushImage("${FRONTEND_IMAGE}", "./Frontend")
                         }
                     }
                 }
