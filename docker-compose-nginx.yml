@@ -1,0 +1,40 @@
+version: '3'
+
+services:
+  nginx:
+    image: kst1040/omypic-nginx:latest
+    container_name: omypic-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/conf.d/upstream.conf:/etc/nginx/conf.d/upstream.conf
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+      - frontend-blue-build:/usr/share/nginx/blue
+      - frontend-green-build:/usr/share/nginx/green
+    networks:
+      - omypic-network
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot
+    container_name: omypic-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - omypic-network
+    restart: unless-stopped
+
+volumes:
+  frontend-blue-build:
+    external: true
+  frontend-green-build:
+    external: true
+
+networks:
+  omypic-network:
+    external: true
