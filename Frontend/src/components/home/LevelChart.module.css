@@ -1,0 +1,22 @@
+.level-chart h2 {
+  font-size: 1.8rem;
+}
+
+.chart-legend {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.legend-dot {
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+  background-color: #8A63D2;
+}
+
+.legend-text {
+  font-size: 1.2rem;
+}

@@ -1,0 +1,86 @@
+.multiChoiceContainer {
+    margin: 2.5rem 0;
+  }
+  
+  /* 선택된 개수 정보 */
+  .selectInfo {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .selectInfo p {
+    font-size: 1.2rem;
+  }
+  
+  .curSelectInfo {
+    padding:  0.8rem 1rem;
+    color: #fff;
+    border-radius: 3rem;
+    background-color: #9466E9;
+  }
+  
+  .multiChoiceBox {
+    margin-top: 1.5rem;
+  }
+  
+  /* 질문 */
+  .multiChoiceQ {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .multiChoiceQ div {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    background-color: #F3EFFC;
+  }
+  
+  .multiChoiceQ p {
+    width: 95%;
+    margin-top: 0.4rem;
+    font-size: 1.4rem;
+    font-weight: 700;
+  }
+  
+  /* 다중선택 항목 */
+  .choiceList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+  
+  .choiceItem {
+    position: relative;
+    padding: 1rem 2.5rem;
+    border: #BABABA 0.5px solid;
+    border-radius: 1rem;
+    cursor: pointer; /* 클릭 가능함을 나타내는 커서 */
+    transition: all 0.2s ease; /* 부드러운 전환 효과 */
+  }
+  
+  .choiceItem svg {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 2rem;
+    height: 2rem;
+  }
+  
+  .choiceItem p {
+    font-size: 1.4rem;
+  }
+  
+  /* 선택된 아이템 스타일 */
+  .choiceItemSelected {
+    background-color: #9466E9;
+    border-color: #9466E9;
+  }
+  
+  .choiceItemSelected p {
+    color: #fff;
+    font-weight: 700;
+  }
