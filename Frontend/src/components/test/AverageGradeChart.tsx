@@ -2,12 +2,13 @@ import styles from './AverageGradeChart.module.css';
 import { AverageScore } from '../../hooks/useHistory';
 
 interface AverageGradeChartProps {
-  averageScore?: AverageScore;
+  averageScore?: AverageScore | null;
 }
 
 
 const AverageGradeChart: React.FC<AverageGradeChartProps> = ({ averageScore }) => {
   if (!averageScore) {
+    console.log('averageScore',averageScore)
     return <div>데이터가 없습니다.</div>;
   }
 
