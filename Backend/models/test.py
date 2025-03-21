@@ -29,6 +29,7 @@ class ProblemDetail(BaseModel):
     problem_category: Optional[str] = None  # 문제 카테고리
     topic_category: Optional[str] = None  # 문제 카테고리
     problem: Optional[str] = None  # 문제 내용 
+    audio_s3_url: Optional[str] = None
     user_response: Optional[str] = None  # 사용자 응답
     score: Optional[str] = None  # 점수
     feedback: Optional[ProblemDetailFeedback] = None  # 피드백 (단일 객체)
@@ -71,6 +72,7 @@ class TestModel(BaseModel):
                         "problem_category": "묘사",
                         "topic_category": "주거",
                         "problem": "자기소개를 해보세요.",
+                        "audio_s3_url": "https://example-bucket.s3.amazonaws.com/audio/problem123.mp3",
                         "user_response": "안녕하세요. 저는...",
                         "score": "IH",
                         "feedback": {
