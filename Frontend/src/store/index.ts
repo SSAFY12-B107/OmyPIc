@@ -12,6 +12,7 @@ export interface Test {
       problem_category: string;
       topic_category: string;
       problem: string;
+      audio_file   : string;
     };
   };
 }
@@ -39,6 +40,7 @@ const testSlice = createSlice({
       state.currentTest = action.payload;
     },
 
+    // 테스트 배포 : 모의고사 응시 3회 횟수 제한 
     incrementUsageCount: (state) => {
       // 현재 날짜와 마지막 리셋 날짜를 비교
       const today = new Date().toISOString().split("T")[0];
