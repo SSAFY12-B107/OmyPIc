@@ -9,12 +9,12 @@ import { useNavigate } from "react-router-dom";
 import MicRecorder from "mic-recorder-to-mp3-fixed";
 import apiClient from "../../api/apiClient";
 
-// import { useAudio, getAudioUrl } from "../../hooks/useAudio"; // 사용안함 
+// import { useAudio, getAudioUrl } from "../../hooks/useAudio"; // 사용안함
 
 function TestExam() {
   // 컴포넌트 최상단에 문제 mp3 캐시 객체 선언
   // useRef<T>(initialValue) : 컴포넌트 렌더링 사이에도 유지되는 변경 가능한 참조를 생성
-  // <Record<...>> : 객체타입 정의 
+  // <Record<...>> : 객체타입 정의
   // 키는 문제번호 문자열(string)이고 값은 음성객체 HTMLAudioElement인 객체 타입을 정의
   // 객체 : O(1) > 배열O(n)
   const audioCache = useRef<Record<string, HTMLAudioElement>>({}).current;
@@ -43,20 +43,10 @@ function TestExam() {
 
   const navigate = useNavigate();
 
-
-  // // 현재 문제번호 추출(axios 요청 파라미터)
-  // const currentProblemId = currentTest
-  //   ? currentTest.problem_data[currentProblem].problem_id
-  //   : "";
-  // const { data: audioData, isLoading: isAudioLoading } =
-  //   useAudio(currentProblemId);
-  // const audioUrl = audioData ? getAudioUrl(audioData) : null;
-
   //응시 페이지 진입 시 Audio 객체 미리 생성
   useEffect(() => {
-    console.log('currentTest',currentTest)
+    console.log("currentTest", currentTest);
     if (currentTest?.problem_data) {
-      
       // 현재 문제 포함 앞으로 3개 문제에 대해 Audio 객체 생성
       for (
         let i = currentProblem;
@@ -64,15 +54,18 @@ function TestExam() {
         i++
       ) {
         const problemData = currentTest.problem_data[i];
-        console.log('problemData',problemData)
+        console.log("problemData", problemData);
         if (problemData && problemData.audio_s3_url) {
-          if (!audioCache[i]) { // 이미 캐시에 저장된 경우 중복 생성 방지
-            const audioObj = new Audio(problemData.audio_s3_url);
+          if (!audioCache[i]) {
+            // 이미 캐시에 저장된 경우 중복 생성 방지
+            const correctedUrl = problemData.audio_s3_url.replace(
+              "ap-northeast-2",
+              "us-east-2"
+            );
+            const audioObj = new Audio(correctedUrl);
             audioCache[i] = audioObj;
             console.log(`오디오 캐시 저장됨 [${i}]:`, audioObj);
           }
-
-          
         }
       }
     }
@@ -84,19 +77,17 @@ function TestExam() {
     setIsPaused(false);
     setHasPlayed(false);
     setHasListenedAgain(false);
+    // 녹음 파일도 초기화
+    setRecordedFile(null);
   }, [currentProblem]);
-
-
 
   // 오디오 이벤트 설정(ui 설정정)
   useEffect(() => {
+    const audio = audioCache[currentProblem];
+    if (audioCache) console.log("audioCache", audioCache);
 
+    if (!audio) return;
 
-    const audio = audioCache[currentProblem]
-    if (audioCache) console.log('audioCache',audioCache)
-
-    if (!audio) return 
-    
     const handleEnded = () => {
       setIsPlaying(false);
       setIsPaused(false);
@@ -126,11 +117,23 @@ function TestExam() {
       audio.removeEventListener("pause", handlePause);
     };
   }, [currentProblem]);
-  
 
+  // 컴포넌트 언마운트 시에만 오디오 정리
+  useEffect(() => {
+    return () => {
+      // 이 함수는 컴포넌트가 언마운트될 때만 호출됩니다
+      // 페이지를 완전히 나갈 때만 실행
+      Object.values(audioCache).forEach((audio) => {
+        if (audio) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
+      });
+    };
+  }, []); // 빈 의존성 배열: 마운트/언마운트 시에만 실행
   // 오디오 재생/일시정지 핸들러
   const handleAudioControl = useCallback(() => {
-    const audio = audioCache[currentProblem]
+    const audio = audioCache[currentProblem];
 
     if (isPlaying) {
       audio.pause();
@@ -190,7 +193,6 @@ function TestExam() {
     }
   };
 
-  
   // 녹음 제출 및 다음 문제 이동
   const submitRecording = async () => {
     if (!recordedFile) {
@@ -204,6 +206,10 @@ function TestExam() {
 
       const isLastProblem = currentProblem === maxValue;
       formData.append("is_last_problem", String(isLastProblem));
+
+      // 현재 문제 ID 가져오기
+      const currentProblemId =
+        currentTest?.problem_data[currentProblem]?.problem_id;
 
       const response = await apiClient.post(
         `/tests/${currentTest._id}/record/${currentProblemId}`,
