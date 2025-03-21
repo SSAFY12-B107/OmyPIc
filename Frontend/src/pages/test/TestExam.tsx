@@ -8,22 +8,28 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import MicRecorder from "mic-recorder-to-mp3-fixed";
 import apiClient from "../../api/apiClient";
-import { useAudio, getAudioUrl } from "../../hooks/useAudio";
+
+// import { useAudio, getAudioUrl } from "../../hooks/useAudio"; // 사용안함 
 
 function TestExam() {
-  const navigate = useNavigate();
+  // 컴포넌트 최상단에 문제 mp3 캐시 객체 선언
+  // useRef<T>(initialValue) : 컴포넌트 렌더링 사이에도 유지되는 변경 가능한 참조를 생성
+  // <Record<...>> : 객체타입 정의 
+  // 키는 문제번호 문자열(string)이고 값은 음성객체 HTMLAudioElement인 객체 타입을 정의
+  // 객체 : O(1) > 배열O(n)
+  const audioCache = useRef<Record<string, HTMLAudioElement>>({}).current;
+
+  // 문제 모음 가져오기(리덕스)
   const { currentTest } = useSelector((state: RootState) => state.tests);
 
   // 테스트 타입에 따른 최대 문제 수 설정
   const maxValue = currentTest?.test_type ? 15 : 7;
 
-  // 문제번호 관리
+  // 문제번호 관리(ui)
   const [currentProblem, setCurrentProblem] = useState(1);
-  // 듣기 오디오 버퍼링 관리
-  const [isLoading, setIsLoading] = useState(false);
 
-  // 오디오 상태
-  const audioRef = useRef(new Audio());
+  // // 오디오 상태
+  // const audioRef = useRef(new Audio());
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -35,38 +41,69 @@ function TestExam() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedFile, setRecordedFile] = useState<File | null>(null);
 
-  // API 관련
-  const currentProblemId = currentTest
-    ? currentTest.problem_data[currentProblem].problem_id
-    : "";
-  const { data: audioData, isLoading: isAudioLoading } =
-    useAudio(currentProblemId);
-  const audioUrl = audioData ? getAudioUrl(audioData) : null;
+  const navigate = useNavigate();
 
+
+  // // 현재 문제번호 추출(axios 요청 파라미터)
+  // const currentProblemId = currentTest
+  //   ? currentTest.problem_data[currentProblem].problem_id
+  //   : "";
+  // const { data: audioData, isLoading: isAudioLoading } =
+  //   useAudio(currentProblemId);
+  // const audioUrl = audioData ? getAudioUrl(audioData) : null;
+
+  //응시 페이지 진입 시 Audio 객체 미리 생성
   useEffect(() => {
-    // load()를 굳이 쓰는 이유는 뭐지? 
-    if (!isAudioLoading && audioUrl) {
-      audioRef.current.src = audioUrl;
-      audioRef.current.load();
+    console.log('currentTest',currentTest)
+    if (currentTest?.problem_data) {
+      
+      // 현재 문제 포함 앞으로 3개 문제에 대해 Audio 객체 생성
+      for (
+        let i = currentProblem;
+        i < Math.min(currentProblem + 3, maxValue);
+        i++
+      ) {
+        const problemData = currentTest.problem_data[i];
+        console.log('problemData',problemData)
+        if (problemData && problemData.audio_s3_url) {
+          if (!audioCache[i]) { // 이미 캐시에 저장된 경우 중복 생성 방지
+            const audioObj = new Audio(problemData.audio_s3_url);
+            audioCache[i] = audioObj;
+            console.log(`오디오 캐시 저장됨 [${i}]:`, audioObj);
+          }
+
+          
+        }
+      }
     }
-    else (!audioUrl)
-    console.log('오디오주소없음',audioUrl)
-    console.log('audioData',audioData)
-    
-  }, [isAudioLoading, audioUrl, currentProblem]);
+  }, [currentProblem, currentTest]);
 
-  
-
-  // 오디오 이벤트 설정
   useEffect(() => {
-    const audio = audioRef.current;
+    // 문제 번호가 변경될 때 재생 상태 초기화
+    setIsPlaying(false);
+    setIsPaused(false);
+    setHasPlayed(false);
+    setHasListenedAgain(false);
+  }, [currentProblem]);
 
+
+
+  // 오디오 이벤트 설정(ui 설정정)
+  useEffect(() => {
+
+
+    const audio = audioCache[currentProblem]
+    if (audioCache) console.log('audioCache',audioCache)
+
+    if (!audio) return 
+    
     const handleEnded = () => {
       setIsPlaying(false);
       setIsPaused(false);
       setHasPlayed(true);
     };
 
+    //콜백함수(조건 아래 실행)
     const handlePlay = () => {
       setIsPlaying(true);
       setIsPaused(false);
@@ -79,29 +116,21 @@ function TestExam() {
       }
     };
 
-    const handleWaiting = () => setIsLoading(true);
-    const handleCanPlay = () => setIsLoading(false);
-
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("play", handlePlay);
     audio.addEventListener("pause", handlePause);
-    audio.addEventListener("waiting", handleWaiting);
-    audio.addEventListener("canplay", handleCanPlay);
 
     return () => {
-      audio.pause();
-      audio.src = "";
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("pause", handlePause);
-      audio.removeEventListener("waiting", handleWaiting);
-      audio.removeEventListener("canplay", handleCanPlay);
     };
-  }, []);
+  }, [currentProblem]);
+  
 
   // 오디오 재생/일시정지 핸들러
   const handleAudioControl = useCallback(() => {
-    const audio = audioRef.current;
+    const audio = audioCache[currentProblem]
 
     if (isPlaying) {
       audio.pause();
@@ -116,7 +145,7 @@ function TestExam() {
     // 처음 듣기 또는 다시 듣기 (제한 확인)
     if (hasPlayed && hasListenedAgain) return;
 
-    if (audioUrl) {
+    if (audio) {
       audio.currentTime = 0;
       audio
         .play()
@@ -125,7 +154,7 @@ function TestExam() {
         })
         .catch((err) => console.error("오디오 재생 오류:", err));
     }
-  }, [audioUrl, isPlaying, isPaused, hasPlayed, hasListenedAgain]);
+  }, [isPlaying, isPaused, hasPlayed, hasListenedAgain]);
 
   // 녹음 제어 함수
   const toggleRecording = async () => {
@@ -161,6 +190,7 @@ function TestExam() {
     }
   };
 
+  
   // 녹음 제출 및 다음 문제 이동
   const submitRecording = async () => {
     if (!recordedFile) {
@@ -197,13 +227,12 @@ function TestExam() {
   // 버튼 텍스트 및 아이콘 결정
   const getListenButtonInfo = useCallback(() => {
     // 로딩 중일 때 로딩 표시 우선 반환
-    if (isLoading) return { text: "로딩 중...", icon: "⏳" };
     if (isPlaying) return { text: "일시정지", icon: "⏸" };
     if (isPaused) return { text: "계속 듣기", icon: "▶️" };
     if (!hasPlayed) return { text: "문제 듣기", icon: "🎧" };
     if (!hasListenedAgain) return { text: "다시듣기", icon: "🎧" };
-    return { text: "" };
-  }, [isLoading, isPlaying, isPaused, hasPlayed, hasListenedAgain]);
+    return { text: "-" };
+  }, [isPlaying, isPaused, hasPlayed, hasListenedAgain]);
 
   const isListenButtonDisabled =
     hasPlayed && hasListenedAgain && !isPaused && !isPlaying;

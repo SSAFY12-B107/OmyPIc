@@ -10,7 +10,7 @@ from schemas.test import TestHistoryResponse, TestDetailResponse
 
 from gtts import gTTS
 import io
-from services.s3_service import upload_audio_to_s3
+# from services.s3_service import upload_audio_to_s3
 
 
 router = APIRouter()
@@ -119,80 +119,80 @@ async def make_test(
 
 
 
-@router.get("/{problem_pk}/audio")
-async def get_problem_audio(
-    problem_pk: str = Path(..., description="문제 ID"),
-    db: Database = Depends(get_mongodb)
-) -> Dict[str, Any]:
-    """
-    문제 오디오 URL 제공
+# @router.get("/{problem_pk}/audio")
+# async def get_problem_audio(
+#     problem_pk: str = Path(..., description="문제 ID"),
+#     db: Database = Depends(get_mongodb)
+# ) -> Dict[str, Any]:
+#     """
+#     문제 오디오 URL 제공
     
-    지정된 문제 ID에 해당하는 문제의 오디오 URL을 제공합니다.
-    오디오 URL이 없으면 생성하여 제공합니다.
+#     지정된 문제 ID에 해당하는 문제의 오디오 URL을 제공합니다.
+#     오디오 URL이 없으면 생성하여 제공합니다.
     
-    Args:
-        problem_pk (str): 문제 ID
-        db (Database): MongoDB 데이터베이스 연결
+#     Args:
+#         problem_pk (str): 문제 ID
+#         db (Database): MongoDB 데이터베이스 연결
         
-    Returns:
-        JSONResponse: 오디오 URL을 포함한 JSON 응답
-    """
-    try:
-        # ObjectId로 변환하여 문제 조회
-        problem_id = ObjectId(problem_pk)
-        problem = await db.problems.find_one({"_id": problem_id})
+#     Returns:
+#         JSONResponse: 오디오 URL을 포함한 JSON 응답
+#     """
+#     try:
+#         # ObjectId로 변환하여 문제 조회
+#         problem_id = ObjectId(problem_pk)
+#         problem = await db.problems.find_one({"_id": problem_id})
         
-        if not problem:
-            raise HTTPException(status_code=404, detail="문제를 찾을 수 없습니다.")
+#         if not problem:
+#             raise HTTPException(status_code=404, detail="문제를 찾을 수 없습니다.")
         
-        # 이미 S3에 저장된 오디오 URL이 있는지 확인
-        audio_s3_url = problem.get("audio_s3_url")
+#         # 이미 S3에 저장된 오디오 URL이 있는지 확인
+#         audio_s3_url = problem.get("audio_s3_url")
         
-        # URL이 있으면 해당 URL 반환
-        if audio_s3_url:
-            return {
-                "success": True,
-                "audio_url": audio_s3_url,
-                "from_cache": True
-            }
+#         # URL이 있으면 해당 URL 반환
+#         if audio_s3_url:
+#             return {
+#                 "success": True,
+#                 "audio_url": audio_s3_url,
+#                 "from_cache": True
+#             }
         
-        # 문제 내용 가져오기
-        content = problem.get("content", "")
+#         # 문제 내용 가져오기
+#         content = problem.get("content", "")
         
-        if not content:
-            raise HTTPException(status_code=404, detail="문제 내용이 없습니다.")
+#         if not content:
+#             raise HTTPException(status_code=404, detail="문제 내용이 없습니다.")
         
-        # gTTS를 사용하여 텍스트를 음성으로 변환
-        tts = gTTS(text=content, lang='ko', slow=False)
+#         # gTTS를 사용하여 텍스트를 음성으로 변환
+#         tts = gTTS(text=content, lang='ko', slow=False)
         
-        # 메모리에 음성 파일 저장
-        audio_buffer = io.BytesIO()
-        tts.write_to_fp(audio_buffer)
-        audio_buffer.seek(0)
+#         # 메모리에 음성 파일 저장
+#         audio_buffer = io.BytesIO()
+#         tts.write_to_fp(audio_buffer)
+#         audio_buffer.seek(0)
         
-        # S3에 업로드
-        audio_data = audio_buffer.getvalue()
-        s3_url = await upload_audio_to_s3(audio_data, str(problem_id))
+#         # S3에 업로드
+#         audio_data = audio_buffer.getvalue()
+#         s3_url = await upload_audio_to_s3(audio_data, str(problem_id))
         
-        # MongoDB에 S3 URL 업데이트
-        await db.problems.update_one(
-            {"_id": problem_id},
-            {"$set": {"audio_s3_url": s3_url}}
-        )
+#         # MongoDB에 S3 URL 업데이트
+#         await db.problems.update_one(
+#             {"_id": problem_id},
+#             {"$set": {"audio_s3_url": s3_url}}
+#         )
         
-        # 생성된 URL 반환
-        return {
-            "success": True,
-            "audio_url": s3_url,
-            "from_cache": False
-        }
+#         # 생성된 URL 반환
+#         return {
+#             "success": True,
+#             "audio_url": s3_url,
+#             "from_cache": False
+#         }
     
-    except Exception as e:
-        # ObjectId 변환 오류 또는 기타 예외 처리
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "detail": f"오류가 발생했습니다: {str(e)}"}
-        )
+#     except Exception as e:
+#         # ObjectId 변환 오류 또는 기타 예외 처리
+#         return JSONResponse(
+#             status_code=500,
+#             content={"success": False, "detail": f"오류가 발생했습니다: {str(e)}"}
+#         )
 
 
 @router.post("/{test_pk}/end")

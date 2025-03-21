@@ -12,7 +12,7 @@ export interface Test {
       problem_category: string;
       topic_category: string;
       problem: string;
-      audio_file   : string;
+      audio_s3_url   : string;
     };
   };
 }
@@ -57,6 +57,7 @@ const testSlice = createSlice({
     resetUsageCount: (state) => {
       state.usageCount = 0;
     },
+    
   },
 });
 
