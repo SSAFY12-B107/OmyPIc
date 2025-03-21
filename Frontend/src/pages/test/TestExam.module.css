@@ -119,6 +119,25 @@
 
 }
 
+
+/* 녹음 중 이미지 애니메이션 */
+@keyframes moveLeftRight {
+  0%, 100% {
+    /* 1배 */
+    transform: scale(1);
+  }
+  50% {
+    /* 1.2배 */
+    transform: scale(1.1);
+  }
+}
+
+/* 녹음 중일 때만 애니메이션 적용 */
+.recording {
+  animation: moveLeftRight 1s ease-in-out infinite;
+}
+
+
 .recordBtn {
   margin-bottom: 2rem;
 }
