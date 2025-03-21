@@ -646,6 +646,7 @@ def create_problem_detail(problem: Dict[str, Any]) -> ProblemDetail:
         problem_category=problem.get("problem_category", "기타"),
         topic_category=problem.get("topic_category", "기타"),
         problem=problem.get("content", "문제 내용 없음"),
+        audio_s3_url=problem.get("audio_s3_url", "문제 내용 없음"),
         user_response=None,  # 사용자 응답은 아직 없음
         score=None,  # 점수는 아직 없음
         feedback=None,  # 피드백은 아직 없음

@@ -1,0 +1,40 @@
+.nav-bar {
+  position: fixed;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4rem;
+  width: 100%;
+  max-width: 480px;
+  padding: 2rem 0 1rem;
+  border-radius: 2rem 2rem 0 0;
+  background-color: #fff;
+  box-shadow: 1px -1px 6px rgba(0, 0, 0, 0.07);
+  z-index: 1000;
+}
+
+.nav-txt {
+  position: relative;
+  font-size: 1.4rem;
+  color: #565656;
+  text-decoration: none;
+}
+
+.nav-txt.active::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-color: #A986E8;
+}
+
+/* 화면이 매우 작을 때 간격 조정 */
+@media screen and (max-width: 360px) {
+  .nav-bar {
+    gap: 3rem; /* 더 작은 화면에서는 버튼 간격 줄임 */
+    padding: 1.5rem 0 0.8rem; /* 패딩 살짝 줄임 */
+  }
+}
