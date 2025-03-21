@@ -32,7 +32,7 @@ export interface ProblemData {
 
 // 테스트 데이터 타입 정의
 export interface TestFeedbackData {
-  _id: string;
+  _id: string; // 문제 pk (ex 모의고사 1회)
   user_id: string;
   test_type: boolean;
   test_date: string;
@@ -44,9 +44,9 @@ export interface TestFeedbackData {
 }
 
 // 테스트 피드백 조회 함수
-const fetchTestFeedback = async (test_pk: number): Promise<TestFeedbackData> => {
+const fetchTestFeedback = async (test_pk: string): Promise<TestFeedbackData> => {
   try {
-    const { data } = await apiClient.get(`/api/tests/${test_pk}`);
+    const { data } = await apiClient.get(`/tests/${test_pk}`);
     return data;
   } catch (error) {
     console.error('피드백 조회 에러:', error);
@@ -56,15 +56,12 @@ const fetchTestFeedback = async (test_pk: number): Promise<TestFeedbackData> => 
 
 // 테스트 피드백 조회 훅
 export const useFeedback = (test_pk: string | undefined) => {
-  // 문자열을 숫자로 변환
-  const numericTestId = test_pk ? parseInt(test_pk, 10) : undefined;
-  
-  return useQuery({
-    queryKey: ['testFeedback', numericTestId],
-    queryFn: () => fetchTestFeedback(numericTestId!),
 
-    // 유효한 숫자 ID가 있을 때만 쿼리 실행
-    enabled: !!numericTestId && !isNaN(numericTestId),
+  return useQuery({
+    queryKey: ['testFeedback', test_pk],
+    queryFn: () => fetchTestFeedback(test_pk!),
+
+    enabled: !!test_pk 
   });
 };
 

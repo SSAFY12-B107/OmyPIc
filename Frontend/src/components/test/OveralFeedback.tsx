@@ -4,7 +4,7 @@ import { MultipleFeedback } from "../../hooks/useFeedBack";
 
 
 interface OveralFeedbackProps {
-  testFeedback: MultipleFeedback | null;
+  testFeedback?: MultipleFeedback | null;
 }
 
 function OveralFeedback({ testFeedback }: OveralFeedbackProps) {

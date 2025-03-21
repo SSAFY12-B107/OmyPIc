@@ -20,6 +20,8 @@
     justify-content: center;
     background-color: #EFE6FF;
     border: 0.8px solid rgba(87, 63, 132, 0.2);
+    cursor: pointer;
+    
   }
   
   .activeStep {
