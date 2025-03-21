@@ -33,20 +33,20 @@ function AuthHandler() {
           
           // 온보딩 여부에 따라 리다이렉트
           if (!userObj.is_onboarded) {
-            navigate('/profile'); // 온보딩이 필요한 경우 프로필 페이지로
+            navigate('/auth/profile'); // 온보딩이 필요한 경우 프로필 페이지로
           } else {
             navigate('/'); // 온보딩이 완료된 경우 홈으로
           }
         } catch (error) {
           console.error('사용자 정보 파싱 오류:', error);
-          navigate('/login');
+          navigate('/auth/login');
         }
       } else {
         navigate('/');
       }
     } else {
       // 토큰이 없는 경우 로그인 페이지로
-      navigate('/login');
+      navigate('/auth/login');
     }
   }, [location, navigate]);
   
@@ -65,6 +65,8 @@ const AuthRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/auth/callback" element={<AuthHandler />} />
+      <Route path="/auth/google/callback" element={<AuthHandler />} />
+      <Route path="/auth/naver/callback" element={<AuthHandler />} />
     </Routes>
   );
 };
