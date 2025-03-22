@@ -198,16 +198,53 @@ async def get_basic_questions(
             detail=f"질문 조회 중 오류가 발생했습니다: {str(e)}"
         )
 
-@router.post("/{problem_pk}/custom-quesiton", response_model="", status_code=status.HTTP_201_CREATED)
+@router.post("/{problem_pk}/custom-quesiton", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def make_custom_questions(
+    problem_pk: str,
+    script_data: dict = Body(...),
     db: Database = Depends(get_mongodb)
 ) -> Any:
     """
     스크립트 꼬리 질문 생성
+    
+    요청 형식 예시:
+    {
+        "1": "첫 번째 문장입니다.", # 필수 키. 값이 비어 있어도 괜찮습니다.
+        "2": "두 번째 문장입니다.", # 필수 키
+        "3": "세 번째 문장입니다."  # 필수 키
+    }
     """
-    pass
-
-from fastapi import Body
+    
+    # 1. 문제 정보 조회
+    problem = await db.problems.find_one({"_id": ObjectId(problem_pk)})
+    if not problem:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"ID가 {problem_pk}인 문제를 찾을 수 없습니다."
+        )
+    
+    # 필수 키 검증 (1, 2, 3 키가 모두 있는지 확인)
+    required_keys = ["1", "2", "3"]
+    for key in required_keys:
+        if key not in script_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Key {key} is required"
+            )
+        
+        # 키는 있지만 값은 비어있어도 됨 (값 유효성 검사 제거)
+    
+    # 여기에 꼬리 질문 생성 로직 구현
+    # 예: await db.custom_questions.insert_one({...})
+    
+    ## TODO: 실제 꼬리 질문 생성 로직 추가
+    
+    # 꼬리 질문 반환
+    return {
+        "1": f"1번 문장 '{script_data['1']}'에 대한 꼬리 질문입니다.",
+        "2": f"2번 문장 '{script_data['2']}'에 대한 꼬리 질문입니다.",
+        "3": f"3번 문장 '{script_data['3']}'에 대한 꼬리 질문입니다."
+    }
 
 @router.post("/{problem_pk}/scripts", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def make_script(
@@ -217,7 +254,16 @@ async def make_script(
 ) -> Any:
     """
     스크립트 작성
+
+    요청 형식 예시:
+    {
+        "type": "basic",          # 필수. 값은 "basic" 또는 "custom" 중 하나
+        "1": "첫 번째 문장입니다.", # 필수 키. 값이 비어 있어도 괜찮습니다.
+        "2": "두 번째 문장입니다.", # 필수 키
+        "3": "세 번째 문장입니다."  # 필수 키
+    }
     """
+    
     # 1. 문제 정보 조회
     problem = await db.problems.find_one({"_id": ObjectId(problem_pk)})
     if not problem:
@@ -257,7 +303,7 @@ async def make_script(
 
     # 성공 메시지 반환
     return {
-        "message": "성공! 연결 잘된거에요! 이제 제대로 된 스크립트가 여기서 전송됩니다."
+        "message": "성공! 연결 잘된거에요! 이제 제대로 된 스크립트가 여기서 전송됩니다.로직은 아직구현중!"
     }
 
 
