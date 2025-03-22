@@ -15,6 +15,7 @@ class TestScoreInfo(BaseModel):
 class TestHistoryItem(BaseModel):
     """테스트 히스토리 항목"""
     id: str
+    overall_feedback_status: Optional[str] = None
     test_date: datetime
     test_type: bool
     test_score: Optional[TestScoreInfo] = None

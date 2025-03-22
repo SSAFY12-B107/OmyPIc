@@ -53,6 +53,7 @@ async def get_test_history(
         for test in tests:
             test_history.append({
                 "id": str(test["_id"]),
+                "overall_feedback_status": test.get("overall_feedback_status", "미평가"),
                 "test_date": test["test_date"],
                 "test_type": test["test_type"],
                 "test_score": test.get("test_score", None)
@@ -172,6 +173,52 @@ async def make_test(
         logger.error(f"테스트 생성 중 오류 발생: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"테스트 생성 중 오류 발생: {str(e)}")
 
+
+@router.delete("/{test_id}")
+async def delete_test(
+    test_id: str,
+    db: Database = Depends(get_mongodb)
+) -> Response:
+    """
+    테스트 삭제 엔드포인트
+    """
+    try:
+        # 유효한 ObjectId인지 확인
+        if not ObjectId.is_valid(test_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="유효하지 않은 테스트 ID 형식입니다."
+            )
+        
+        # 테스트 조회
+        test = await db.tests.find_one({"_id": ObjectId(test_id)})
+        if not test:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="해당 ID의 테스트를 찾을 수 없습니다."
+            )
+        
+        # 테스트 삭제
+        result = await db.tests.delete_one({"_id": ObjectId(test_id)})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="테스트 삭제에 실패했습니다."
+            )
+        
+        # 204 No Content 반환 (성공적으로 삭제됨)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        
+    except HTTPException:
+        # 이미 처리된 예외는 그대로 전달
+        raise
+    except Exception as e:
+        logger.error(f"테스트 삭제 중 오류 발생: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"테스트 삭제 중 오류 발생: {str(e)}"
+        )
 
 @router.get("/{problem_pk}/audio")
 async def get_problem_audio(

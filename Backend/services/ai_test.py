@@ -302,9 +302,11 @@ async def evaluate_problem_response(
         
         # 매번 새로운 LLM 인스턴스 생성 (API 키 순환)
         llama_llm = get_llama_llm()
+        gemini_llm = get_gemini_llm()
 
         # 최신 API 방식으로 체인 구성
-        chain = prompt | llama_llm | parser
+        # chain = prompt | llama_llm | parser
+        chain = prompt | gemini_llm | parser
         
         # 체인 실행
         result = await chain.ainvoke({
@@ -424,9 +426,11 @@ async def evaluate_overall_test(
         
         # 매번 새로운 LLM 인스턴스 생성 (API 키 순환)
         llama_llm = get_llama_llm()
+        gemini_llm = get_gemini_llm()
 
         # 최신 API 방식으로 체인 구성
-        chain = prompt | llama_llm | parser
+        # chain = prompt | llama_llm | parser
+        chain = prompt | gemini_llm | parser
         
         # 체인 실행
         result = await chain.ainvoke({
