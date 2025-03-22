@@ -62,6 +62,31 @@ class UserResponse(BaseModel):
             datetime: lambda dt: dt.isoformat()
         }
 
+
+class TestInfo(BaseModel):
+    test_date: List[Optional[datetime]] = None
+    test_score:List[Optional[str]] = None
+
+
+# 사용자 프로필 정보 응답 스키마
+class UserDetailResponse(BaseModel):
+    id: str = Field(alias="_id")
+    name: str
+    email: Optional[str]
+    current_opic_score: Optional[str] = None
+    target_opic_score: Optional[str] = None
+    target_exam_date: Optional[datetime] = None
+    is_onboarded: bool
+    background_survey: Optional[Dict] = None
+    test: Optional[TestInfo] = None
+
+    class Config:
+        populate_by_name = True
+        json_encoders = {
+            ObjectId: str,
+            datetime: lambda dt: dt.isoformat()
+        }
+
 # 사용자 인증 정보 스키마
 class UserAuth(BaseModel):
     email: str

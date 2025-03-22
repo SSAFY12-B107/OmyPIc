@@ -3,9 +3,10 @@ from fastapi.responses import HTMLResponse, FileResponse
 from typing import Any, List, Dict, Optional, Union
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase as Database
+from datetime import datetime
 
 from db.mongodb import get_mongodb
-from schemas.problem import ProblemResponse, ProblemDetailResponse, BasicQuestionResponse, ScriptUpdateRequest, ScriptResponse
+from schemas.problem import ProblemResponse, ProblemDetailResponse, QuestionResponse, ScriptUpdateRequest, ScriptResponse, CustomQuestionRequest, ScriptCreationRequest, ScriptCreationResponse, QuestionAnswers, ScriptCreationRequest
 
 from gtts import gTTS
 import os
@@ -144,11 +145,11 @@ async def get_problem_detail(
         )
 
 
-@router.get("/{problem_pk}/basic-question", response_model=BasicQuestionResponse, status_code=status.HTTP_200_OK)
+@router.get("/{problem_pk}/basic-question", response_model=QuestionResponse, status_code=status.HTTP_200_OK)
 async def get_basic_questions(
     problem_pk: str = Path(..., description="조회할 문제 ID"),
     db: Database = Depends(get_mongodb)
-) -> BasicQuestionResponse:
+) -> QuestionResponse:
     """
     문제에 해당하는 스크립트 기본 질문 조회
     - problem_pk: 조회할 문제 ID
@@ -198,114 +199,167 @@ async def get_basic_questions(
             detail=f"질문 조회 중 오류가 발생했습니다: {str(e)}"
         )
 
-@router.post("/{problem_pk}/custom-quesiton", response_model=dict, status_code=status.HTTP_201_CREATED)
+@router.post("/{problem_pk}/custom-question", response_model=QuestionResponse, status_code=status.HTTP_201_CREATED)
 async def make_custom_questions(
-    problem_pk: str,
-    script_data: dict = Body(...),
+    problem_pk: str = Path(..., description="문제 ID"),
+    response_data: CustomQuestionRequest = Body(...),
     db: Database = Depends(get_mongodb)
-) -> Any:
+) -> QuestionResponse:
     """
     스크립트 꼬리 질문 생성
+    - problem_pk: 문제 ID
+    - response_data: 사용자가 작성한 기본 질문 답변
     
-    요청 형식 예시:
-    {
-        "1": "첫 번째 문장입니다.", # 필수 키. 값이 비어 있어도 괜찮습니다.
-        "2": "두 번째 문장입니다.", # 필수 키
-        "3": "세 번째 문장입니다."  # 필수 키
-    }
+    반환:
+    - 문제 내용
+    - 생성된 꼬리 질문 목록
     """
-    
-    # 1. 문제 정보 조회
-    problem = await db.problems.find_one({"_id": ObjectId(problem_pk)})
-    if not problem:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"ID가 {problem_pk}인 문제를 찾을 수 없습니다."
-        )
-    
-    # 필수 키 검증 (1, 2, 3 키가 모두 있는지 확인)
-    required_keys = ["1", "2", "3"]
-    for key in required_keys:
-        if key not in script_data:
+    try:
+        # 1. 문제 정보 조회
+        problem = await db.problems.find_one({"_id": ObjectId(problem_pk)})
+        if not problem:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Key {key} is required"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"ID가 {problem_pk}인 문제를 찾을 수 없습니다."
             )
         
-        # 키는 있지만 값은 비어있어도 됨 (값 유효성 검사 제거)
-    
-    # 여기에 꼬리 질문 생성 로직 구현
-    # 예: await db.custom_questions.insert_one({...})
-    
-    ## TODO: 실제 꼬리 질문 생성 로직 추가
-    
-    # 꼬리 질문 반환
-    return {
-        "1": f"1번 문장 '{script_data['1']}'에 대한 꼬리 질문입니다.",
-        "2": f"2번 문장 '{script_data['2']}'에 대한 꼬리 질문입니다.",
-        "3": f"3번 문장 '{script_data['3']}'에 대한 꼬리 질문입니다."
-    }
+        # ObjectId를 문자열로 변환
+        problem["_id"] = str(problem["_id"])
+        
+        # 2. 입력 데이터 검증
+        if not response_data.question1 and not response_data.question2 and not response_data.question3:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="최소한 한 글자는 입력해야 합니다."
+            )
+        
+        # 3. 꼬리 질문 생성 로직 구현
+        # TODO: 실제 꼬리 질문 생성 로직 추가 (AI 모델 활용 등)
+        # 현재는 임시 데이터 반환
+        custom_questions = []
+        
+        if response_data.question1:
+            custom_questions.append(f"1번 응답 '{response_data.question1}'에 대한 꼬리 질문입니다.")
+        if response_data.question2:
+            custom_questions.append(f"2번 응답 '{response_data.question2}'에 대한 꼬리 질문입니다.")
+        if response_data.question3:
+            custom_questions.append(f"3번 응답 '{response_data.question3}'에 대한 꼬리 질문입니다.")
+        
+        # 4. 결과 반환
+        return {
+            "content": problem.get('content', ''),
+            "questions": custom_questions
+        }
+        
+    except Exception as e:
+        # 유효하지 않은 ObjectId 형식 등의 오류 처리
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"꼬리 질문 생성 중 오류가 발생했습니다: {str(e)}"
+        )
 
-@router.post("/{problem_pk}/scripts", response_model=dict, status_code=status.HTTP_201_CREATED)
+
+@router.post("/{problem_pk}/scripts", response_model=ScriptCreationResponse, status_code=status.HTTP_201_CREATED)
 async def make_script(
-    problem_pk: str,
-    script_data: dict = Body(...),
+    problem_pk: str = Path(..., description="문제 ID"),
+    script_data: ScriptCreationRequest = Body(...),
     db: Database = Depends(get_mongodb)
-) -> Any:
+) -> ScriptCreationResponse:
     """
     스크립트 작성
-
-    요청 형식 예시:
-    {
-        "type": "basic",          # 필수. 값은 "basic" 또는 "custom" 중 하나
-        "1": "첫 번째 문장입니다.", # 필수 키. 값이 비어 있어도 괜찮습니다.
-        "2": "두 번째 문장입니다.", # 필수 키
-        "3": "세 번째 문장입니다."  # 필수 키
-    }
+    - problem_pk: 문제 ID
+    - script_data: 스크립트 생성 요청 데이터 (type에 따라 필요한 필드가 달라짐)
+    
+    반환:
+    - 생성된 스크립트 정보
     """
-    
-    # 1. 문제 정보 조회
-    problem = await db.problems.find_one({"_id": ObjectId(problem_pk)})
-    if not problem:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"ID가 {problem_pk}인 문제를 찾을 수 없습니다."
-        )
-    
-    # 유효성 검사 - 입력 데이터 형식
-    if "type" not in script_data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Script type is required"
-        )
-    
-    # type 값 검증
-    if script_data["type"] not in ["basic", "custom"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Script type must be 'basic' or 'custom'"
-        )
-    
-    # 필수 키 검증 (1, 2, 3 키가 모두 있는지 확인)
-    required_keys = ["1", "2", "3"]
-    for key in required_keys:
-        if key not in script_data:
+    try:
+        # 1. 문제 정보 조회
+        problem = await db.problems.find_one({"_id": ObjectId(problem_pk)})
+        if not problem:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Key {key} is required"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"ID가 {problem_pk}인 문제를 찾을 수 없습니다."
             )
         
-        # 키는 있지만 값은 비어있어도 됨 (값 유효성 검사 제거)
-    
-    # 예: await db.scripts.insert_one({...})
-    
-    ## TODO :     # 여기에 스크립트 저장 로직 구현
-
-    # 성공 메시지 반환
-    return {
-        "message": "성공! 연결 잘된거에요! 이제 제대로 된 스크립트가 여기서 전송됩니다.로직은 아직구현중!"
-    }
-
+        # 2. 스크립트 타입에 따른 처리
+        script_content = ""
+        
+        if script_data.type == "basic":
+            if not script_data.basic_answers:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="기본 타입 스크립트에는 basic_answers가 필요합니다."
+                )
+                
+            # 기본 답변 처리
+            script_content = (
+                f"{script_data.basic_answers.answer1}\n"
+                f"{script_data.basic_answers.answer2}\n"
+                f"{script_data.basic_answers.answer3}"
+            ).strip()
+            
+        elif script_data.type == "custom":
+            if not script_data.basic_answers or not script_data.custom_answers:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="커스텀 타입 스크립트에는 basic_answers와 custom_answers가 모두 필요합니다."
+                )
+                
+            # 기본 답변과 커스텀 답변 모두 처리
+            basic_content = (
+                f"기본 질문 답변:\n"
+                f"{script_data.basic_answers.answer1}\n"
+                f"{script_data.basic_answers.answer2}\n"
+                f"{script_data.basic_answers.answer3}"
+            )
+            
+            custom_content = (
+                f"커스텀 질문 답변:\n"
+                f"{script_data.custom_answers.answer1}\n"
+                f"{script_data.custom_answers.answer2}\n"
+                f"{script_data.custom_answers.answer3}"
+            )
+            
+            script_content = f"스크립트 내용입니다."
+        
+        # 3. 내용이 비어있는지 확인
+        if not script_content:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="스크립트 내용이 비어 있습니다."
+            )
+        
+        # 4. 스크립트 저장
+        now = datetime.now()
+        script_doc = {
+            "user_id": "temp_user_id",  # TODO: 실제 사용자 ID로 대체
+            "problem_id": problem_pk,
+            "content": script_content,
+            "created_at": now,
+            "is_script": True,
+            "script_type": script_data.type
+        }
+        
+        # MongoDB에 저장
+        result = await db.scripts.insert_one(script_doc)
+        script_id = str(result.inserted_id)
+        
+        # 5. 저장된 스크립트 반환
+        return {
+            "_id": script_id,
+            "content": script_content,
+            "created_at": now,
+            "is_script": True,
+            "script_type": script_data.type
+        }
+        
+    except Exception as e:
+        # 오류 처리
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"스크립트 생성 중 오류가 발생했습니다: {str(e)}"
+        )
 
 
 @router.patch("/scripts/{script_pk}", response_model=ScriptResponse, status_code=status.HTTP_200_OK)

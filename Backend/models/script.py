@@ -7,11 +7,11 @@ from datetime import datetime
 class ScriptModel(BaseModel):
     """테스트(모의고사) 모델"""
     id: Optional[str] = Field(default=None, alias="_id")  # MongoDB의 _id를 문자열로 표현
-    user_id: str = Field(...)  # 사용자 ID(MongoDB ObjectId를 문자열로 표현)  # 테스트 유형 (False: Full, True: Half(속성))
+    user_id: str = Field(...)  # 사용자 ID(MongoDB ObjectId를 문자열로 표현)
     problem_id: str = Field(...)
     content: str
     created_at: datetime= Field(default_factory=datetime.now)  # 테스트 날짜
-    is_script: bool
+    is_script: bool # 스크립트 여부 true: 스크립트, false: 사용자 응답
 
     model_config = {
         "populate_by_name": True,
