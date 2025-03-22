@@ -1,38 +1,72 @@
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { useCallback } from "react";
 import styles from "./ScriptModal.module.css";
 import opigi from "@/assets/images/opigi.png";
+import { setContent, setQuestions, setIsCustomMode } from "@/store/scriptSlice";
+import { QuestionsResponse, useGenerateCustomQuestions } from "@/hooks/useScripts";
 
 interface Props {
   isGenerating: boolean; // 스크립트 생성 중인지 여부
-  onClose?: () => void;
-  scriptContent?: string; // 생성된 스크립트 내용
-  detailPagePath?: string; // 상세 페이지 경로
-  onConfirm?: () => void; // 확인(네) 버튼 클릭 시 호출할 함수
+  onClose: () => void;
+  scriptContent: string; // 생성된 스크립트 내용
+  detailPagePath: string; // 상세 페이지 경로
+  problemId: string; // 문제 ID
+  currentAnswers: string[]; // 현재 답변 배열
 }
 
 function ScriptModal({
   isGenerating,
   onClose,
   scriptContent = "",
-  detailPagePath = "/script/detail",
-  onConfirm,
+  detailPagePath,
+  problemId,
+  currentAnswers,
 }: Props) {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const generateCustomQuestionsMutation = useGenerateCustomQuestions();
+
+  // AI 꼬리 질문 생성 함수
+  const generateCustomQuestions = useCallback(() => {
+    if (!problemId) return;
+
+    // 기본 질문에 대한 답변을 꼬리 질문 생성 요청으로 변환
+    const customQuestionsRequest = {
+      question1: currentAnswers[0] || '',
+      question2: currentAnswers[1] || '',
+      question3: currentAnswers[2] || ''
+    };
+
+    generateCustomQuestionsMutation.mutate(
+      { problemId, answers: customQuestionsRequest },
+      {
+        onSuccess: (data: QuestionsResponse) => {
+          if (data.content) {
+            dispatch(setContent(data.content));
+          }
+          if (data.questions) {
+            dispatch(setQuestions(data.questions));
+          }
+          dispatch(setIsCustomMode(true));
+          onClose(); // 모달 닫기
+        },
+        onError: (error: Error) => {
+          console.error("AI 꼬리 질문 생성 중 오류가 발생했습니다.", error);
+          navigate(detailPagePath);
+        },
+      }
+    );
+  }, [problemId, currentAnswers, detailPagePath, navigate, dispatch, generateCustomQuestionsMutation, onClose]);
 
   // 네 버튼 클릭 핸들러
   const handleYesClick = () => {
-    if (onConfirm) {
-      onConfirm();
-    } else if (onClose) {
-      onClose();
-    }
+    generateCustomQuestions();
   };
 
   // 아니요 버튼 클릭 핸들러
   const handleNoClick = () => {
-    if (onClose) {
-      onClose();
-    }
+    onClose();
     navigate(detailPagePath);
   };
 
@@ -77,6 +111,7 @@ function ScriptModal({
                 <button 
                   className={styles.yesBtn} 
                   onClick={handleYesClick}
+                  disabled={generateCustomQuestionsMutation.isPending}
                 >
                   네
                 </button>
