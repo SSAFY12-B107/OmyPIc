@@ -1,27 +1,31 @@
 // src/api/homeApi.ts
 import { useQuery } from "@tanstack/react-query";
-import apiClient from "./apiClient";
+import apiClient from "../api/apiClient";
 
 // 사용자 정보 인터페이스 정의
-export interface User {
-  id: string;                 // 고유 식별자
-  username: string;           // 1. 사용자 이름
-  desiredGrade: string;       // 2. 희망 등급
-  currentGrade: string;       // 3. 현재 등급
-  daysUntilExam: number;      // 4. 시험까지 남은 기간 (일 수)
-  expectedGradeStats: {       // 5. 예상 등급 통계
-  date: Date;                 // 예측 날짜
-  grade: string;              // 해당 날짜의 예상 등급
+interface UserInfo {
+  _id: string;
+  name: string;
+  email: string;
+  current_opic_score: string;
+  target_opic_score: string;
+  target_exam_date: string;
+  is_onboarded: boolean;
+  background_survey: Record<string, any>;
+  test: {
+    test_date: (string | null)[]; // 길이 제한 없는 배열
+    test_score: (string | null)[];
   };
-  createdAt: Date;            // 사용자 생성 날짜
 }
 
 // 회원 정보 전체 조회 API 훅
 export const useGetUserInfo = () => {
-  return useQuery<User>({
+  return useQuery<UserInfo>({
     queryKey: ["userInfo"],
     queryFn: async () => {
-      const response = await apiClient.get<User>("/users");
+      const response = await apiClient.get<UserInfo>(
+        "/users/67dc13091f75356c0fd87f71"
+      );
       return response.data;
     },
   });

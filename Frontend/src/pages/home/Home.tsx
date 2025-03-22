@@ -3,10 +3,26 @@ import styles from "./Home.module.css";
 import LevelChart from "@/components/home/LevelChart";
 import Navbar from "@/components/common/Navbar";
 import { useTestDate } from '@/hooks/useTestDate';
+import { useGetUserInfo } from '@/hooks/useUserInfo';
+import LoadingSpinner from "../../components/common/LoadingSpinner";
 
 function Home() {
-  const testDateIso = "2025-03-22T05:00:00.000Z"; // API에서 받아온 시험일
+  // 사용자 정보 가져오기
+  const { data: userInfo, isLoading, error } = useGetUserInfo();
+
+  // 시험일 계산 - API에서 받아온 데이터로 교체
+  const testDateIso = userInfo?.target_exam_date || "2025-03-19T15:20:11.275000";
   const { formattedDate, dday } = useTestDate(testDateIso);
+
+  // 로딩 상태 처리
+  if (isLoading) {
+    return <div className={styles["loading"]}><LoadingSpinner/></div>;
+  }
+
+  // 에러 상태 처리
+  if (error) {
+    return <div className={styles["error"]}>사용자 정보를 불러오는데 실패했습니다.</div>;
+  }
 
   return (
     <div className={styles["home"]}>
@@ -14,10 +30,10 @@ function Home() {
       <header className={styles["home-header"]}>
         <h1 className={styles["logo-txt"]}>OmyPIc</h1>
         <div className={styles["user-info"]}>
-          <p>Hello, [username]!</p>
-          <img src="" alt="" />
+          <p>Hello, {userInfo.name}!</p>
+          {/* <img src="" alt="" /> */}
           {/* user-img 없는 경우 */}
-          {/* <div className={styles["basic-img"]}>
+          <div className={styles["basic-img"]}>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="20"
@@ -32,7 +48,7 @@ function Home() {
                 fill="white"
               />
             </svg>
-          </div> */}
+          </div>
         </div>
       </header>
 
@@ -40,11 +56,11 @@ function Home() {
         {/* 레벨 박스 */}
         <div className={`${styles["home-box"]} ${styles["level-box"]}`}>
           <div className={styles["my-level"]}>
-            <p className={styles["level"]}>[IM2]</p>
+            <p className={styles["level"]}>{userInfo.current_opic_score || '-'}</p>
             <p className={styles["level-title"]}>현재 레벨</p>
           </div>
           <div className={styles["hope-level"]}>
-            <p className={styles["level"]}>[IH]</p>
+            <p className={styles["level"]}>{userInfo.target_opic_score || '-'}</p>
             <p className={styles["level-title"]}>희망 레벨</p>
           </div>
         </div>
@@ -54,7 +70,7 @@ function Home() {
           <div className={styles["date-info"]}>
             <div className={styles["date-title"]}>
               <p>내 OPIc 시험</p>
-              <div>
+              <div className={styles['calendar']}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="17"
@@ -80,7 +96,7 @@ function Home() {
         {/* <CharacterChange /> */}
 
         {/* 실력 향상 추이 그래프 */}
-        <LevelChart />
+        <LevelChart testResult={userInfo.test} />
       </div>
 
       {/* 네브바 */}
