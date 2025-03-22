@@ -207,15 +207,60 @@ async def make_custom_questions(
     """
     pass
 
-@router.post("/{problem_pk}/scripts", response_model="", status_code=status.HTTP_201_CREATED)
+from fastapi import Body
+
+@router.post("/{problem_pk}/scripts", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def make_script(
-    problem: None,
+    problem_pk: str,
+    script_data: dict = Body(...),
     db: Database = Depends(get_mongodb)
 ) -> Any:
     """
     스크립트 작성
     """
-    pass
+    # 1. 문제 정보 조회
+    problem = await db.problems.find_one({"_id": ObjectId(problem_pk)})
+    if not problem:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"ID가 {problem_pk}인 문제를 찾을 수 없습니다."
+        )
+    
+    # 유효성 검사 - 입력 데이터 형식
+    if "type" not in script_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Script type is required"
+        )
+    
+    # type 값 검증
+    if script_data["type"] not in ["basic", "custom"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Script type must be 'basic' or 'custom'"
+        )
+    
+    # 필수 키 검증 (1, 2, 3 키가 모두 있는지 확인)
+    required_keys = ["1", "2", "3"]
+    for key in required_keys:
+        if key not in script_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Key {key} is required"
+            )
+        
+        # 키는 있지만 값은 비어있어도 됨 (값 유효성 검사 제거)
+    
+    # 예: await db.scripts.insert_one({...})
+    
+    ## TODO :     # 여기에 스크립트 저장 로직 구현
+
+    # 성공 메시지 반환
+    return {
+        "message": "성공! 연결 잘된거에요! 이제 제대로 된 스크립트가 여기서 전송됩니다."
+    }
+
+
 
 @router.patch("/scripts/{script_pk}", response_model=ScriptResponse, status_code=status.HTTP_200_OK)
 async def update_script(

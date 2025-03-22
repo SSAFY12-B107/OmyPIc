@@ -1,5 +1,6 @@
+#Backend/models/script.py
 from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 
 
@@ -26,3 +27,21 @@ class ScriptModel(BaseModel):
         }
     }
 
+
+class ScriptQuestionRequest(BaseModel):
+    type: str = Field(..., description="Script type, either 'basic' or 'custom'")
+    
+    answer_1: str = Field(default="", description="Answer for question 1", alias="1")
+    answer_2: str = Field(default="", description="Answer for question 2", alias="2")
+    answer_3: str = Field(default="", description="Answer for question 3", alias="3")
+    
+    class Config:
+        populate_by_name = True
+        allow_population_by_field_name = True
+    
+    @field_validator('type')
+    @classmethod
+    def validate_type(cls, v):
+        if v not in ['basic', 'custom']:
+            raise ValueError("type은 'basic' 또는 'custom'이어야 합니다")
+        return v
