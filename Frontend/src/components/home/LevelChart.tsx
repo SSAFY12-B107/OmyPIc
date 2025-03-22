@@ -101,7 +101,7 @@ function LevelChart({ testResult }: LevelChartProps) {
       tooltip: {
         callbacks: {
           label: function(context) {
-            return levels[context.raw]; // 툴팁에도 레벨 이름 표시
+            return levels[context.raw as number]; // 툴팁에도 레벨 이름 표시
           }
         }
       }
@@ -112,13 +112,15 @@ function LevelChart({ testResult }: LevelChartProps) {
         max: levels.length - 1,
         ticks: {
           callback: function(value) {
-            return levels[value]; // Y축에 레벨 이름 표시
+            return levels[value as number]; // Y축에 레벨 이름 표시
           },
           stepSize: 1
         },
         grid: {
-          drawBorder: false,
-        }
+          border: {
+            display: false  // 그리드 테두리를 숨김
+          }
+        } as any
       },
       x: {
         grid: {
