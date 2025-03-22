@@ -17,8 +17,10 @@ from services.test_generator import generate_short_test, generate_full_test
 # 로깅 설정
 logger = logging.getLogger(__name__)
 
-# 싱글톤 인스턴스 생성
-audio_processor = AudioProcessor(model_name="small")
+# 두 가지 전역 인스턴스 생성
+standard_audio_processor = AudioProcessor(model_name="small")  # 7문제, 15문제용
+fast_audio_processor = AudioProcessor(model_name="tiny")  # 랜덤 단일 문제용
+
 evaluator = ResponseEvaluator()
 
 async def get_test_by_user_id(db: Database, user_id: str):
@@ -116,7 +118,7 @@ async def create_test(
         if test_type == 0:
             # 7문제 테스트 생성
             await generate_short_test(db, test_data, user_topics)
-        else:
+        else:  # test_type == 1
             # 15문제 테스트 생성
             await generate_full_test(db, test_data, user_topics)
         
@@ -138,6 +140,82 @@ async def create_test(
         logger.error(f"테스트 생성 중 오류: {str(e)}", exc_info=True)
         raise
 
+
+async def get_random_single_problem(
+    db: Database, 
+    user_id: str
+) -> Dict:
+    """
+    랜덤으로 하나의 문제만 선택하여 반환합니다.
+    이 함수는 테스트를 데이터베이스에 저장하지 않습니다.
+    
+    Args:
+        db: MongoDB 데이터베이스
+        user_id: 사용자 ID
+        
+    Returns:
+        Dict: 랜덤 선택된 문제 정보
+    """
+    logger.info(f"랜덤 단일 문제 선택 - 사용자: {user_id}")
+    
+    # 사용자 정보 가져오기
+    user_object_id = ObjectId(user_id)
+    user = await db.users.find_one({"_id": user_object_id})
+    
+    if not user:
+        logger.error(f"사용자 ID {user_id}에 해당하는 사용자를 찾을 수 없습니다.")
+        raise ValueError(f"사용자 ID {user_id}에 해당하는 사용자를 찾을 수 없습니다.")
+    
+    # 사용자의 배경 정보 가져오기
+    user_topics = user.get("background_survey", {}).get("info", [])
+    logger.info(f"사용자 관심 주제: {user_topics}")
+    
+    # 사용자 관심 주제가 있으면 해당 주제에서 우선 선택
+    pipeline = []
+    if user_topics:
+        pipeline.append({
+            "$match": {
+                "topic_category": {"$in": user_topics}
+            }
+        })
+    
+    # 랜덤으로 하나의 문제 선택
+    pipeline.extend([
+        {"$sample": {"size": 1}}
+    ])
+    
+    # 집계 쿼리 실행
+    problems = await db.problems.aggregate(pipeline).to_list(length=1)
+    
+    # 문제가 없으면 모든 문제에서 랜덤으로 하나 선택
+    if not problems:
+        logger.info("관심 주제에 맞는 문제가 없어 전체 문제에서 랜덤 선택합니다")
+        problems = await db.problems.aggregate([
+            {"$sample": {"size": 1}}
+        ]).to_list(length=1)
+    
+    # 선택된 문제가 있으면 반환
+    if problems:
+        problem = problems[0]
+        problem_id = str(problem["_id"])
+        
+        # 반환할 문제 데이터 구성
+        response_data = {
+            "problem_id": problem_id,
+            "problem_category": problem.get("problem_category", ""),
+            "topic_category": problem.get("topic_category", ""),
+            "content": problem.get("content", ""),
+            "audio_s3_url": problem.get("audio_s3_url", None),
+            "high_grade_kit": problem.get("high_grade_kit", False),
+            "user_id": user_id
+        }
+        
+        logger.info(f"랜덤 단일 문제 선택 완료: {problem_id}, 카테고리: {problem.get('problem_category', '')}")
+        return response_data
+    else:
+        logger.warning("선택할 수 있는 문제가 없습니다.")
+        raise ValueError("선택할 수 있는 문제가 없습니다.")
+    
 
 async def process_audio_and_evaluate(
     db: Database,
@@ -262,7 +340,7 @@ async def process_audio_background(
         
         # 2. AudioProcessor를 사용하여 오디오 텍스트 변환
         try:
-            transcribed_text = audio_processor.process_audio(audio_content)
+            transcribed_text = standard_audio_processor.process_audio(audio_content)
             logger.info(f"음성 변환 완료: {transcribed_text[:50]}...")
         except Exception as e:
             logger.error(f"음성 변환 중 오류: {str(e)}", exc_info=True)

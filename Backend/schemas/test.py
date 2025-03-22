@@ -120,6 +120,68 @@ class TestCreationResponse(BaseModel):
         }
     }
 
+class SingleProblemResponse(BaseModel):
+    """랜덤 단일 문제 응답 모델"""
+    problem_id: str
+    problem_category: str
+    topic_category: str
+    content: str
+    audio_s3_url: Optional[str] = None
+    high_grade_kit: bool = False
+    user_id: str
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "problem_id": "507f1f77bcf86cd799439011",
+                "problem_category": "short_conversation",
+                "topic_category": "listening",
+                "content": "What does the woman suggest about the report?",
+                "audio_s3_url": "https://example-bucket.s3.amazonaws.com/audio/problem123.mp3",
+                "high_grade_kit": True,
+                "user_id": "507f1f77bcf86cd799439022"
+            }
+        }
+    }
+
+
+class ProblemFeedbackDetail(BaseModel):
+    """랜덤 문제 피드백 상세 정보"""
+    paragraph: Optional[str] = None
+    vocabulary: Optional[str] = None
+    spoken_amount: Optional[str] = None
+
+class RandomProblemEvaluationResponse(BaseModel):
+    """랜덤 문제 평가 응답 모델"""
+    problem_id: str
+    user_id: str
+    problem_category: str
+    topic_category: str
+    problem_content: str
+    transcribed_text: str
+    score: str
+    feedback: ProblemFeedbackDetail
+    evaluated_at: str
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "problem_id": "507f1f77bcf86cd799439011",
+                "user_id": "507f1f77bcf86cd799439022",
+                "problem_category": "묘사",
+                "topic_category": "주거",
+                "problem_content": "현재 살고 있는 곳에 대해 설명해주세요.",
+                "transcribed_text": "I live in an apartment in Seoul...",
+                "score": "IH",
+                "feedback": {
+                    "paragraph": "논리적 구성이 잘 되어 있습니다.",
+                    "vocabulary": "다양한 어휘를 적절히 사용했습니다.",
+                    "spoken_amount": "충분한 발화량을 보여주었습니다."
+                },
+                "evaluated_at": "2023-10-15T09:30:00.123456"
+            }
+        }
+    }
 
 # 테스트 결과 업데이트를 위한 요청 모델
 class ProblemDetailFeedbackUpdate(BaseModel):
