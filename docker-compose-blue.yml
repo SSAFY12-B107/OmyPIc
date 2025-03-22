@@ -1,0 +1,29 @@
+services:
+  frontend:
+    image: kst1040/omypic-frontend:latest
+    container_name: omypic-blue-frontend
+    env_file:
+      - .env
+    volumes:
+      - type: volume
+        source: frontend-blue-build
+        target: /usr/share/nginx/blue
+    command: ["sh", "-c", "cp -r /app/dist/* /usr/share/nginx/blue/ && echo 'Files copied to blue volume' && tail -f /dev/null"]
+    networks:
+      - omypic-network
+
+  backend:
+    image: kst1040/omypic-backend:latest
+    container_name: omypic-blue-backend
+    env_file:
+      - .env
+    expose:
+      - 8000
+    networks:
+      - omypic-network
+networks:
+  omypic-network:
+    external: true
+volumes:
+  frontend-blue-build:
+    external: true

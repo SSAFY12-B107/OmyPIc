@@ -1,14 +1,24 @@
-import uuid
-from fastapi import Depends
+from datetime import datetime, timedelta
+from typing import Any, Dict, Optional
 
-from fastapi_users import FastAPIUsers
+from jose import jwt
+from passlib.context import CryptContext
 
-from models.user import UserModel
-from services.user_manager import get_user_manager
-from core.security import auth_backend, refresh_backend
+from core.config import settings
 
-# FastAPIUsers 설정
-fastapi_users = FastAPIUsers[UserModel, uuid.UUID](get_user_manager, [auth_backend, refresh_backend])
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# 현재 인증된 사용자 의존성
-current_active_user = fastapi_users.current_user(active=True)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """비밀번호 검증"""
+    pass 
+
+def get_password_hash(password: str) -> str:
+    """비밀번호 해싱"""
+    pass
+
+
+def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:
+    """JWT 액세스 토큰 생성"""
+
+    pass 
