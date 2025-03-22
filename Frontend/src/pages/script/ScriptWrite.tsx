@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import QuestionBox from "../../components/script/QuestionBox";
+import QuestionBox from "@/components/script/QuestionBox";
 import styles from "./ScriptWrite.module.css";
-import opigi from "../../assets/images/opigi.png";
-import ScriptModal from "../../components/script/ScriptModal";
-import NavigationButton from "../../components/common/NavigationButton";
-import LoadingSpinner from "../../components/common/LoadingSpinner";
+import opigi from "@/assets/images/opigi.png";
+import ScriptModal from "@/components/script/ScriptModal";
+import NavigationButton from "@/components/common/NavigationButton";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import {
   useGetBasicQuestions,
   useCreateScript,
   useGenerateCustomQuestions,
-} from "../../hooks/useScripts";
+} from "@/hooks/useScripts";
 
 // 답변용 인터페이스 정의
 interface AnswersType {

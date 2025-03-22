@@ -1,6 +1,6 @@
 import styles from './LoginButtons.module.css'
-import naverLogin from '../../assets/images/naver_login.png'
-import googleLogin from '../../assets/images/google_login.png'
+import naverLogin from '@/assets/images/naver_login.png'
+import googleLogin from '@/assets/images/google_login.png'
 
 function LoginButtons() {
   // Google 로그인 처리 함수

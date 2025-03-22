@@ -1,8 +1,8 @@
 import styles from "./Home.module.css";
-// import CharacterChange from "../../components/home/CharacterChange";
-import LevelChart from "../../components/home/LevelChart";
-import Navbar from "../../components/common/Navbar";
-import { useTestDate } from '../../hooks/useTestDate';
+// import CharacterChange from "@/components/home/CharacterChange";
+import LevelChart from "@/components/home/LevelChart";
+import Navbar from "@/components/common/Navbar";
+import { useTestDate } from '@/hooks/useTestDate';
 
 function Home() {
   const testDateIso = "2025-03-22T05:00:00.000Z"; // API에서 받아온 시험일

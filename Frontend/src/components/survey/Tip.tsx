@@ -1,6 +1,5 @@
-import React from "react";
 import styles from "./Tip.module.css";
-import opigi from "../../assets/images/opigi.png";
+import opigi from "@/assets/images/opigi.png";
 
 // Tip 타입 정의
 export type TipType = "workExperience" | "livingAlone" | "academicBackground";

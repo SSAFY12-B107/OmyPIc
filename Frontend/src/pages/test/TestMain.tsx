@@ -1,7 +1,7 @@
 import styles from './TestMain.module.css';
-import TestTypeButton from '../../components/test/TestTypeButton';
-import AverageGradeChart from '../../components/test/AverageGradeChart';
-import RecordItem from '../../components/test/RecordItem';
+import TestTypeButton from '@/components/test/TestTypeButton';
+import AverageGradeChart from '@/components/test/AverageGradeChart';
+import RecordItem from '@/components/test/RecordItem';
 
 function TestMain() {
   return (

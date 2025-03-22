@@ -1,9 +1,9 @@
 import { Link, useParams } from "react-router-dom";
-import ScriptBox from "../../components/script/ScriptBox";
-import QuestionBox from "../../components/script/QuestionBox";
+import ScriptBox from "@/components/script/ScriptBox";
+import QuestionBox from "@/components/script/QuestionBox";
 import styles from "./ScriptDetail.module.css";
-import { useGetProblemDetail } from "../../hooks/useProblems";
-import LoadingSpinner from "../../components/common/LoadingSpinner";
+import { useGetProblemDetail } from "@/hooks/useProblems";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 
 type Props = {};
 

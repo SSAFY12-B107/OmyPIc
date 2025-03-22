@@ -1,6 +1,5 @@
-import React from "react";
 import styles from "./LoginSwitchingPage.module.css";
-import NavigationButton from "../../components/common/NavigationButton";
+import NavigationButton from "@/components/common/NavigationButton";
 import opigi from "../assets/images/opigi.png";
 
 type Props = {};

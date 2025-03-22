@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import styles from "./ScriptBox.module.css";
-import opigi from "../../assets/images/opigi.png";
-import { usePronunciationAudio } from "../../hooks/usePronunciation";
+import opigi from "@/assets/images/opigi.png";
+import { usePronunciationAudio } from "@/hooks/usePronunciation";
 
 interface ScriptBoxProps {
   userScript: Array<{
