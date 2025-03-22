@@ -21,6 +21,56 @@ logger = logging.getLogger(__name__)
 audio_processor = AudioProcessor(model_name="small")
 evaluator = ResponseEvaluator()
 
+async def get_test_by_user_id(db: Database, user_id: str):
+    """
+    사용자 ID로 최근 테스트 7개 조회 (성적이 있는 테스트만)
+    """
+    try:
+        # user_id가 일치하는 테스트 중 최근 7개만 조회 (날짜 기준 내림차순)
+        cursor = db.tests.find({"user_id": user_id}).sort("test_date", -1).limit(20)  # 더 많이 가져와서 필터링
+        tests = await cursor.to_list(length=20)
+        
+        if not tests:
+            return None
+            
+        # TestInfo 형태로 가공
+        test_dates = []
+        test_scores = []
+        valid_tests = 0
+        
+        for test in tests:
+            # test_score가 있고, total_score가 있는 테스트만 포함
+            test_score = test.get("test_score")
+            total_score = None
+            
+            if isinstance(test_score, dict):
+                total_score = test_score.get("total_score")
+            elif test_score:  # 문자열이나 다른 값이 있는 경우
+                total_score = str(test_score)
+                
+            if total_score:  # 성적이 있는 경우에만 추가
+                test_dates.append(test.get("test_date"))
+                test_scores.append(total_score)
+                valid_tests += 1
+                
+                # 7개를 모으면 중단
+                if valid_tests >= 7:
+                    break
+        
+        # 유효한 테스트가 없으면 None 반환
+        if not test_dates:
+            return None
+                
+        return {
+            "test_date": test_dates,
+            "test_score": test_scores
+        }
+        
+    except Exception as e:
+        print(f"테스트 조회 오류: {str(e)}")
+        return None
+    
+
 async def create_test(
     db: Database, 
     test_type: int, 

@@ -1,7 +1,11 @@
 from fastapi import APIRouter, HTTPException, status, Query, Path, Body, Depends
 from typing import List, Optional
-from schemas.user import UserCreate, UserResponse, UserUpdate
+from schemas.user import UserCreate, UserResponse, UserUpdate, UserDetailResponse
+from motor.motor_asyncio import AsyncIOMotorDatabase as Database
+from db.mongodb import get_mongodb
+
 from services import user as user_service
+from services import test_service
 from bson import ObjectId
 import datetime
 
@@ -37,28 +41,42 @@ async def create_user(user_data: UserCreate = Body(...)):
             detail="사용자 생성에 실패했습니다."
         )
     
+
+
     return user
 
-@router.get("/{user_id}", response_model=UserResponse)
-@router.get("/{user_id}", response_model=UserResponse)
-async def get_user(user_id: str):
+
+@router.get("/{user_id}", response_model=UserDetailResponse)
+async def get_user(user_id: str, db = Depends(get_mongodb)):
     """
-    사용자 ID로 사용자 조회 엔드포인트
+    사용자 ID로 사용자 조회 (최근 7개의 테스트 정보 포함)
     """
     try:
         oid = ObjectId(user_id)
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="유효하지 않은 사용자 ID 형식입니다.")
     
-    user = await user_service.get_user_by_id(oid)
+    # 사용자 정보 조회
+    user = await db.users.find_one({"_id": oid})
     
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"ID {id}인 사용자를 찾을 수 없습니다."
+            detail=f"ID {user_id}인 사용자를 찾을 수 없습니다."
         )
     
+    # ObjectId를 문자열로 변환
+    user["_id"] = str(user["_id"])
+    
+    # 최근 7개의 테스트 정보 조회
+    test_info = await test_service.get_test_by_user_id(db, user_id)
+    
+    # 테스트 정보 추가
+    if test_info:
+        user["test"] = test_info
+    
     return user
+
 
 @router.get("/", response_model=List[UserResponse])
 async def get_users(
