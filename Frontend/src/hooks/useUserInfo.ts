@@ -23,9 +23,7 @@ export const useGetUserInfo = () => {
   return useQuery<UserInfo>({
     queryKey: ["userInfo"],
     queryFn: async () => {
-      const response = await apiClient.get<UserInfo>(
-        "/users/67dc13091f75356c0fd87f71"
-      );
+      const response = await apiClient.get<UserInfo>("/users/");
       return response.data;
     },
   });
