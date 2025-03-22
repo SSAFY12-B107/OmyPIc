@@ -84,7 +84,7 @@ function ScriptDetail({}: Props) {
         {/* content */}
         <div className={styles.noteList}>
           {problemDetail?.test_notes?.length > 0 ? (
-            problemDetail?.test_notes?.map((note, noteIdx) => (
+            problemDetail?.test_notes?.map((note: string, noteIdx: number) => (
               <div key={noteIdx} className={styles.noteItem}>
                 <p>{note}</p>
               </div>

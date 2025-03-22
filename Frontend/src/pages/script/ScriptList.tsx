@@ -7,6 +7,10 @@ import QuestionBox from "@/components/script/QuestionBox";
 import { useGetProblems } from "@/hooks/useProblems";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 
+interface Problem {
+  _id: string;
+  content: string;
+}
 
 function ScriptList() {
   const { category } = useParams<string>();
@@ -77,9 +81,9 @@ function ScriptList() {
         ) : (
           <>
             {/* 모든 페이지의 문제들을 flat하게 렌더링 */}
-            {data?.pages.map((page, pageIndex) => (
+            {data?.pages.map((page: Problem[], pageIndex: number) => (
               <div key={pageIndex}>
-                {page.map((problem, problemIndex) => {
+                {page.map((problem: Problem, problemIndex: number) => {
                   // 마지막 페이지의 마지막 아이템에 ref 연결
                   const isLastPage = pageIndex === data.pages.length - 1;
                   const isLastItem = problemIndex === page.length - 1;
