@@ -1,11 +1,20 @@
 import styles from "./DetailFeedBack.module.css";
 import { ProblemData } from "../../hooks/useFeedBack";
+import { useState } from "react";
 
 interface DetailFeedBackProps {
   data: ProblemData | null;
 }
 
 function DetailFeedBack({ data }: DetailFeedBackProps) {
+
+  const [clickType, setClickType ]= useState<number>(0)
+
+  const handleBttn = (type: number) => {
+    setClickType(type)
+    
+    
+  }
   // 피드백 데이터에서 값 추출
   const question = data.problem || "문제 정보가 없습니다.";
   const answer = data.user_response || "답변이 기록되지 않았습니다.";
@@ -26,7 +35,7 @@ function DetailFeedBack({ data }: DetailFeedBackProps) {
           </div>
           <span className={styles.gradeTitle}>예상등급</span>
         </div>
-        <div className={styles.gradeBadge}>{}</div>
+        <div className={styles.gradeBadge}>{score}</div>
       </div>
 
       <div className={styles.feedbackCard}>
@@ -60,22 +69,31 @@ function DetailFeedBack({ data }: DetailFeedBackProps) {
           </div>
           <span className={styles.sectionTitle}>피드백</span>
         </div>
-        <div className={styles.feedbackDetails}>
-          <div className={styles.feedbackItem}>
-            <h4>문단 구성</h4>
-            <p className={styles.feedbackText}>{paragraph}</p>
-          </div>
-          
-          <div className={styles.feedbackItem}>
-            <h4>어휘력</h4>
-            <p className={styles.feedbackText}>{vocabulary}</p>
-          </div>
-          
-          <div className={styles.feedbackItem}>
-            <h4>발화량</h4>
-            <p className={styles.feedbackText}>{spokenAmount}</p>
+        <div className={styles.evaluationTags}>
+          <div className={styles.tagGroup}>
+            <div
+              className={`${styles.tag} ${clickType === 0 ? styles.activeTag : ""}`}
+              onClick={() => handleBttn(0)}
+            >
+              문단구성
+            </div>
+            <div
+              className={`${styles.tag} ${clickType === 1 ? styles.activeTag : ""}`}
+              onClick={() => handleBttn(1)}
+            >
+              어휘력
+            </div>
+            <div
+              className={`${styles.tag} ${clickType === 2 ? styles.activeTag : ""}`}
+              onClick={() => handleBttn(2)}
+            >
+              발화량
+            </div>
           </div>
         </div>
+        <p className={styles.feedbackText}>
+          {clickType === 0 ? paragraph : clickType === 1 ? vocabulary : spokenAmount}
+        </p>
       </div>
     </div>
   );

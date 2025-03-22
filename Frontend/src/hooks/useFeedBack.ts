@@ -15,6 +15,7 @@ export interface SingleFeedback {
     paragraph: string;
     vocabulary: string;
     spoken_amount: string;
+
   }
 
   
@@ -36,7 +37,12 @@ export interface TestFeedbackData {
   user_id: string;
   test_type: boolean;
   test_date: string;
-  test_score: string | null;
+  test_score: {
+    total_score : string | null;
+    comboset_score : string | null;
+    roleplaying_score : string | null;
+    unexpected_score : string | null;
+  };
   test_feedback: MultipleFeedback | null;
   problem_data: {
     [key: string]: ProblemData;

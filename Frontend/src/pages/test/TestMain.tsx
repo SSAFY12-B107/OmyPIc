@@ -6,8 +6,8 @@ import apiClient from "../../api/apiClient";
 
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "../../store";
-import { testActions } from "../../store/index";
+import { RootState } from "../../store/testSlice";
+import { testActions } from "../../store/testSlice";
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useUserHistory } from "../../hooks/useHistory";
@@ -26,7 +26,7 @@ function TestMain() {
     data: historyData,
     isLoading,
     isError,
-  } = useUserHistory("67d91d084ac5519d0822eb58");
+  } = useUserHistory("67da4792ad60cfdcd742b119");
 
 
 
@@ -56,7 +56,7 @@ function TestMain() {
           {},
           {
             params: {
-              user_id: "67d91d084ac5519d0822eb58",
+              user_id: "67da4792ad60cfdcd742b119",
             },
           }
         );
@@ -139,6 +139,7 @@ function TestMain() {
                     key={record.id}
                     date={formattedDate}
                     grade={grade}
+                    status = {record.overall_feedback_status}
                     scores={{
                       description:
                         record.test_score?.comboset_score || "-",
@@ -146,7 +147,9 @@ function TestMain() {
                         record.test_score?.roleplaying_score || "-",
                       impromptu:
                         record.test_score?.unexpected_score || "-",
-                    }}
+                    }
+                  }
+                  test_pk= {record.id}
                   />
                 );
               })}

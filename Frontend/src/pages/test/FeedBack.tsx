@@ -1,5 +1,5 @@
 // FeedBack.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import styles from "./Feedback.module.css";
 import DetailFeedBack from "../../components/test/DetailFeedback";
@@ -9,7 +9,7 @@ import {
   getProblemData,
   getTotalProblems,
 } from "../../hooks/useFeedBack";
-
+import apiClient from "../../api/apiClient";
 
 function TestFeedback() {
   // URL에서 test_pk 파라미터 가져오기
@@ -23,38 +23,46 @@ function TestFeedback() {
     error,
   } = useFeedback(test_pk);
 
-  // 총 문제 수 계산
-  const totalProblems = getTotalProblems(feedbackData);
+  console.log("error", error);
+  console.log("feedbackData", feedbackData);
+  console.log("test_pk", test_pk);
 
   // 현재 선택된 단계를 상태로 관리 (0은 종합, 1-n은 개별 피드백)
   const [currentStep, setCurrentStep] = useState<number>(0);
-  
+
   // 실전모의고사(15문제)인 경우 현재 표시할 세트 (1: 문제 1-7, 2: 문제 8-15)
   const [currentSet, setCurrentSet] = useState<number>(1);
-  
+
+  // 데이터가 로드된 후에만 계산
+  const totalProblems = getTotalProblems(feedbackData);
+
   // 테스트 타입 확인 (true: 실전모의고사 15문제, false: 적성고사 7문제)
   const isFullTest = feedbackData?.test_type || false;
 
+  // 현재 선택된 문제 데이터 가져오기
+  const currentProblemData =
+    currentStep > 0 ? getProblemData(feedbackData, currentStep) : undefined;
+
   // 현재 세트에 따라 표시할 단계 배열 생성
   const getVisibleSteps = () => {
-    // 기본은 종합 버튼 
+    // 기본은 종합 버튼
     const steps = [0];
-    
-    if (!feedbackData) return steps;
-    
+
+    if (!feedbackData || !feedbackData.problem_data) return steps;
+
     // 실전모의고사인 경우 (15문제)
     if (isFullTest) {
       // 현재 세트에 따라 표시할 문제 범위 결정
       const startProblem = currentSet === 1 ? 1 : 8;
       const endProblem = currentSet === 1 ? 7 : Math.min(15, totalProblems);
-      
+
       // 해당 범위의 문제만 추가
       for (let i = startProblem; i <= endProblem; i++) {
         if (feedbackData.problem_data[i.toString()]) {
           steps.push(i);
         }
       }
-    } 
+    }
     // 적성고사인 경우 (7문제)
     else {
       for (let i = 1; i <= totalProblems; i++) {
@@ -63,15 +71,25 @@ function TestFeedback() {
         }
       }
     }
-    
+
     return steps;
   };
+
+  // 현재 표시할 단계 배열
+  const visibleSteps = getVisibleSteps();
+
+  // 페이지네이션 버튼 표시 여부
+  const showPrevButton = isFullTest && currentSet > 1;
+  const showNextButton = isFullTest && currentSet === 1 && totalProblems > 7;
+
+  console.log("feedbackData", feedbackData);
+  console.log("currentProblemData", currentProblemData);
 
   // 단계 버튼 클릭 핸들러
   const handleStepClick = (step: number) => {
     setCurrentStep(step);
   };
-  
+
   // 이전 세트로 이동
   const handlePrevSet = () => {
     if (isFullTest && currentSet > 1) {
@@ -82,7 +100,7 @@ function TestFeedback() {
       }
     }
   };
-  
+
   // 다음 세트로 이동
   const handleNextSet = () => {
     if (isFullTest && currentSet === 1 && totalProblems > 7) {
@@ -94,93 +112,59 @@ function TestFeedback() {
     }
   };
 
-  // 현재 선택된 문제 데이터 가져오기
-  const currentProblemData =
-    currentStep > 0 ? getProblemData(feedbackData, currentStep) : undefined;
-    
-  // 현재 표시할 단계 배열
-  const visibleSteps = getVisibleSteps();
-  
-  // 페이지네이션 버튼 표시 여부
-  const showPrevButton = isFullTest && currentSet > 1;
-  const showNextButton = isFullTest && currentSet === 1 && totalProblems > 7;
-
-  // 로딩 중 표시
-  if (isLoading) {
-    return <div className={styles.loadingContainer}>피드백 데이터를 불러오는 중...</div>;
-  }
-  
-  // 에러 표시
-  if (isError) {
-    return <div className={styles.errorContainer}>데이터를 불러오는 중 오류가 발생했습니다.</div>;
-  }
-
   return (
     <div className={styles.container}>
-      <div className={styles.stepsPaginationContainer}>
+      {/* 단계 버튼 */}
+      <div className={styles.stepsContainer}>
         {/* 이전 세트 버튼 */}
         {showPrevButton && (
-          <button 
-            className={styles.paginationButton} 
-            onClick={handlePrevSet}
-          >
+          <button className={styles.paginationButton} onClick={handlePrevSet}>
             &lt;
           </button>
         )}
-        
-        {/* 단계 버튼 */}
-        <div className={styles.stepsContainer}>
-          {visibleSteps.map((step) => (
-            <div
-              key={step}
-              className={`${styles.stepCircle} ${
-                currentStep === step ? styles.activeStep : ""
-              }`}
-              onClick={() => handleStepClick(step)}
-              style={{ cursor: "pointer" }}
-            >
-              {step === 0 ? (
-                <span
-                  className={
-                    currentStep === 0 ? styles.stepTextActive : styles.stepText
-                  }
-                >
-                  종합
-                </span>
-              ) : (
-                <span
-                  className={
-                    currentStep === step ? styles.stepTextActive : styles.stepText
-                  }
-                >
-                  {step}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-        
+
+        {visibleSteps.map((step) => (
+          <div
+            key={step}
+            className={`${styles.stepCircle} ${
+              currentStep === step ? styles.activeStep : ""
+            }`}
+            onClick={() => handleStepClick(step)}
+            style={{ cursor: "pointer" }}
+          >
+            {step === 0 ? (
+              <span
+                className={
+                  currentStep === 0 ? styles.stepTextActive : styles.stepText
+                }
+              >
+                종합
+              </span>
+            ) : (
+              <span
+                className={
+                  currentStep === step ? styles.stepTextActive : styles.stepText
+                }
+              >
+                {step}
+              </span>
+            )}
+          </div>
+        ))}
         {/* 다음 세트 버튼 */}
         {showNextButton && (
-          <button 
-            className={styles.paginationButton} 
-            onClick={handleNextSet}
-          >
+          <button className={styles.paginationButton} onClick={handleNextSet}>
             &gt;
           </button>
         )}
       </div>
-      
+
       {currentStep === 0 ? (
         <OveralFeedBack testFeedback={feedbackData?.test_feedback} />
+      ) : currentProblemData ? (
+        <DetailFeedBack data={currentProblemData} />
       ) : (
-        currentProblemData ? (
-          <DetailFeedBack 
-            data={currentProblemData} 
-          />
-        ) : (
-          <div className={styles.emptyContainer}>문제 데이터가 없습니다.</div>
-        )
+        <div className={styles.emptyContainer}>문제 데이터가 없습니다.</div>
       )}
     </div>
   );

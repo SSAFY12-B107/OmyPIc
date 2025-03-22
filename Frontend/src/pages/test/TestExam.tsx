@@ -1,22 +1,15 @@
-// src/pages/TestExam.tsx
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import styles from "./TestExam.module.css";
 import avatar from "../../assets/images/avatar.png";
 import animation from "../../assets/images/speaking_animate.png";
-import { useState, useRef, useEffect, useCallback } from "react";
-import { RootState } from "../../store";
+import { RootState } from "../../store/testSlice";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import MicRecorder from "mic-recorder-to-mp3-fixed";
 import apiClient from "../../api/apiClient";
 
-// import { useAudio, getAudioUrl } from "../../hooks/useAudio"; // 사용안함
-
 function TestExam() {
   // 컴포넌트 최상단에 문제 mp3 캐시 객체 선언
-  // useRef<T>(initialValue) : 컴포넌트 렌더링 사이에도 유지되는 변경 가능한 참조를 생성
-  // <Record<...>> : 객체타입 정의
-  // 키는 문제번호 문자열(string)이고 값은 음성객체 HTMLAudioElement인 객체 타입을 정의
-  // 객체 : O(1) > 배열O(n)
   const audioCache = useRef<Record<string, HTMLAudioElement>>({}).current;
 
   // 문제 모음 가져오기(리덕스)
@@ -28,9 +21,7 @@ function TestExam() {
   // 문제번호 관리(ui)
   const [currentProblem, setCurrentProblem] = useState(1);
 
-  // // 오디오 상태
-  // const audioRef = useRef(new Audio());
-
+  // 오디오 상태
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [hasPlayed, setHasPlayed] = useState(false);
@@ -41,7 +32,42 @@ function TestExam() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedFile, setRecordedFile] = useState<File | null>(null);
 
+  // 페이지 이탈 관련 state 추가
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
   const navigate = useNavigate();
+  
+  // 뒤로 가기 버튼 핸들러
+  const handleBackButton = () => {
+    // 모달 표시
+    setShowExitConfirm(true);
+  };
+
+  // 테스트 종료 처리 함수
+  const handleEndTest = async () => {
+    try {
+      if (!currentTest?._id) {
+        console.error("테스트 ID가 없습니다.");
+        navigate("/tests");
+        return;
+      }
+
+      // 테스트 종료 API 호출
+      await apiClient.delete(`/tests/${currentTest._id}`);
+      
+      // 성공적으로 API 호출 후 테스트 목록 페이지로 이동
+      navigate("/tests");
+    } catch (error) {
+      console.error("테스트 종료 오류:", error);
+      // 오류가 발생하더라도 페이지 이동
+      navigate("/tests");
+    }
+  };
+  
+  // 테스트 계속하기
+  const handleContinueTest = () => {
+    setShowExitConfirm(false);
+  };
 
   //응시 페이지 진입 시 Audio 객체 미리 생성
   useEffect(() => {
@@ -131,6 +157,7 @@ function TestExam() {
       });
     };
   }, []); // 빈 의존성 배열: 마운트/언마운트 시에만 실행
+  
   // 오디오 재생/일시정지 핸들러
   const handleAudioControl = useCallback(() => {
     const audio = audioCache[currentProblem];
@@ -201,6 +228,11 @@ function TestExam() {
     }
 
     try {
+      if (!currentTest?._id) {
+        console.error("테스트 ID가 없습니다.");
+        return;
+      }
+
       const formData = new FormData();
       formData.append("audio_file", recordedFile);
 
@@ -210,6 +242,11 @@ function TestExam() {
       // 현재 문제 ID 가져오기
       const currentProblemId =
         currentTest?.problem_data[currentProblem]?.problem_id;
+
+      if (!currentProblemId) {
+        console.error("문제 ID를 찾을 수 없습니다.");
+        return;
+      }
 
       const response = await apiClient.post(
         `/tests/${currentTest._id}/record/${currentProblemId}`,
@@ -246,6 +283,22 @@ function TestExam() {
 
   return (
     <div className={styles.container}>
+      {/* 헤더 추가 */}
+      <div className={styles.header}>
+        <button 
+          className={styles.backButton}
+          onClick={handleBackButton}
+          aria-label="테스트 종료"
+        >
+          <span className={styles.backIcon}>←</span>
+          <span className={styles.backText}>종료</span>
+        </button>
+        <h1 className={styles.headerTitle}>
+          {currentTest?.test_type ? "실전 모의고사" : "적성고사"}
+        </h1>
+        <div className={styles.headerSpacer}></div> {/* 양쪽 균형을 위한 빈 공간 */}
+      </div>
+
       <div className={styles.resize}>
         <div className={styles.numBox}>
           <span className={styles.currentNum}>{currentProblem}</span>
@@ -263,7 +316,7 @@ function TestExam() {
             isPaused ? styles.resumeBtn : ""
           }`}
           onClick={handleAudioControl}
-          disabled={isListenButtonDisabled}
+          disabled={isListenButtonDisabled || isRecording}
         >
           <span className={styles.headphoneIcon}>{buttonInfo.icon}</span>
           {buttonInfo.text}
@@ -294,16 +347,45 @@ function TestExam() {
           <button
             className={styles.recordBtn}
             onClick={toggleRecording}
-            disabled={isPlaying}
+            disabled={isPlaying} // 오디오 재생 중일 때 녹음 버튼 비활성화
           >
             {isRecording ? "눌러서 녹음 종료" : "눌러서 녹음 시작"}
           </button>
         </div>
       </div>
 
-      <button className={styles.nextButton} onClick={submitRecording}>
+      <button 
+        className={recordedFile ? styles.nextButton : `${styles.nextButton} ${styles.disabledButton}`}
+        onClick={submitRecording}
+        disabled={!recordedFile} // 녹음 파일이 없으면 비활성화
+      >
         다음
       </button>
+
+      {/* 페이지 이탈 확인 모달 */}
+      {showExitConfirm && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <h3 className={styles.modalTitle}>테스트 종료</h3>
+            <p className={styles.modalText}>정말 테스트를 종료하시겠습니까?</p>
+            <div className={styles.modalButtons}>
+            <button 
+                className={styles.modalEndBtn}
+                onClick={handleEndTest}
+              >
+                테스트 종료하기
+              </button>
+              <button 
+                className={styles.modalContinueBtn}
+                onClick={handleContinueTest}
+              >
+                계속 진행하기
+              </button>
+
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

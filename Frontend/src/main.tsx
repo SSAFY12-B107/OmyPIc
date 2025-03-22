@@ -8,7 +8,7 @@ import App from './App';
 import "./App.css"
 
 // Redux 관련 타입 및 리듀서 import
-import  store  from './store'
+import  store  from './store/testSlice'
 
 // import authReducer from './store/slices/authSlice';
 // import cartReducer from './store/slices/cartSlice';

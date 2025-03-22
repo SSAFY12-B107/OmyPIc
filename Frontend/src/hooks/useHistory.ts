@@ -12,6 +12,7 @@ export interface Scores {
 
 export interface TestHistory {
   id: string;
+  overall_feedback_status: string;
   test_date: string;
   test_type: boolean;
   test_score: Scores | null;
