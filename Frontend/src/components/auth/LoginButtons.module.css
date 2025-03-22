@@ -1,12 +1,10 @@
 .loginBtnGroup {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  gap: 1rem;
   position: fixed;
   bottom: 5rem;
-  left: 0;
-  padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 30rem;
 }
 
 @media screen and (max-height: 700px) {

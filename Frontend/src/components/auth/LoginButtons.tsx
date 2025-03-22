@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import styles from './LoginButtons.module.css'
 import naverLogin from '../../assets/images/naver_login.png'
 import googleLogin from '../../assets/images/google_login.png'
