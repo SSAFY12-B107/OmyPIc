@@ -1,5 +1,8 @@
 import "./App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HeaderProvider } from "./contexts/HeaderContext";
+
+import Header from "./components/common/Header";
 import Home from "./pages/home/Home";
 import Login from "./pages/auth/Login";
 import Survey from "./pages/auth/Survey";
@@ -16,6 +19,10 @@ import ScriptWrite from "./pages/script/ScriptWrite";
 function App() {
   return (
     <BrowserRouter>
+    <HeaderProvider>
+      {/* 헤더는 한 번만 선언하고, 모든 설정은 Context를 통해 관리됨 */}
+      <Header />
+      
       <Routes>
         <Route path="/" element={<Home />} />
 
@@ -27,7 +34,7 @@ function App() {
         {/* Test 관련 라우트 */}
         <Route path="/tests" element={<TestMain />} />
         <Route path="/tests/practice" element={<TestExam />} />
-        <Route path="/tests/feedback/:test_pk" element={<FeedBack />} />
+        <Route path="/tests/feedback/:practiceId/:problemId" element={<FeedBack />} />
 
         {/* Script 관련 라우트 */}
         <Route path="/scripts" element={<ScriptMain />} />
@@ -38,7 +45,8 @@ function App() {
         {/* 404 페이지 */}
         <Route path="*" element={<div>페이지를 찾을 수 없습니다.</div>} />
       </Routes>
-    </BrowserRouter>
+    </HeaderProvider>
+  </BrowserRouter>
   );
 }
 
