@@ -1,144 +1,175 @@
-# from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, status
-# from fastapi.responses import RedirectResponse
-
+from fastapi import APIRouter, HTTPException, status, Depends, Body
+# from fastapi.security import OAuth2PasswordBearer
+# from typing import Dict, Any, Optional
+# from datetime import datetime, timedelta
+# # from jose import jwt, JWTError
+# from pydantic import BaseModel
+# from db.mongodb import get_collection
 # from core.config import settings
-# from services.auth import fastapi_users
-# from core.security import auth_backend, refresh_backend, cookie_transport, get_jwt_strategy, get_refresh_strategy
-# from Backend.services.user import UserManager, get_user_manager
-# from services.oauth import get_kakao_token, get_kakao_user_info
-# from schemas.user import TokenResponse
-# from core.jwt_utils import decode_jwt
+# from services import user as user_service
+# import httpx
 
-# router = APIRouter(tags=["auth"], prefix="/auth")
+router = APIRouter()
 
-# # JWT 액세스 토큰 인증 라우터 추가
-# router.include_router(
-#     fastapi_users.get_auth_router(auth_backend),
-#     prefix="/jwt",
-# )
+# # OAuth2 토큰 스키마
+# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# # 카카오 로그인 라우트
-# @router.get("/kakao/login")
-# async def kakao_login():
-#     """카카오 로그인 페이지로 리다이렉션"""
-#     kakao_auth_url = (
-#         f"https://kauth.kakao.com/oauth/authorize"
-#         f"?client_id={settings.KAKAO_CLIENT_ID}"
-#         f"&redirect_uri={settings.KAKAO_REDIRECT_URI}"
-#         f"&response_type=code"
+# # 구글 로그인 요청 모델
+# class GoogleLoginRequest(BaseModel):
+#     id_token: str
+
+# # 백그라운드 서베이 요청 모델
+# class BackgroundSurveyRequest(BaseModel):
+#     profession: Optional[int] = None
+#     is_student: Optional[bool] = None
+#     studied_lecture: Optional[int] = None
+#     living_place: Optional[int] = None
+#     info: Optional[list[str]] = None
+
+# # JWT 토큰 생성 함수
+# def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+#     to_encode = data.copy()
+#     if expires_delta:
+#         expire = datetime.utcnow() + expires_delta
+#     else:
+#         expire = datetime.utcnow() + timedelta(days=settings.ACCESS_TOKEN_EXPIRE_DAYS)
+#     to_encode.update({"exp": expire})
+#     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+#     return encoded_jwt
+
+# # 현재 사용자 가져오기
+# async def get_current_user(token: str = Depends(oauth2_scheme)):
+#     credentials_exception = HTTPException(
+#         status_code=status.HTTP_401_UNAUTHORIZED,
+#         detail="인증 정보가 유효하지 않습니다",
+#         headers={"WWW-Authenticate": "Bearer"},
 #     )
-#     return RedirectResponse(url=kakao_auth_url)
-
-# @router.get("/kakao/callback")
-# async def kakao_callback(
-#     response: Response,
-#     code: str, 
-#     user_manager: UserManager = Depends(get_user_manager),
-# ):
-#     """
-#     카카오 로그인 콜백 처리
-#     """
-#     # 액세스 토큰 요청
-#     token_info = await get_kakao_token(code)
-#     kakao_access_token = token_info.get("access_token")
-    
-#     # 사용자 정보 요청
-#     user_info = await get_kakao_user_info(kakao_access_token)
-    
-#     # 사용자 생성 또는 로그인 처리
-#     user = await user_manager.create_social_user(
-#         provider="kakao",
-#         social_id=user_info["social_id"],
-#         social_email=user_info["email"],
-#         name=user_info["name"],
-#     )
-    
-#     # 1. 액세스 토큰 생성 (JWT) - 짧은 수명의 토큰 (15분)
-#     jwt_strategy = get_jwt_strategy()
-#     access_token = await jwt_strategy.write_token(user)
-    
-#     # 2. 리프레시 토큰 생성 (JWT) - HTTP Only 쿠키에 저장될 긴 수명의 토큰 (7일)
-#     refresh_strategy = get_refresh_strategy()
-#     refresh_token = await refresh_strategy.write_token(user)
-    
-#     # 리프레시 토큰을 HTTP-only 쿠키에 설정
-#     cookie_transport.set_refresh_token_cookie(response, refresh_token)
-    
-#     # 프론트엔드로 리다이렉트
-#     # 사용자가 아직 온보딩(초기 설문)을 완료하지 않았다면 온보딩 페이지로 리다이렉트
-#     redirect_path = "/onboarding" if not user.is_onboarded else "/login/success"
-#     redirect_url = f"{settings.FRONTEND_URL}{redirect_path}?access_token={access_token}&user_id={str(user.id)}"
-    
-#     return RedirectResponse(
-#         url=redirect_url,
-#         status_code=status.HTTP_303_SEE_OTHER
-#     )
-
-# # 토큰 재발급 엔드포인트
-# @router.post("/refresh", response_model=TokenResponse)
-# async def refresh_tokens(
-#     response: Response,
-#     refresh_token: str = Cookie(None, alias="refresh_token"),
-#     user_manager: UserManager = Depends(get_user_manager),
-# ):
-#     """
-#     리프레시 토큰을 사용하여 새 액세스 토큰과 리프레시 토큰 발급
-#     """
-#     if not refresh_token:
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="Missing refresh token",
-#         )
-    
 #     try:
-#         # 리프레시 토큰 검증 및 사용자 ID 가져오기
-#         refresh_payload = decode_jwt(refresh_token, settings.REFRESH_TOKEN_SECRET_KEY)
+#         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+#         user_id: str = payload.get("sub")
+#         if user_id is None:
+#             raise credentials_exception
+#     except JWTError:
+#         raise credentials_exception
+    
+#     user = await user_service.get_user_by_id(user_id)
+#     if user is None:
+#         raise credentials_exception
+#     return user
+
+# @router.post("/google/login")
+# async def google_login(request: GoogleLoginRequest):
+#     """
+#     구글 소셜 로그인 처리
+#     """
+#     try:
+#         # 구글 ID 토큰 검증
+#         async with httpx.AsyncClient() as client:
+#             response = await client.get(
+#                 f"https://oauth2.googleapis.com/tokeninfo?id_token={request.id_token}"
+#             )
+#             if response.status_code != 200:
+#                 raise HTTPException(
+#                     status_code=status.HTTP_401_UNAUTHORIZED,
+#                     detail="구글 인증에 실패했습니다"
+#                 )
+            
+#             user_info = response.json()
+#             email = user_info.get("email")
+#             name = user_info.get("name")
+#             picture = user_info.get("picture")
+            
+#             # 사용자 정보 저장 또는 업데이트
+#             user = await user_service.get_user_by_email(email)
+            
+#             if not user:
+#                 # 새 사용자 생성
+#                 user = await user_service.create_user(
+#                     name=name,
+#                     auth_provider="google",
+#                     background_survey={
+#                         "profile_image": picture,
+#                         "email": email
+#                     }
+#                 )
+#                 user_id = user["_id"]
+#             else:
+#                 # 기존 사용자 업데이트
+#                 user_id = user["_id"]
+#                 await user_service.update_user(
+#                     id=user_id,
+#                     update_data={
+#                         "name": name,
+#                         "auth_provider": "google",
+#                         "background_survey": {
+#                             "profile_image": picture,
+#                             "email": email
+#                         }
+#                     }
+#                 )
+#                 user = await user_service.get_user_by_id(user_id)
+            
+#             # JWT 토큰 생성
+#             access_token = create_access_token(
+#                 data={"sub": user_id, "email": email}
+#             )
+            
+#             return {
+#                 "status": "success",
+#                 "message": "구글 로그인 성공",
+#                 "data": {
+#                     "access_token": access_token,
+#                     "token_type": "bearer",
+#                     "user": user
+#                 }
+#             }
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"로그인 중 오류가 발생했습니다: {str(e)}"
+#         )
+
+# @router.patch("/background-survey")
+# async def background_survey(
+#     survey_data: BackgroundSurveyRequest,
+#     current_user: dict = Depends(get_current_user)
+# ):
+#     """
+#     백그라운드 서베이 정보 업데이트
+#     """
+#     try:
+#         user_id = current_user["_id"]
         
-#         # 사용자 가져오기
-#         user_id = refresh_payload.get("sub")
-#         user = await user_manager.get(user_id)
+#         # 서베이 데이터 업데이트
+#         update_data = {"background_survey": survey_data.dict(exclude_unset=True)}
         
-#         if not user or not user.is_active:
+#         updated_user = await user_service.update_user(user_id, update_data)
+#         if not updated_user:
 #             raise HTTPException(
-#                 status_code=status.HTTP_401_UNAUTHORIZED,
-#                 detail="Invalid refresh token or inactive user",
+#                 status_code=status.HTTP_404_NOT_FOUND,
+#                 detail="사용자를 찾을 수 없습니다"
 #             )
         
-#         # 새 액세스 토큰 생성 (짧은 만료 시간)
-#         jwt_strategy = get_jwt_strategy()
-#         access_token = await jwt_strategy.write_token(user)
-        
-#         # 새 리프레시 토큰 생성 (긴 만료 시간)
-#         refresh_strategy = get_refresh_strategy()
-#         new_refresh_token = await refresh_strategy.write_token(user)
-        
-#         # 새 리프레시 토큰을 HTTP-only 쿠키에 설정
-#         cookie_transport.set_refresh_token_cookie(response, new_refresh_token)
-        
-#         return TokenResponse(
-#             access_token=access_token,
-#             token_type="bearer",
-#         )
+#         return {
+#             "status": "success",
+#             "message": "백그라운드 서베이 정보가 업데이트되었습니다",
+#             "data": updated_user
+#         }
 #     except Exception as e:
-#         # 토큰 검증 실패 또는 다른 오류
 #         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail=f"Invalid refresh token: {str(e)}",
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"서베이 정보 업데이트 중 오류가 발생했습니다: {str(e)}"
 #         )
 
-# # 로그아웃 엔드포인트
 # @router.post("/logout")
-# async def logout(response: Response):
+# async def logout(current_user: dict = Depends(get_current_user)):
 #     """
-#     사용자 로그아웃 처리 - 클라이언트 측에서 토큰 삭제
-#     """
-#     # 쿠키 삭제 (리프레시 토큰)
-#     response.delete_cookie(
-#         key="refresh_token",
-#         path=cookie_transport.cookie_path,
-#         domain=cookie_transport.cookie_domain,
-#         secure=cookie_transport.cookie_secure,
-#         httponly=cookie_transport.cookie_httponly,
-#     )
+#     로그아웃 처리
     
-#     return {"detail": "Successfully logged out"}
+#     참고: JWT는 서버 측에서 무효화할 수 없으므로, 클라이언트에서 토큰을 삭제하는 것이 일반적입니다.
+#     필요에 따라 토큰 블랙리스트를 구현할 수 있습니다.
+#     """
+#     return {
+#         "status": "success",
+#         "message": "로그아웃 성공"
+#     }

@@ -1,6 +1,6 @@
 import os
 from typing import List, Optional
-from pydantic import field_validator
+from pydantic import field_validator, Field
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     PROJECT_VERSION: str = "0.1.0"
     
     # SECURITY
-    SECRET_KEY: str = os.getenv("SECRET_KEY")  # 액세스 토큰용 시크릿 키
-    REFRESH_TOKEN_SECRET_KEY: str = os.getenv("REFRESH_TOKEN_SECRET_KEY")  # 리프레시 토큰용 시크릿 키
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "default_secret_key_for_dev")  # 액세스 토큰용 시크릿 키
+    REFRESH_TOKEN_SECRET_KEY: str = os.getenv("REFRESH_TOKEN_SECRET_KEY", "default_refresh_key_for_dev")  # 리프레시 토큰용 시크릿 키
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15  # 액세스 토큰 만료 시간(분) - 짧게 설정
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7     # 리프레시 토큰 만료 시간(일)
@@ -21,8 +21,8 @@ class Settings(BaseSettings):
     COOKIE_SAMESITE: str = "lax"  # 프로덕션 환경에서는 "strict"로 고려
     
     # DATABASE
-    MONGODB_URL : Optional[str] = os.getenv("MONGODB_URL")
-    MONGODB_DB_NAME : Optional[str] = os.getenv("MONGODB_DB_NAME")
+    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+    MONGODB_DB_NAME: str = os.getenv("MONGODB_DB_NAME", "omypic_db")
     
     # CORS
     CORS_ORIGINS: List[str] = []
@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "YOUR_GOOGLE_CLIENT_SECRET")
     GOOGLE_REDIRECT_URI: str = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/google/callback")
     
+    # AWS S3 설정
+    AWS_ACCESS_KEY_ID: str = Field(..., env="AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY: str = Field(..., env="AWS_SECRET_ACCESS_KEY")
+    AWS_REGION: str = Field(default="ap-northeast-2", env="AWS_REGION")  # 기본값: 서울 리전
+    AWS_S3_BUCKET_NAME: str = Field(..., env="AWS_S3_BUCKET_NAME")
+
     # 프론트엔드 URL
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
     

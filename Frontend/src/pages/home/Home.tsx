@@ -4,7 +4,7 @@ import LevelChart from "@/components/home/LevelChart";
 import Navbar from "@/components/common/Navbar";
 import { useTestDate } from '@/hooks/useTestDate';
 import { useGetUserInfo, useLogout } from '@/hooks/useUserInfo';
-import LoadingSpinner from "../../components/common/LoadingSpinner";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 
 function Home() {
   // 사용자 정보 가져오기
