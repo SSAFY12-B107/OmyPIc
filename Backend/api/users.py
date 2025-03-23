@@ -129,7 +129,7 @@ async def update_user_info(
         target_date = user_data.target_exam_date
         target_datetime = datetime.combine(target_date, datetime.min.time())
         update_data["target_exam_date"] = target_datetime
-            
+
     # is_onboarded 필드 처리
     if user_data.is_onboarded is not None:
         update_data["is_onboarded"] = user_data.is_onboarded
