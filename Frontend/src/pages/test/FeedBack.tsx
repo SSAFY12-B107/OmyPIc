@@ -46,7 +46,7 @@ function TestFeedback() {
   // 현재 세트에 따라 표시할 단계 배열 생성
   const getVisibleSteps = () => {
     // 기본은 종합 버튼
-    const steps = [0];
+    const steps = currentSet == 1 ? [0] : [];
 
     if (!feedbackData || !feedbackData.problem_data) return steps;
 
@@ -118,8 +118,20 @@ function TestFeedback() {
       <div className={styles.stepsContainer}>
         {/* 이전 세트 버튼 */}
         {showPrevButton && (
-          <button className={styles.paginationButton} onClick={handlePrevSet}>
-            &lt;
+          <button className={styles.stepCircle} onClick={handlePrevSet}>
+            <svg
+              className={styles.svg}
+              width="48"
+              height="48"
+              viewBox="0 0 48 48"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M30 24H18M18 24L23 19M18 24L23 29"
+                stroke="#845ADF"
+                strokeWidth="2"
+              />
+            </svg>
           </button>
         )}
 
@@ -153,8 +165,20 @@ function TestFeedback() {
         ))}
         {/* 다음 세트 버튼 */}
         {showNextButton && (
-          <button className={styles.paginationButton} onClick={handleNextSet}>
-            &gt;
+          <button className={styles.stepCircle} onClick={handleNextSet}>
+            <svg
+              className={styles.svg}
+              width="48"
+              height="48"
+              viewBox="0 0 48 48"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M18 24H30M30 24L25 19M30 24L25 29"
+                stroke="#845ADF"
+                strokeWidth="2"
+              />
+            </svg>
           </button>
         )}
       </div>
