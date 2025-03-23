@@ -1,4 +1,3 @@
-// src/store/index.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 // 프로필 데이터 타입 정의
