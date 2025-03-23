@@ -1,5 +1,5 @@
 import styles from "./DetailFeedBack.module.css";
-import { ProblemData } from "../../hooks/useFeedBack";
+import { ProblemData } from "@/hooks/useFeedBack";
 import { useState } from "react";
 
 interface DetailFeedBackProps {

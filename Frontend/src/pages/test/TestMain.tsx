@@ -1,13 +1,13 @@
 import styles from "./TestMain.module.css";
-import TestTypeButton from "../../components/test/TestTypeButton";
-import AverageGradeChart from "../../components/test/AverageGradeChart";
-import RecordItem from "../../components/test/RecordItem";
-import apiClient from "../../api/apiClient";
+import TestTypeButton from "@/components/test/TestTypeButton";
+import AverageGradeChart from "@/components/test/AverageGradeChart";
+import RecordItem from "@/components/test/RecordItem";
+import apiClient from "@/api/apiClient";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { testActions } from "../../store/testSlice";
+import { testActions } from "@/store/testSlice";
 import { useEffect } from "react";
-import { useUserHistory } from "../../hooks/useHistory";
+import { useUserHistory } from "@/hooks/useHistory";
 
 
 

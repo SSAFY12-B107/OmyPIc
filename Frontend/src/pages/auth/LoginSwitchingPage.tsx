@@ -1,11 +1,10 @@
-import React from "react";
-import styles from "./SurveySwitchingPage.module.css";
-import NavigationButton from "../components/common/NavigationButton";
+import styles from "./LoginSwitchingPage.module.css";
+import NavigationButton from "@/components/common/NavigationButton";
 import opigi from "../assets/images/opigi.png";
 
 type Props = {};
 
-function SurveySwitchingPage({}: Props) {
+function LoginSwitchingPage({}: Props) {
   const handlePrev = () => {
     // 이전 페이지로 이동하는 로직
     console.log("이전 버튼 클릭");
@@ -17,17 +16,18 @@ function SurveySwitchingPage({}: Props) {
   };
 
   return (
-    <div className={styles.surveySwitchingPage}>
+    <div className={styles.loginSwitchingPage}>
       <div className={styles.content}>
-        <div className={styles.opigiContainer}>
+        <div className={styles.characterContainer}>
         <img src={opigi} alt="opigi-img" className={styles.opigiImg} />
         </div>
 
         <div className={styles.textContainer}>
           <p className={styles.message}>
-            해당 설문부터 7번 항목까지는
-            <br />
-            <span className={styles.boldText}>총 합산 12개 이상</span>의 항목 선택해주세요.
+            실제 시험에서는 <span className={styles.boldText}>서베이</span>를 진행해요.
+          </p>
+          <p className={styles.message}>
+            시험과 유사한 환경에서 연습할 수 있게 응답해주세요.
           </p>
         </div>
       </div>
@@ -40,4 +40,4 @@ function SurveySwitchingPage({}: Props) {
   );
 }
 
-export default SurveySwitchingPage;
+export default LoginSwitchingPage;

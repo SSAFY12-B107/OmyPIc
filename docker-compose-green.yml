@@ -1,0 +1,27 @@
+services:
+  frontend:
+    image: kst1040/omypic-frontend:latest
+    container_name: omypic-green-frontend
+    env_file:
+      - .env
+    volumes:
+      - frontend-green-build:/usr/share/nginx/green
+    command: ["sh", "-c", "cp -r /app/dist/* /usr/share/nginx/green/ && echo 'Files copied to green volume' && tail -f /dev/null"]
+    networks:
+      - omypic-network
+
+  backend:
+    image: kst1040/omypic-backend:latest
+    container_name: omypic-green-backend
+    env_file:
+      - .env
+    expose:
+      - 8000
+    networks:
+      - omypic-network
+networks:
+  omypic-network:
+    external: true
+volumes:
+  frontend-green-build:
+    external: true

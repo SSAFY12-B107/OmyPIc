@@ -1,6 +1,6 @@
 import React from "react";
 import styles from "./AverageGradeChart.module.css";
-import { AverageScore } from "../../hooks/useHistory";
+import { AverageScore } from "@/hooks/useHistory";
 import {
   Chart as ChartJS,
   CategoryScale,

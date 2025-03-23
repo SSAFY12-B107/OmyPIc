@@ -2,14 +2,14 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import styles from "./Feedback.module.css";
-import DetailFeedBack from "../../components/test/DetailFeedback";
-import OveralFeedBack from "../../components/test/OveralFeedback";
+import DetailFeedBack from "@/components/test/DetailFeedback";
+import OveralFeedBack from "@/components/test/OveralFeedback";
 import {
   useFeedback,
   getProblemData,
   getTotalProblems,
-} from "../../hooks/useFeedBack";
-import apiClient from "../../api/apiClient";
+} from "@/hooks/useFeedBack";
+import apiClient from "@/api/apiClient";
 
 function TestFeedback() {
   // URL에서 test_pk 파라미터 가져오기

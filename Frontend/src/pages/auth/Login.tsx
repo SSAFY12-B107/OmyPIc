@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
-import Introduction from "../../components/auth/Introduction";
-import LoginButtons from "../../components/auth/LoginButtons";
+import { useState, useEffect } from "react";
+import Introduction from "@/components/auth/Introduction";
+import LoginButtons from "@/components/auth/LoginButtons";
 import styles from "./Login.module.css";
 
 type Props = {};

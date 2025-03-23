@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import styles from "./TestExam.module.css";
-import avatar from "../../assets/images/avatar.png";
-import animation from "../../assets/images/speaking_animate.png";
-import { RootState } from "../../store/testSlice";
+import avatar from "@/assets/images/avatar.png";
+import animation from "@/assets/images/speaking_animate.png";
+import { RootState } from "@/store/testSlice";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import MicRecorder from "mic-recorder-to-mp3-fixed";
-import apiClient from "../../api/apiClient";
-import FeedbackModal from "../../components/test/FeedbackModal";
+import apiClient from "@/api/apiClient";
+import FeedbackModal from "@/components/test/FeedbackModal";
 
 function TestExam() {
   // 컴포넌트 최상단에 문제 mp3 캐시 객체 선언
