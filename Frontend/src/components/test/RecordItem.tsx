@@ -26,11 +26,22 @@ function RecordItem({ date, grade, status, scores, test_pk }: RecordItemProps) {
         <span className={styles.date}>{date}</span>
         <div className={styles.checkIcon} onClick={goToDetailHandler}>
           <div className={styles.circle}></div>
-          <span className={styles.icon}>✓</span>
+          <svg className={styles.svg}
+            width="48"
+            height="48"
+            viewBox="0 0 48 48"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M18 24H30M30 24L25 19M30 24L25 29"
+              stroke="#845ADF"
+              strokeWidth="2"
+            />
+          </svg>
         </div>
       </div>
 
-      {status === '미평가' ? (
+      {status === "미평가" ? (
         <div className={styles.loadingContainer}>
           <div className={styles.loadingSpinner}></div>
           <p className={styles.loadingText}>평가 진행 중...</p>
