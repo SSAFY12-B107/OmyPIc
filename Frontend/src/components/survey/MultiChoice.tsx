@@ -1,40 +1,70 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styles from "./MultiChoice.module.css";
 
-type Props = {};
+type ChoiceItem = {
+  id: string | number;
+  text: string;
+  recommended: boolean;
+};
 
-function MultiChoice({}: Props) {
+type Props = {
+  questionNumber: string;
+  questionText: string;
+  choices: ChoiceItem[];
+  minSelect?: number;
+  selected?: (string | number)[];
+  onSelect?: (selected: (string | number)[]) => void;
+  totalSelected?: number; // 추가: 전체 문항에 대한 총 선택 개수
+  requiredTotal?: number; // 추가: 요구되는 총 선택 개수
+};
+
+function MultiChoice({ 
+  questionNumber, 
+  questionText, 
+  choices, 
+  minSelect = 1,
+  selected = [],
+  onSelect,
+  totalSelected = 0, // 기본값 설정
+  requiredTotal = 12 // 기본값 설정
+}: Props) {
   // 선택된 항목들을 관리하는 상태
-  const [selectedItems, setSelectedItems] = useState<number[]>([]);
+  const [selectedItems, setSelectedItems] = useState<(string | number)[]>(selected);
 
-  // 예시 데이터
-  const choiceItems = [
-    { id: 1, text: "영화 보기", recommended: true },
-    { id: 2, text: "공연 보기", recommended: true },
-    { id: 3, text: "자원 봉사", recommended: false },
-  ];
+  // 부모로부터 받은 선택 항목이 변경되면 상태 업데이트
+  useEffect(() => {
+    setSelectedItems(selected);
+  }, [selected]);
 
   // 항목 클릭 핸들러
-  const handleItemClick = (itemId: number) => {
-    setSelectedItems((prev) => {
-      // 이미 선택되어 있으면 제거
-      if (prev.includes(itemId)) {
-        return prev.filter((id) => id !== itemId);
-      }
-      // 아니면 추가
-      else {
-        return [...prev, itemId];
-      }
-    });
+  const handleItemClick = (itemId: string | number) => {
+    const updatedItems = selectedItems.includes(itemId)
+      ? selectedItems.filter(id => id !== itemId)
+      : [...selectedItems, itemId];
+    
+    setSelectedItems(updatedItems);
+    
+    // 부모 컴포넌트에 변경 사항 알리기
+    if (onSelect) {
+      onSelect(updatedItems);
+    }
+  };
+
+  // Survey 컴포넌트 내 handleMultiSelect
+  const handleMultiSelect = (questionId: string, values: any[]) => {
+    console.log(`Question ${questionId} selected values:`, values);
+    updateAnswer(questionId, values);
+    // 디버깅용 로그 추가
+    console.log("총 선택 항목 수:", getTotalSelectedItems());
   };
 
   return (
     <div className={styles.multiChoiceContainer}>
       {/* 선택된 개수 정보 */}
       <div className={styles.selectInfo}>
-        <p>최소 12개</p>
+        <p>최소 {minSelect}개</p>
         <p className={styles.curSelectInfo}>
-          []개 항목 선택
+          {totalSelected}개 항목 선택
         </p>
       </div>
 
@@ -42,12 +72,12 @@ function MultiChoice({}: Props) {
         {/* 질문 */}
         <div className={styles.multiChoiceQ}>
           <div>{/* 아이콘 */}</div>
-          <p>[1]. [귀하는 여가 활동으로 주로 무엇을 합니까?]</p>
+          <p>{questionNumber}. {questionText}</p>
         </div>
 
         {/* 다중선택 항목 */}
         <div className={styles.choiceList}>
-          {choiceItems.map((item) => (
+          {choices.map((item) => (
             <div
               key={item.id}
               className={`${styles.choiceItem} ${
