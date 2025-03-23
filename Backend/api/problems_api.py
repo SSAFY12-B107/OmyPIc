@@ -233,17 +233,39 @@ async def make_custom_questions(
                 detail="최소한 한 글자는 입력해야 합니다."
             )
         
-        # 3. 꼬리 질문 생성 로직 구현
-        # TODO: 실제 꼬리 질문 생성 로직 추가 (AI 모델 활용 등)
-        # 현재는 임시 데이터 반환
-        custom_questions = []
-        
-        if response_data.question1:
-            custom_questions.append(f"1번 응답 '{response_data.question1}'에 대한 꼬리 질문입니다.")
-        if response_data.question2:
-            custom_questions.append(f"2번 응답 '{response_data.question2}'에 대한 꼬리 질문입니다.")
-        if response_data.question3:
-            custom_questions.append(f"3번 응답 '{response_data.question3}'에 대한 꼬리 질문입니다.")
+        # 3. 꼬리 질문 생성 로직 구현 - ai_script 모듈 활용
+        try:
+            # ai_script 모듈의 generate_follow_up_questions 함수 호출
+            from services.ai_script import generate_follow_up_questions, generate_fallback_follow_up_questions
+            
+            # 사용자 답변 딕셔너리 생성
+            answers = {
+                "question1": response_data.question1,
+                "question2": response_data.question2,
+                "question3": response_data.question3
+            }
+            
+            # AI 모델을 사용한 꼬리 질문 생성 시도
+            try:
+                custom_questions = await generate_follow_up_questions(problem_pk, answers)
+            except Exception as ai_error:
+                # AI 모델 사용 실패 시 대체 로직 사용
+                import logging
+                logging.error(f"AI 꼬리 질문 생성 실패: {str(ai_error)}")
+                custom_questions = generate_fallback_follow_up_questions(answers)
+                
+        except ImportError as e:
+            # ai_script 모듈 로딩 실패 시 간단한 질문으로 대체
+            import logging
+            logging.error(f"AI 스크립트 모듈 로딩 실패: {str(e)}")
+            
+            custom_questions = []
+            if response_data.question1:
+                custom_questions.append(f"방금 말씀하신 '{response_data.question1.split()[:3]}...'에 대해 좀 더 자세히 설명해 주실 수 있을까요?")
+            if response_data.question2:
+                custom_questions.append(f"'{response_data.question2.split()[:3]}...'에서 언급하신 부분의 구체적인 예를 들어주실 수 있을까요?")
+            if response_data.question3:
+                custom_questions.append(f"방금 언급하신 내용 중에서 가장 인상 깊었던 점은 무엇인가요?")
         
         # 4. 결과 반환
         return {
@@ -253,11 +275,12 @@ async def make_custom_questions(
         
     except Exception as e:
         # 유효하지 않은 ObjectId 형식 등의 오류 처리
+        import logging
+        logging.error(f"꼬리 질문 생성 중 오류 발생: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"꼬리 질문 생성 중 오류가 발생했습니다: {str(e)}"
         )
-
 
 @router.post("/{problem_pk}/scripts", response_model=ScriptCreationResponse, status_code=status.HTTP_201_CREATED)
 async def make_script(
