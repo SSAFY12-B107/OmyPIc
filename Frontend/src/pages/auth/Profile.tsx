@@ -1,6 +1,6 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import styles from "./Profile.module.css";
-import NavigationButton from "@/components/common/NavigationButton";
+import NavigationButton from "../../components/common/NavigationButton";
 import { useNavigate } from "react-router-dom";
 
 function ProfilePage() {
@@ -48,7 +48,6 @@ function ProfilePage() {
   navigate("/auth/survey", {state: {profileData: formData}});
   console.log("다음 버튼 클릭");
   };
-
 
   return (
     <div className={styles["profile-container"]}>
