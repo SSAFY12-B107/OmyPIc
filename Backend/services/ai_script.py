@@ -303,7 +303,7 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
         Create a natural, conversational English script at the OPIc IH level that integrates these ideas into a coherent response.
         The script should be 7-9 sentences long (1-1.5 minutes when spoken).
         """
-        
+
         # 답변 상세 정보 구성
         answer_details = ""
         for item in combined_info:
