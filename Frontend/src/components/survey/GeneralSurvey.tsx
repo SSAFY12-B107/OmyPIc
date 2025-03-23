@@ -1,59 +1,70 @@
-import { useState } from "react";
-import styles from "./GeneralSurvey.module.css";
+import { useState, useEffect } from 'react';
+import styles from './GeneralSurvey.module.css';
 
-type ChoiceItem = {
-  id: number;
+type Choice = {
+  id: number | string;
   text: string;
-  recommended: boolean;
+  recommended?: boolean;
 };
 
-type GeneralSurveyProps = {
-  questionNumber: string | number;
+type Props = {
+  questionNumber: string;
   questionText: string;
-  choices?: ChoiceItem[];
+  choices: Choice[];
+  selected?: number | string | null;
+  onSelect?: (value: number | string) => void;
 };
 
-const GeneralSurvey = ({ questionNumber, questionText, choices }: GeneralSurveyProps) => {
-  // 선택된 항목 상태 관리
-  const [selectedItem, setSelectedItem] = useState<number | null>(null);
+function GeneralSurvey({ 
+  questionNumber, 
+  questionText, 
+  choices,
+  selected = null,
+  onSelect 
+}: Props) {
+  const [selectedChoice, setSelectedChoice] = useState<number | string | null>(selected);
 
-  // 선택 항목 데이터 - props로 받거나 기본값 사용
-  const choiceItems = choices || [
+  // 부모로부터 받은 선택 값이 변경되면 상태 업데이트
+  useEffect(() => {
+    setSelectedChoice(selected);
+  }, [selected]);
 
-  ];
-
-  // 항목 클릭 핸들러
-  const handleItemClick = (itemId: number) => {
-    setSelectedItem(itemId === selectedItem ? null : itemId);
+  const handleSelectChoice = (id: number | string) => {
+    setSelectedChoice(id);
+    
+    // 부모 컴포넌트에 선택 사항 알리기
+    if (onSelect) {
+      onSelect(id);
+    }
   };
 
   return (
     <div className={styles.box}>
-      <div className={styles.group2}>
-        {/* 질문 헤더 */}
-        <div className={styles.questionHeader}>
-          <div className={styles.questionCheck}>✓</div>
-          <div className={styles.questionText}>
-            {questionNumber}. {questionText}
-          </div>
+      {/* 질문 헤더 */}
+      <div className={styles.questionHeader}>
+        <div className={styles.questionCheck}>
+          <span>✓</span>
         </div>
-
-        {/* 선택 항목들 */}
-        {choiceItems.map((item) => (
-          <div 
-            key={item.id} 
-            className={`${styles.frame} ${selectedItem === item.id ? styles.selected : ""}`} 
-            onClick={() => handleItemClick(item.id)}
+        <h3 className={styles.questionText}>{questionNumber}. {questionText}</h3>
+      </div>
+      
+      {/* 선택지 목록 */}
+      <div className={styles.group2}>
+        {choices.map((choice) => (
+          <div
+            key={choice.id}
+            className={`${styles.frame} ${selectedChoice === choice.id ? styles.selected : ''}`}
+            onClick={() => handleSelectChoice(choice.id)}
           >
-            <div className={styles.textWrapper2}>{item.text}</div>
-            {item.recommended && (
+            {choice.recommended && (
               <span className={styles.star}>★</span>
             )}
+            <span className={styles.textWrapper2}>{choice.text}</span>
           </div>
         ))}
       </div>
     </div>
   );
-};
+}
 
 export default GeneralSurvey;
