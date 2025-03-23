@@ -1,31 +1,28 @@
-import styles from "./NavigationButton.module.css";
+// NavigationButton.tsx
+import styles from './NavigationButton.module.css';
 
-interface NavigationButtonProps {
-  type: "prev" | "next";
-  onClick?: () => void;
-}
+type Props = {
+  type: 'prev' | 'next';
+  onClick: () => void;
+  disabled?: boolean;
+  label?: string; // 추가: 커스텀 레이블
+};
 
-const NavigationButton: React.FC<NavigationButtonProps> = ({ type, onClick }) => {
-  const buttonTexts = {
-    prev: "이전",
-    next: "다음"
-  };
-  
-  const buttonClasses = {
-    prev: styles.frame,
-    next: `${styles.frame} ${styles.frameNext}`
-  };
-  
-  const textClasses = {
-    prev: styles.textWrapper,
-    next: `${styles.textWrapper} ${styles.textWrapperNext}`
-  };
+function NavigationButton({ type, onClick, disabled = false, label }: Props) {
+  // 기본 레이블 설정
+  const buttonLabel = label || (type === 'prev' ? '이전' : '다음');
   
   return (
-    <div className={buttonClasses[type]} onClick={onClick}>
-      <span className={textClasses[type]}>{buttonTexts[type]}</span>
-    </div>
+    <button 
+      className={`${styles.frame} ${type === 'next' ? styles.frameNext : ''}`}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <span className={`${styles.textWrapper} ${type === 'next' ? styles.textWrapperNext : ''}`}>
+        {buttonLabel}
+      </span>
+    </button>
   );
-};
+}
 
 export default NavigationButton;
