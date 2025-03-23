@@ -1,4 +1,3 @@
-# Backend/models/user.py
 from datetime import datetime, date
 from typing import List, Dict, Optional
 from pydantic import BaseModel, Field, EmailStr
@@ -7,7 +6,7 @@ from bson import ObjectId
 class User(BaseModel):
     id: Optional[str] = Field(default=None, alias="_id")  # MongoDB의 _id를 문자열로 표현
     name: str
-    email: Optional[str] = None  # 이메일 필드 추가
+    email: Optional[str] = None  # 이메일 필드
     auth_provider: str = "google"
     current_opic_score: Optional[str] = None
     target_opic_score: Optional[str] = None
@@ -21,9 +20,14 @@ class User(BaseModel):
         "living_place": None,
         "info": []
     })
+    # 테스트 횟수 제한 필드 추가
+    test_limits: dict = Field(default_factory=lambda: {
+        "test_count": 0,  # 7문제 + 15문제 테스트 합산 (최대 3회)
+        "random_problem": 0  # 랜덤 1문제 (최대 5회)
+    })
 
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
         json_encoders = {
             ObjectId: str,
             datetime: lambda dt: dt.isoformat()
@@ -38,5 +42,12 @@ class User(BaseModel):
             # MongoDB의 _id를 문자열로 변환
             if "_id" in mongo_doc and isinstance(mongo_doc["_id"], ObjectId):
                 mongo_doc["_id"] = str(mongo_doc["_id"])
+                
+            # test_limits 필드가 없는 경우 기본값 추가
+            if "test_limits" not in mongo_doc:
+                mongo_doc["test_limits"] = {
+                    "test_count": 0,
+                    "random_problem": 0
+                }
             return cls(**mongo_doc)
         return None

@@ -20,10 +20,22 @@ class TestHistoryItem(BaseModel):
     test_type: bool
     test_score: Optional[TestScoreInfo] = None
 
+class TestCountInfo(BaseModel):
+    """테스트 생성 횟수 정보"""
+    used: int
+    limit: int
+    remaining: int
+
+class TestCounts(BaseModel):
+    """모든 테스트 생성 횟수 정보"""
+    test_count: TestCountInfo
+    random_problem: TestCountInfo
+
 class TestHistoryResponse(BaseModel):
     """테스트 히스토리 응답 모델"""
     average_score: Optional[TestScoreInfo] = None
     test_history: List[TestHistoryItem] = []
+    test_counts: TestCounts
 
 
 # 테스트 상세 응답 모델
