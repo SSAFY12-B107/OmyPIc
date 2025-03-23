@@ -49,6 +49,7 @@ function ProfilePage() {
   console.log("다음 버튼 클릭");
   };
 
+
   return (
     <div className={styles["profile-container"]}>
       {/* 공통 헤더 */}
