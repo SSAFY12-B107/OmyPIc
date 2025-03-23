@@ -48,6 +48,23 @@ async def get_test_history(
                 detail="해당 사용자를 찾을 수 없습니다."
             )
 
+        # 사용자의 테스트 생성 횟수 정보 가져오기
+        test_limits = user.get("test_limits", {"test_count": 0, "random_problem": 0})
+        
+        # 남은 횟수 계산
+        test_counts = {
+            "test_count": {
+                "used": test_limits.get("test_count", 0),
+                "limit": 3,
+                "remaining": max(0, 3 - test_limits.get("test_count", 0))
+            },
+            "random_problem": {
+                "used": test_limits.get("random_problem", 0),
+                "limit": 5,
+                "remaining": max(0, 5 - test_limits.get("random_problem", 0))
+            }
+        }
+
         # 사용자의 테스트 내역 조회
         tests_cursor = db.tests.find({"user_id": user_pk})
         tests = await tests_cursor.to_list(length=None)
@@ -66,7 +83,8 @@ async def get_test_history(
         # 응답 생성
         response = {
             "average_score": user.get("average_score", None),
-            "test_history": test_history
+            "test_history": test_history,
+            "test_counts": test_counts  # 테스트 생성 횟수 정보 추가
         }
 
         return response
@@ -135,9 +153,9 @@ async def make_test(
 ) -> Union[TestCreationResponse, SingleProblemResponse]:
     """
     모의고사 생성 API
-    - test_type 0: 7문제 (콤보셋 3, 롤플레잉 2, 돌발 2)
-    - test_type 1: 15문제 (자기소개 1, 콤보셋 9, 롤플레잉 3, 돌발 2)
-    - test_type 2: 랜덤 1문제 (전체 문제 풀에서 랜덤 선택, DB에 저장하지 않음)
+    - test_type 0: 7문제 (콤보셋 3, 롤플레잉 2, 돌발 2) - 속성, 실전 모의고사 도합 최대 3회
+    - test_type 1: 15문제 (자기소개 1, 콤보셋 9, 롤플레잉 3, 돌발 2) 
+    - test_type 2: 랜덤 1문제 (전체 문제 풀에서 랜덤 선택, DB에 저장하지 않음) - 최대 5회
     
     전달받은 사용자의 배경 정보(background_survey.info)를 기반으로
     관심사에 맞는 문제들로 테스트를 구성합니다.
@@ -156,7 +174,26 @@ async def make_test(
     if not user:
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
     
+    # 사용자의 테스트 생성 횟수 확인
+    test_limits = user.get("test_limits", {"test_count": 0, "random_problem": 0})
+    
+    # 테스트 타입에 따른 제한 확인
+    if test_type == 0 or test_type == 1:  # 7문제 또는 15문제 테스트 (통합 카운트)
+        if test_limits.get("test_count", 0) >= 3:
+            raise HTTPException(status_code=403, detail="7문제와 15문제 테스트는 합산하여 최대 3회까지만 생성 가능합니다")
+        test_limit_field = "test_limits.test_count"
+    else:  # 랜덤 1문제
+        if test_limits.get("random_problem", 0) >= 5:
+            raise HTTPException(status_code=403, detail="랜덤 1문제는 최대 5회까지만 생성 가능합니다")
+        test_limit_field = "test_limits.random_problem"
+    
     try:
+        # 테스트 횟수 증가
+        await db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$inc": {test_limit_field: 1}}
+        )
+
         # 랜덤 단일 문제 요청인 경우 (test_type == 2)
         if test_type == 2:
             # 별도 함수로 랜덤 문제 하나만 가져옴 (DB에 저장하지 않음)
@@ -176,13 +213,80 @@ async def make_test(
             
             # TestCreationResponse 모델로 변환하여 반환
             return TestCreationResponse(**test_data)
+        
     except bson_errors.InvalidId as e:
         # ObjectId 변환 오류
         raise HTTPException(status_code=400, detail=f"잘못된 ID 형식: {str(e)}")
+    except HTTPException:
+        # 이미 발생한 HTTPException은 그대로 전달
+        raise
     except Exception as e:
         # 로깅 추가
         logger.error(f"테스트 생성 중 오류 발생: {str(e)}", exc_info=True)
+        
+        # 테스트 생성이 실패한 경우, 카운트 원복
+        try:
+            await db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$inc": {test_limit_field: -1}}
+            )
+        except Exception as rollback_error:
+            logger.error(f"카운트 롤백 중 오류: {str(rollback_error)}")
+        
         raise HTTPException(status_code=500, detail=f"테스트 생성 중 오류 발생: {str(e)}")
+
+
+@router.get("/remaining/{user_id}", response_model=Dict[str, Any])
+async def get_remaining_tests(
+    user_id: str,
+    db: Database = Depends(get_mongodb)
+):
+    """
+    사용자의 남은 테스트 생성 횟수를 조회합니다.
+    
+    Args:
+        user_id: 사용자 ID
+        
+    Returns:
+        Dict: 남은 테스트 횟수 정보
+    """
+    if not user_id:
+        raise HTTPException(status_code=400, detail="사용자 ID가 필요합니다")
+    
+    try:
+        # ObjectId 변환 검증
+        user_object_id = ObjectId(user_id)
+    except bson_errors.InvalidId:
+        raise HTTPException(status_code=400, detail="유효하지 않은 사용자 ID 형식입니다")
+    
+    # 사용자 존재 여부 확인
+    user = await db.users.find_one({"_id": user_object_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+    
+    # 테스트 횟수 제한 정보
+    test_limits = user.get("test_limits", {"test_count": 0, "random_problem": 0})
+    
+    # 남은 횟수 계산
+    remaining_tests = {
+        "test_count": {
+            "used": test_limits.get("test_count", 0),
+            "limit": 3,
+            "remaining": max(0, 3 - test_limits.get("test_count", 0)),
+            "description": "7문제와 15문제 테스트 합산 (최대 3회)"
+        },
+        "random_problem": {
+            "used": test_limits.get("random_problem", 0),
+            "limit": 5,
+            "remaining": max(0, 5 - test_limits.get("random_problem", 0)),
+            "description": "랜덤 1문제 (최대 5회)"
+        }
+    }
+    
+    return {
+        "user_id": user_id,
+        "remaining_tests": remaining_tests
+    }
 
 
 @router.delete("/{test_id}")
