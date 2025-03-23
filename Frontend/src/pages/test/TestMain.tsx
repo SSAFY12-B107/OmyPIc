@@ -3,76 +3,79 @@ import TestTypeButton from "../../components/test/TestTypeButton";
 import AverageGradeChart from "../../components/test/AverageGradeChart";
 import RecordItem from "../../components/test/RecordItem";
 import apiClient from "../../api/apiClient";
-
 import { useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "../../store/testSlice";
+import { useDispatch } from "react-redux";
 import { testActions } from "../../store/testSlice";
 import { useEffect } from "react";
-import { useParams } from "react-router-dom";
 import { useUserHistory } from "../../hooks/useHistory";
 
 
 
 function TestMain() {
-  // 히스토리 조회
-  // const { user_pk } = useParams<{ user_pk: string  }>();
-
-  // // 또는 Redux에서 현재 로그인한 사용자 ID 가져오기
-  // const currentUserId = useSelector((state: RootState) => state.auth?.user?.id);
 
   // 히스토리 데이터 가져오기
   const {
     data: historyData,
     isLoading,
     isError,
-  } = useUserHistory("67da4792ad60cfdcd742b119");
-
+  } = useUserHistory("67da47b9ad60cfdcd742b11a");
 
 
   // 비동기 액션 연결
   const dispatch = useDispatch();
 
-  // 테스트 배포 : 문제 생성 3회 제한
-  const { usageCount, maxUsageCount } = useSelector(
-    (state: RootState) => state.tests
-  );
+  // 테스트 배포 : 문제 생성 모의고사 3회, 랜덤 단일문제 5회 
+  // 모의고사 횟수, 단일 랜덤문제 횟수 
+  const testCounts = historyData?.test_counts?.test_count
+  const randomCounts = historyData?.test_counts?.random_problem
 
-  // 생성 횟수 확인
-  const canUse = usageCount < maxUsageCount;
+ const testUsed = testCounts?.used
+ const testRemaining = testCounts?.remaining
+ const testLimit = testCounts?.limit
+
+ const randomUsed = randomCounts?.used
+ const randomRemaining = randomCounts?.remaining
+ const randomLimit = randomCounts?.limit
 
   const navigate = useNavigate();
 
   // 생성 버튼 핸들링-axios 요청
-  const handleCreateTest = async (test_type: boolean) => {
-    if (canUse) {
+  const handleCreateTest = async (test_type: number) => {
+    // test_type에 따라 조건 확인
+    let canProceed = false;
+    
+    if (test_type === 2 && randomRemaining && randomRemaining > 0) {
+      // 랜덤 단일 문제인 경우, 남은 횟수가 있는지 확인
+      canProceed = true;
+    } else if ((test_type === 0 || test_type === 1) && testRemaining && testRemaining > 0) {
+      // 속성 또는 실전 모의고사인 경우, 남은 횟수가 있는지 확인
+      canProceed = true;
+    }
+    
+    if (canProceed) {
       try {
-        // boolean을 숫자로 변환 (true -> 1, false -> 0)
-        const testTypeNumber = test_type ? 1 : 0;
-
-        // 수정 후 (올바른 코드):
         const response = await apiClient.post(
-          `/tests/${testTypeNumber}`,
+          `/tests/${test_type}`,
           {},
           {
             params: {
-              user_id: "67da4792ad60cfdcd742b119",
+              user_id: "67da47b9ad60cfdcd742b11a",
             },
           }
         );
-
+  
         // 응답 데이터를 Redux에 저장
         dispatch(testActions.setCurrentTest(response.data));
-
-        // 사용 횟수 증가
-        dispatch(testActions.incrementUsageCount());
-
+  
         // 페이지 이동
         navigate("/tests/practice");
       } catch (error) {
         console.error("테스트 생성 오류:", error);
         // 에러 처리 로직
       }
+    } else {
+      // 사용 가능한 횟수가 없을 때 사용자에게 알림
+      alert(`오늘의 ${test_type === 2 ? '맛보기' : '모의고사'} 응시 최대치를 다 해내셨군요! 너무 멋져요🤗`);
     }
   };
 
@@ -88,20 +91,26 @@ function TestMain() {
     <div className={styles.container}>
       {/* 테스트 배포 : 3회 응시 횟수 제한 추가 필요 */}
       <main className={styles.main}>
-        <section className={styles.section}>
+        <section className={styles.section1}>
           <h2>시험유형 선택</h2>
           <div className={styles.testTypes}>
-            <TestTypeButton
-              onClick={() => handleCreateTest(true)}
-              title="실전 모의고사"
-              description="실제 시험처럼 연습하기"
-              duration="40분"
+          <span className={styles.countLimit}>오늘의 응시권 {randomRemaining}/{randomLimit}회🐧</span>
+          <TestTypeButton
+              onClick={() => handleCreateTest(2)}
+              title="한 문제 맛보기"
+              description="빠르게 현재 레벨 파악하기"
             />
+          <span className={styles.countLimit}>오늘의 응시권 {testRemaining}/{testLimit}회🐟</span>
+
             <TestTypeButton
-              onClick={() => handleCreateTest(false)}
+              onClick={() => handleCreateTest(0)}
               title="속성 모의고사"
               description="바쁜 사람들을 위한 스몰 테스트"
-              duration="20분"
+            />
+                        <TestTypeButton
+              onClick={() => handleCreateTest(1)}
+              title="실전 모의고사"
+              description="실제 시험처럼 연습하기"
             />
           </div>
         </section>
@@ -156,8 +165,7 @@ function TestMain() {
             </div>
           ) : (
             <div className={styles.noData}>
-              아직 모의고사 기록이 없습니다. 시험을 완료하면 여기에 결과가
-              표시됩니다.
+              내 기록을 한눈에 볼 수 있어요! 
             </div>
           )}
         </section>

@@ -7,6 +7,7 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import MicRecorder from "mic-recorder-to-mp3-fixed";
 import apiClient from "../../api/apiClient";
+import FeedbackModal from "../../components/test/FeedbackModal";
 
 function TestExam() {
   // 컴포넌트 최상단에 문제 mp3 캐시 객체 선언
@@ -16,27 +17,39 @@ function TestExam() {
   const { currentTest } = useSelector((state: RootState) => state.tests);
 
   // 테스트 타입에 따른 최대 문제 수 설정
-  const maxValue = currentTest?.test_type ? 15 : 7;
+  const maxValue =
+    currentTest?.test_type == 1 ? 15 : currentTest?.test_type == 0 ? 7 : 1;
 
   // 문제번호 관리(ui)
-  const [currentProblem, setCurrentProblem] = useState(1);
+  const [currentProblem, setCurrentProblem] = useState<number>(1);
+
+  // 한문제 평가 피드백 저장
+  const [randomProblemResult, setRandomProblemResult] = useState<any>(null);
+
 
   // 오디오 상태
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [hasPlayed, setHasPlayed] = useState(false);
-  const [hasListenedAgain, setHasListenedAgain] = useState(false);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [hasPlayed, setHasPlayed] = useState<boolean>(false);
+  const [hasListenedAgain, setHasListenedAgain] = useState<boolean>(false);
 
   // 녹음 상태
   const [recorder, setRecorder] = useState<MicRecorder | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
+  const [isRecording, setIsRecording] = useState<boolean>(false);
   const [recordedFile, setRecordedFile] = useState<File | null>(null);
 
   // 페이지 이탈 관련 state 추가
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState<boolean>(false);
+
+  // 랜덤문제 모달창
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+
+  const onClose = () => {
+    setIsOpen(!isOpen);
+  };
 
   const navigate = useNavigate();
-  
+
   // 뒤로 가기 버튼 핸들러
   const handleBackButton = () => {
     // 모달 표시
@@ -54,7 +67,7 @@ function TestExam() {
 
       // 테스트 종료 API 호출
       await apiClient.delete(`/tests/${currentTest._id}`);
-      
+
       // 성공적으로 API 호출 후 테스트 목록 페이지로 이동
       navigate("/tests");
     } catch (error) {
@@ -63,7 +76,7 @@ function TestExam() {
       navigate("/tests");
     }
   };
-  
+
   // 테스트 계속하기
   const handleContinueTest = () => {
     setShowExitConfirm(false);
@@ -72,8 +85,19 @@ function TestExam() {
   //응시 페이지 진입 시 Audio 객체 미리 생성
   useEffect(() => {
     console.log("currentTest", currentTest);
-    if (currentTest?.problem_data) {
-      // 현재 문제 포함 앞으로 3개 문제에 대해 Audio 객체 생성
+
+    if (currentTest?.audio_s3_url) {
+      if (currentTest.audio_s3_url) {
+        const correctedUrl = currentTest.audio_s3_url.replace(
+          "ap-northeast-2",
+          "us-east-2"
+        );
+        const audioObj = new Audio(correctedUrl);
+        audioCache[currentProblem] = audioObj;
+        console.log(`오디오 객체 생성됨:`, audioObj);
+      }
+    } else if (currentTest?.problem_data) {
+      // test_type이 1 또는 0일 때 기존 방식으로 처리
       for (
         let i = currentProblem;
         i < Math.min(currentProblem + 3, maxValue);
@@ -83,7 +107,6 @@ function TestExam() {
         console.log("problemData", problemData);
         if (problemData && problemData.audio_s3_url) {
           if (!audioCache[i]) {
-            // 이미 캐시에 저장된 경우 중복 생성 방지
             const correctedUrl = problemData.audio_s3_url.replace(
               "ap-northeast-2",
               "us-east-2"
@@ -157,7 +180,7 @@ function TestExam() {
       });
     };
   }, []); // 빈 의존성 배열: 마운트/언마운트 시에만 실행
-  
+
   // 오디오 재생/일시정지 핸들러
   const handleAudioControl = useCallback(() => {
     const audio = audioCache[currentProblem];
@@ -223,41 +246,68 @@ function TestExam() {
   // 녹음 제출 및 다음 문제 이동
   const submitRecording = async () => {
     if (!recordedFile) {
-      alert("녹음을 해주세요!");
       return;
     }
 
     try {
-      if (!currentTest?._id) {
-        console.error("테스트 ID가 없습니다.");
-        return;
-      }
-
+      const isLastProblem = currentProblem === maxValue;
+      let random = 0;
       const formData = new FormData();
       formData.append("audio_file", recordedFile);
 
-      const isLastProblem = currentProblem === maxValue;
-      formData.append("is_last_problem", String(isLastProblem));
+      let response;
 
-      // 현재 문제 ID 가져오기
-      const currentProblemId =
-        currentTest?.problem_data[currentProblem]?.problem_id;
+      // currentTest.problem_id가 있는 경우 (랜덤 문제)
+      if (currentTest?.problem_id) {
+        console.log("currentTest?.problem_id", currentTest?.problem_id);
+        // params 대신 FormData에 직접 추가
+        formData.append("problem_id", currentTest.problem_id);
+        formData.append("user_id", "67da47b9ad60cfdcd742b11a");
 
-      if (!currentProblemId) {
-        console.error("문제 ID를 찾을 수 없습니다.");
-        return;
+        response = await apiClient.post(
+          "tests/random-problem/evaluate",
+          formData,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
+          }
+        );
+
+        // 랜덤 문제 결과만 저장
+        if (response) {
+          console.log("단일평가 피드백", response?.data);
+          setRandomProblemResult(response.data);
+          setIsOpen(true); // 여기에 모달 오픈 추가
+        }
+        
+      }
+      // 기존 로직 (일반 문제)
+      else {
+        random = 1;
+        // 현재 문제 ID 가져오기
+        const currentProblemId =
+          currentTest?.problem_data[currentProblem]?.problem_id;
+
+        if (!currentProblemId) {
+          console.error("문제 ID를 찾을 수 없습니다.");
+          return;
+        }
+
+        formData.append("is_last_problem", String(isLastProblem));
+
+        response = await apiClient.post(
+          `/tests/${currentTest._id}/record/${currentProblemId}`,
+          formData,
+          { headers: { "Content-Type": "multipart/form-data" } }
+        );
       }
 
-      const response = await apiClient.post(
-        `/tests/${currentTest._id}/record/${currentProblemId}`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-
-      if (response.data) {
-        if (isLastProblem) {
+      if (response?.data) {
+        // 모의고사 문제일 때 고려
+        if (isLastProblem && random === 1 ) {
           navigate("/tests");
-        } else {
+        }
+        // 
+        else if (!isLastProblem && random === 1) {
           confirm("녹음 전달에 성공했어요! 다음 문제를 풀어볼까요?");
           setCurrentProblem((prev) => prev + 1);
         }
@@ -283,9 +333,14 @@ function TestExam() {
 
   return (
     <div className={styles.container}>
+      <FeedbackModal
+        isOpen={isOpen}
+        onClose={onClose}
+        data={randomProblemResult}
+      />
       {/* 헤더 추가 */}
       <div className={styles.header}>
-        <button 
+        <button
           className={styles.backButton}
           onClick={handleBackButton}
           aria-label="테스트 종료"
@@ -296,19 +351,25 @@ function TestExam() {
         <h1 className={styles.headerTitle}>
           {currentTest?.test_type ? "실전 모의고사" : "적성고사"}
         </h1>
-        <div className={styles.headerSpacer}></div> {/* 양쪽 균형을 위한 빈 공간 */}
+        <div className={styles.headerSpacer}></div>{" "}
+        {/* 양쪽 균형을 위한 빈 공간 */}
       </div>
 
       <div className={styles.resize}>
-        <div className={styles.numBox}>
-          <span className={styles.currentNum}>{currentProblem}</span>
-          <span className={styles.totalNum}> / {maxValue}</span>
-        </div>
-        <progress
-          className={styles.progress}
-          value={currentProblem}
-          max={maxValue}
-        ></progress>
+        {currentTest?.problem_data ? (
+          <>
+            <div className={styles.numBox}>
+              <span className={styles.currentNum}>{currentProblem}</span>
+              <span className={styles.totalNum}> / {maxValue}</span>
+            </div>
+            <progress
+              className={styles.progress}
+              value={currentProblem}
+              max={maxValue}
+            ></progress>
+          </>
+        ) : null}
+
         <img className={styles.avatarImg} src={avatar} alt="아바타" />
 
         <button
@@ -354,8 +415,12 @@ function TestExam() {
         </div>
       </div>
 
-      <button 
-        className={recordedFile ? styles.nextButton : `${styles.nextButton} ${styles.disabledButton}`}
+      <button
+        className={
+          recordedFile
+            ? styles.nextButton
+            : `${styles.nextButton} ${styles.disabledButton}`
+        }
         onClick={submitRecording}
         disabled={!recordedFile} // 녹음 파일이 없으면 비활성화
       >
@@ -366,22 +431,18 @@ function TestExam() {
       {showExitConfirm && (
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
-            <h3 className={styles.modalTitle}>테스트 종료</h3>
-            <p className={styles.modalText}>정말 테스트를 종료하시겠습니까?</p>
+            <h3 className={styles.modalTitle}>잠깐!😯</h3>
+            <p className={styles.modalText}>테스트를 종료하시겠어요?</p>
             <div className={styles.modalButtons}>
-            <button 
-                className={styles.modalEndBtn}
-                onClick={handleEndTest}
-              >
-                테스트 종료하기
+              <button className={styles.modalEndBtn} onClick={handleEndTest}>
+                종료하기
               </button>
-              <button 
+              <button
                 className={styles.modalContinueBtn}
                 onClick={handleContinueTest}
               >
                 계속 진행하기
               </button>
-
             </div>
           </div>
         </div>
