@@ -1,24 +1,116 @@
-# Backend/services/auth.py
-from typing import Dict, Optional, Any
-import jwt
+# app/services/auth.py
 from datetime import datetime, timedelta
+import time
+import base64
+import hmac
+import hashlib
+import secrets
+import jwt
 from fastapi import HTTPException, status
+from typing import Dict, Optional
+
 from core.config import settings
-from core.jwt_utils import decode_jwt
 
-
-async def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+def create_csrf_token() -> str:
     """
-    액세스 토큰 생성
+    서명된 CSRF 토큰 생성
+    
+    토큰은 타임스탬프와 랜덤 데이터로 구성되며 HMAC으로 서명됩니다.
+    서버에 토큰을 저장하지 않고도 검증할 수 있습니다.
+    
+    Returns:
+        str: 서명된 CSRF 토큰
+    """
+    # 현재 타임스탬프
+    timestamp = int(time.time())
+    
+    # 랜덤 데이터
+    random_data = secrets.token_urlsafe(16)
+    
+    # 토큰 데이터: timestamp:random_data
+    token_data = f"{timestamp}:{random_data}"
+    
+    # HMAC-SHA256 서명 생성
+    signature = hmac.new(
+        settings.JWT_SECRET_KEY.encode(),
+        token_data.encode(),
+        hashlib.sha256
+    ).digest()
+    
+    # Base64 인코딩된 서명
+    b64_signature = base64.urlsafe_b64encode(signature).decode('utf-8').rstrip('=')
+    
+    # 최종 토큰: data.signature
+    token = f"{token_data}.{b64_signature}"
+    
+    return token
+
+def verify_csrf_token(token: str, max_age: int = 3600) -> bool:
+    """
+    서명된 CSRF 토큰 검증
+    
+    Args:
+        token (str): 검증할 CSRF 토큰
+        max_age (int): 토큰의 최대 유효 시간(초), 기본값 1시간
+        
+    Returns:
+        bool: 토큰 유효성 여부
+        
+    Raises:
+        HTTPException: 토큰이 유효하지 않을 경우
+    """
+    try:
+        # 토큰 파싱
+        token_parts = token.split('.')
+        if len(token_parts) != 2:
+            raise ValueError("잘못된 토큰 형식입니다")
+        
+        token_data, provided_signature = token_parts
+        
+        # 타임스탬프 추출 및 검증
+        timestamp_str, _ = token_data.split(':')
+        timestamp = int(timestamp_str)
+        
+        # 토큰 만료 확인
+        current_time = int(time.time())
+        if current_time - timestamp > max_age:
+            raise ValueError("토큰이 만료되었습니다")
+        
+        # 서명 재생성하여 검증
+        expected_signature = hmac.new(
+            settings.JWT_SECRET_KEY.encode(),
+            token_data.encode(),
+            hashlib.sha256
+        ).digest()
+        
+        expected_b64 = base64.urlsafe_b64encode(expected_signature).decode('utf-8').rstrip('=')
+        
+        # 안전한 비교 (타이밍 공격 방지)
+        if not hmac.compare_digest(expected_b64, provided_signature):
+            raise ValueError("유효하지 않은 서명입니다")
+        
+        return True
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"유효하지 않거나 만료된 CSRF 토큰: {str(e)}"
+        )
+
+def create_access_token(data: dict) -> str:
+    """
+    JWT 액세스 토큰 생성
+    
+    Args:
+        data (dict): 토큰에 인코딩할 사용자 데이터
+        
+    Returns:
+        str: 생성된 JWT 액세스 토큰
     """
     to_encode = data.copy()
     
     # 만료 시간 설정
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    
+    expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     
     # JWT 토큰 생성
@@ -30,53 +122,84 @@ async def create_access_token(data: Dict[str, Any], expires_delta: Optional[time
     
     return encoded_jwt
 
-async def create_refresh_token(data: Dict[str, Any]) -> str:
+def create_refresh_token(data: dict) -> str:
     """
-    리프레시 토큰 생성
+    JWT 리프레시 토큰 생성
+    
+    Args:
+        data (dict): 토큰에 인코딩할 사용자 데이터
+        
+    Returns:
+        str: 생성된 JWT 리프레시 토큰
     """
     to_encode = data.copy()
     
-    # 만료 시간 설정 (리프레시 토큰 - 일반적으로 더 긴 만료 시간)
+    # 만료 시간 설정 (더 길게)
     expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire})
     
-    # JWT 토큰 생성
+    # JWT 토큰 생성 (다른 시크릿 키 사용)
     encoded_jwt = jwt.encode(
         to_encode, 
-        settings.JWT_REFRESH_SECRET_KEY, 
+        settings.REFRESH_TOKEN_SECRET_KEY, 
         algorithm=settings.JWT_ALGORITHM
     )
     
     return encoded_jwt
 
-async def refresh_access_token(refresh_token: str) -> Dict[str, str]:
+def verify_token(token: str, secret_key: str) -> dict:
     """
-    리프레시 토큰으로 새 액세스 토큰 발급
+    JWT 토큰 검증 및 디코드
+    
+    Args:
+        token (str): 검증할 JWT 토큰
+        secret_key (str): 토큰 검증에 사용할 시크릿 키
+        
+    Returns:
+        dict: 디코드된 토큰 데이터
+        
+    Raises:
+        HTTPException: 토큰이 유효하지 않을 경우
     """
     try:
-        # 리프레시 토큰 검증
-        payload = decode_jwt(refresh_token, settings.JWT_REFRESH_SECRET_KEY)
-        
-        # 사용자 정보 추출
-        user_id = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="유효하지 않은 리프레시 토큰"
-            )
-        
-        # 새 액세스 토큰 발급
-        access_token = await create_access_token({"sub": user_id})
-        
-        return {"access_token": access_token, "token_type": "bearer"}
-        
+        payload = jwt.decode(
+            token,
+            secret_key,
+            algorithms=[settings.JWT_ALGORITHM]
+        )
+        return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="리프레시 토큰이 만료되었습니다"
+            detail="토큰이 만료되었습니다"
         )
-    except jwt.PyJWTError:
+    except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="유효하지 않은 리프레시 토큰"
+            detail="유효하지 않은 토큰입니다"
         )
+
+def verify_access_token(token: str) -> dict:
+    """
+    액세스 토큰 검증
+    
+    Args:
+        token (str): 검증할 액세스 토큰
+        
+    Returns:
+        dict: 디코드된 토큰 데이터
+    """
+    return verify_token(token, settings.JWT_SECRET_KEY)
+
+def verify_refresh_token(token: str) -> dict:
+    """
+    리프레시 토큰 검증
+    
+    Args:
+        token (str): 검증할 리프레시 토큰
+        
+    Returns:
+        dict: 디코드된 토큰 데이터
+    """
+    return verify_token(token, settings.REFRESH_TOKEN_SECRET_KEY)
+

@@ -92,7 +92,7 @@ async def generate_follow_up_questions(problem_pk: str, answers: Dict[str, str])
         llm = ChatGroq(
             temperature=0.3,
             model_name="llama-3.3-70b-versatile",  # Groq에서 제공하는 Llama 모델
-            api_key="Groq_API_KEY"  # Groq API 키
+            api_key="GROQ API"  # Groq API 키
             ##Warining #아직까지 직접입력을 넣어줘야함!
         )
         
@@ -190,3 +190,142 @@ def generate_fallback_follow_up_questions(answers: Dict[str, str]) -> List[str]:
                 follow_up_questions.append(f"그 상황에서 다른 선택을 했다면 어떻게 달라졌을 것 같나요?")
     
     return follow_up_questions
+
+async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
+    """
+    사용자 답변을 바탕으로 OPIc IH 수준의 영어 스크립트를 생성합니다.
+    
+    Args:
+        problem_pk (str): 문제 ID
+        answers (Dict[str, Any]): 사용자 답변 
+            {
+                "type": "string", 
+                "basic_answers": {"answer1": "string", "answer2": "string", "answer3": "string"}, 
+                "custom_answers": {"answer1": "string", "answer2": "string", "answer3": "string"}
+            }
+        
+    Returns:
+        str: 생성된 OPIc IH 수준의 영어 스크립트
+    """
+    try:
+        # 질문 유형 결정
+        type_key = get_question_type_from_problem_pk(problem_pk)
+        question_type_data = question_types.get(type_key)
+        
+        if not question_type_data:
+            logger.error(f"문제 유형을 찾을 수 없습니다: {type_key}")
+            return "Script generation failed: Question type could not be determined."
+        
+        # LLM 모델 설정 (Groq LLM 사용)
+        llm = ChatGroq(
+            temperature=0.7,  # 창의성을 위해 약간 높임
+            model_name="llama-3.3-70b-versatile",  # Groq에서 제공하는 Llama 모델
+            api_key="GROQ API"  # Groq API 키
+        )
+        
+        # 답변 정리 - QuestionAnswers 객체에서 필드를 직접 접근
+        basic_answers = answers["basic_answers"]
+        custom_answers = answers.get("custom_answers", {})
+        
+        questions = question_type_data["questions"]
+        combined_info = []
+        
+        # 원래 질문과 기본 답변, 커스텀 답변 결합
+        for i in range(1, 4):
+            answer_key = f"answer{i}"
+            
+            if i <= len(questions):
+                question = questions[i-1]
+                
+                # 객체에서 속성으로 직접 접근
+                try:
+                    # 먼저 딕셔너리인지 확인
+                    if isinstance(basic_answers, dict):
+                        basic_answer = basic_answers.get(answer_key, "")
+                    else:
+                        # 그렇지 않으면 속성으로 접근
+                        basic_answer = getattr(basic_answers, answer_key, "")
+                        
+                    if isinstance(custom_answers, dict):
+                        custom_answer = custom_answers.get(answer_key, "")
+                    else:
+                        custom_answer = getattr(custom_answers, answer_key, "")
+                except AttributeError:
+                    logger.warning(f"답변 접근 오류: {answer_key}")
+                    basic_answer = ""
+                    custom_answer = ""
+                
+                if basic_answer or custom_answer:
+                    combined_info.append({
+                        "question": question,
+                        "basic_answer": basic_answer,
+                        "custom_answer": custom_answer
+                    })
+        
+        # 답변이 없는 경우 처리
+        if not combined_info:
+            return "Script generation failed: No answers provided."
+        
+        # 유형별 안내 지침
+        type_specific_guidance = {
+            "묘사": "Use vivid, descriptive language. Include sensory details and personal impressions.",
+            "과거 경험": "Share the experience in chronological order. Include feelings and reflections on the impact.",
+            "루틴": "Describe the sequence of activities naturally. Include preferences and reasons for doing things in a certain way.",
+            "비교": "Balance the comparison by discussing both similarities and differences. Share personal preferences with reasons.",
+            "롤플레잉": "Take on the suggested role naturally. Use appropriate vocabulary and expressions for the situation."
+        }
+        
+        # 프롬프트 템플릿 구성
+        system_template = f"""
+        You are an expert in generating natural, conversational English scripts for OPIc tests at the IH (Intermediate High) level.
+        
+        Topic type: {question_type_data["type"]}
+        Guidance: {type_specific_guidance.get(question_type_data["type"], "Create a natural, conversational response that demonstrates paragraph-level discourse.")}
+        
+        Follow these requirements exactly:
+        1. Generate a 1-1.5 minute spoken script (7-9 sentences total).
+        2. Use conversational language with natural discourse markers (well, you know, actually, anyway, etc.).
+        3. Include a mix of simple and complex sentences.
+        4. Use appropriate transitions between ideas.
+        5. Include personal opinions, feelings, or reflections.
+        6. Maintain coherent paragraph-level discourse.
+        7. Avoid overly formal language - this should sound natural when spoken.
+        8. Include 1-2 hesitations or self-corrections to sound natural (like "um", "I mean", etc.).
+        
+        The final output should ONLY be the English script - do not include any explanations, introductions, or annotations.
+        """
+        
+        human_template = """
+        Here are the user's Korean answers to questions about {topic_type}:
+        
+        {answer_details}
+        
+        Create a natural, conversational English script at the OPIc IH level that integrates these ideas into a coherent response.
+        The script should be 7-9 sentences long (1-1.5 minutes when spoken).
+        """
+        
+        # 답변 상세 정보 구성
+        answer_details = ""
+        for item in combined_info:
+            answer_text = item["custom_answer"] if item["custom_answer"] else item["basic_answer"]
+            answer_details += f"Question: {item['question']}\nAnswer: {answer_text}\n\n"
+        
+        chat_prompt = ChatPromptTemplate.from_messages([
+            SystemMessagePromptTemplate.from_template(system_template),
+            HumanMessagePromptTemplate.from_template(human_template)
+        ])
+        
+        # 스크립트 생성
+        chain = LLMChain(llm=llm, prompt=chat_prompt)
+        script = await chain.arun({
+            "topic_type": question_type_data["type"],
+            "answer_details": answer_details
+        })
+        
+        # 결과 정리
+        script = script.strip()
+        return script
+        
+    except Exception as e:
+        logger.error(f"OPIc 스크립트 생성 중 오류 발생: {str(e)}")
+        return f"Script generation failed: Error occurred during generation: {str(e)}"

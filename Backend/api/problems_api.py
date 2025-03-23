@@ -281,7 +281,6 @@ async def make_custom_questions(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"꼬리 질문 생성 중 오류가 발생했습니다: {str(e)}"
         )
-
 @router.post("/{problem_pk}/scripts", response_model=ScriptCreationResponse, status_code=status.HTTP_201_CREATED)
 async def make_script(
     problem_pk: str = Path(..., description="문제 ID"),
@@ -315,12 +314,39 @@ async def make_script(
                     detail="기본 타입 스크립트에는 basic_answers가 필요합니다."
                 )
                 
-            # 기본 답변 처리
-            script_content = (
-                f"{script_data.basic_answers.answer1}\n"
-                f"{script_data.basic_answers.answer2}\n"
-                f"{script_data.basic_answers.answer3}"
-            ).strip()
+            # 기본 답변을 사용하여 AI 스크립트 생성
+            try:
+                from services.ai_script import generate_opic_script
+                
+                # Pydantic 모델을 딕셔너리로 변환
+                basic_dict = {
+                    "answer1": script_data.basic_answers.answer1,
+                    "answer2": script_data.basic_answers.answer2,
+                    "answer3": script_data.basic_answers.answer3
+                }
+                
+                custom_dict = {}
+                if hasattr(script_data, 'custom_answers') and script_data.custom_answers:
+                    custom_dict = {
+                        "answer1": script_data.custom_answers.answer1,
+                        "answer2": script_data.custom_answers.answer2,
+                        "answer3": script_data.custom_answers.answer3
+                    }
+                
+                script_content = await generate_opic_script(
+                    problem_pk=problem_pk,
+                    answers={
+                        "basic_answers": basic_dict,
+                        "custom_answers": custom_dict
+                    }
+                )
+            except Exception as e:
+                # AI 스크립트 생성 실패 시 에러 반환
+                logger.error(f"AI 스크립트 생성 실패: {str(e)}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"스크립트 생성에 실패했습니다: {str(e)}"
+                )
             
         elif script_data.type == "custom":
             if not script_data.basic_answers or not script_data.custom_answers:
@@ -329,22 +355,37 @@ async def make_script(
                     detail="커스텀 타입 스크립트에는 basic_answers와 custom_answers가 모두 필요합니다."
                 )
                 
-            # 기본 답변과 커스텀 답변 모두 처리
-            basic_content = (
-                f"기본 질문 답변:\n"
-                f"{script_data.basic_answers.answer1}\n"
-                f"{script_data.basic_answers.answer2}\n"
-                f"{script_data.basic_answers.answer3}"
-            )
-            
-            custom_content = (
-                f"커스텀 질문 답변:\n"
-                f"{script_data.custom_answers.answer1}\n"
-                f"{script_data.custom_answers.answer2}\n"
-                f"{script_data.custom_answers.answer3}"
-            )
-            
-            script_content = f"스크립트 내용입니다."
+            # 기본 답변과 커스텀 답변을 사용하여 AI 스크립트 생성
+            try:
+                from services.ai_script import generate_opic_script
+                
+                # Pydantic 모델을 딕셔너리로 변환
+                basic_dict = {
+                    "answer1": script_data.basic_answers.answer1,
+                    "answer2": script_data.basic_answers.answer2,
+                    "answer3": script_data.basic_answers.answer3
+                }
+                
+                custom_dict = {
+                    "answer1": script_data.custom_answers.answer1,
+                    "answer2": script_data.custom_answers.answer2,
+                    "answer3": script_data.custom_answers.answer3
+                }
+                
+                script_content = await generate_opic_script(
+                    problem_pk=problem_pk,
+                    answers={
+                        "basic_answers": basic_dict, 
+                        "custom_answers": custom_dict
+                    }
+                )
+            except Exception as e:
+                # AI 스크립트 생성 실패 시 에러 반환
+                logger.error(f"AI 스크립트 생성 실패: {str(e)}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"스크립트 생성에 실패했습니다: {str(e)}"
+                )
         
         # 3. 내용이 비어있는지 확인
         if not script_content:
@@ -383,7 +424,6 @@ async def make_script(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"스크립트 생성 중 오류가 발생했습니다: {str(e)}"
         )
-
 
 @router.patch("/scripts/{script_pk}", response_model=ScriptResponse, status_code=status.HTTP_200_OK)
 async def update_script(
