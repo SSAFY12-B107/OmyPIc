@@ -12,8 +12,8 @@ interface ScriptBoxProps {
 }
 
 function ScriptBox({ userScript }: ScriptBoxProps) {
-  // 스크립트 생성 여부 확인(임시)
-  const isGenerating: boolean = true;
+  // // 스크립트 생성 여부 확인(임시) : 나중에 확인하고 isLoading 등으로 처리해야함함
+  // const isGenerating: boolean = true;
 
   // 첫 번째 스크립트 ID 가져오기
   const firstScriptId =
@@ -96,8 +96,8 @@ function ScriptBox({ userScript }: ScriptBoxProps) {
           <p>나만의 스크립트</p>
         </div>
         {/* 듣기 버튼 */}
-        {userScript.length > 0 &&
-          (<div className={styles["listen-btn"]} onClick={handlePlayPause}>
+        {audioData && (
+          <div className={styles["listen-btn"]} onClick={handlePlayPause}>
             {isLoading ? (
               // 로딩 스피너
               <div className={styles.spinner}></div>
@@ -133,12 +133,25 @@ function ScriptBox({ userScript }: ScriptBoxProps) {
               </svg>
             )}
             <span>{isPlaying ? "일시정지" : "발음 듣기"}</span>
-          </div>)
-        }
+          </div>
+        )}
       </div>
 
       {/* content */}
-      <div
+      <div className={styles.contentList}>
+        {userScript.length > 0 ? (
+          // 스크립트 생성된 경우
+          userScript.map((script) => (
+            <div key={`script-${script.id}`} className={styles["content-item"]}>
+              <p>{script.content}</p>
+            </div>
+          ))
+        ) : (
+          <p className={styles.noContent}>아직 생성된 스크립트가 없습니다.</p>
+        )}
+      </div>
+      {/* 스크립트 생성중인 경우 고려할 때 */}
+      {/* <div
         className={`${styles.contentList} ${
           isGenerating ? styles["generating"] : ""
         }`}
@@ -164,7 +177,7 @@ function ScriptBox({ userScript }: ScriptBoxProps) {
         ) : (
           <p className={styles.noContent}>아직 생성된 스크립트가 없습니다.</p>
         )}
-      </div>
+      </div> */}
     </div>
   );
 }

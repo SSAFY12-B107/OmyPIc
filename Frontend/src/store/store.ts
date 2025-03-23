@@ -1,12 +1,14 @@
 import { configureStore } from "@reduxjs/toolkit";
 import authReducer from './authSlice';
 // import testReducer from '.testSlice';
+import scriptReducer from './scriptSlice';
 
 // 2. Redux 스토어 설정
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     // test: testReducer,
+    script: scriptReducer,
   },
 });
 

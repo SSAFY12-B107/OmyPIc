@@ -3,18 +3,38 @@ import apiClient from "../api/apiClient";
 
 // 기본 질문 응답 인터페이스 정의
 export interface QuestionsResponse {
-  content: String,
+  content: string, // String -> string으로 수정
   questions: string[];
 }
 
-// 요청 본문 인터페이스 정의
-export interface CreateScriptRequest {
-  answers: string[]; // 사용자가 입력한 질문에 대한 답변 배열
+// 꼬리질문 요청 인터페이스 정의
+export interface CustomQuestionsRequest {
+  question1: string;
+  question2: string;
+  question3: string;
 }
 
-// 응답 인터페이스 정의
+// 스크립트 작성 요청 인터페이스 정의
+export interface CreateScriptRequest {
+  type: "basic" | "custom";
+  basic_answers: {
+    answer1: string;
+    answer2: string;
+    answer3: string;
+  };
+  custom_answers: {
+    answer1: string;
+    answer2: string;
+    answer3: string;
+  };
+}
+
+// 스크립트 작성 응답 인터페이스 정의
 export interface CreateScriptResponse {
-  script: string; // 생성된 스크립트 내용
+  _id: string;
+  content: string;
+  created_at: string;
+  is_script: boolean;
 }
 
 // 기본 질문 목록 조회 API 훅
@@ -35,11 +55,12 @@ export const useGenerateCustomQuestions = () => {
   return useMutation<
     QuestionsResponse, // 응답 데이터 타입
     Error, // 에러 타입
-    string // 입력 변수 타입 (문제 ID만)
+    { problemId: string; answers: CustomQuestionsRequest } // 문제 ID와 답변 데이터
   >({
-    mutationFn: async (problemId) => {
+    mutationFn: async ({ problemId, answers }) => {
       const response = await apiClient.post<QuestionsResponse>(
-        `/problems/${problemId}/custom-questions`
+        `/problems/${problemId}/custom-question`,
+        answers
       );
       return response.data;
     },
@@ -49,14 +70,14 @@ export const useGenerateCustomQuestions = () => {
 // 스크립트 작성 API 훅
 export const useCreateScript = () => {
   return useMutation<
-    CreateScriptResponse, // 응답 데이터 타입
-    Error, // 에러 타입
-    { problemId: string; answers: string[] } // 입력 변수 타입
+    CreateScriptResponse,
+    Error,
+    { problemId: string; scriptData: CreateScriptRequest }
   >({
-    mutationFn: async ({ problemId, answers }) => {
+    mutationFn: async ({ problemId, scriptData }) => {
       const response = await apiClient.post<CreateScriptResponse>(
         `/problems/${problemId}/scripts`,
-        { answers }
+        scriptData
       );
       return response.data;
     },
