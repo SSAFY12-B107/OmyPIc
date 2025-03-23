@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import ScriptBox from "@/components/script/ScriptBox";
 import QuestionBox from "@/components/script/QuestionBox";
 import styles from "./ScriptDetail.module.css";
@@ -14,12 +14,26 @@ function ScriptDetail({}: Props) {
     problemId: string;
   }>();
 
+  const navigate = useNavigate();
+
   // 문제 상세 정보 가져오기
   const {
     data: problemDetail,
     isLoading,
     error,
   } = useGetProblemDetail(problemId || "");
+
+  // 스크립트 생성 버튼 클릭 핸들러
+  const handleCreateScript = () => {
+    // 생성권 한도 체크
+    if (problemDetail.test_count.used >= problemDetail.test_count.limit) {
+      alert("오늘은 생성권을 모두 사용했어요🐧");
+      return;
+    }
+    
+    // 생성권이 남아있으면 페이지 이동
+    navigate(`/scripts/${category}/${problemId}/write`);
+  };
 
   // early return으로 상태 처리
   if (isLoading) {
@@ -95,11 +109,16 @@ function ScriptDetail({}: Props) {
         </div>
       </div>
 
-      <div className={styles.countLimit}>오늘의 응시권 {0}/5회🐧</div>
-
-      <Link to={`/scripts/${category}/${problemId}/write`}>
-        <button className={styles["create-btn"]}>스크립트 생성하기</button>
-      </Link>
+      <div className={styles.countLimit}>
+        오늘의 생성권 {problemDetail.test_count.used}/{problemDetail.test_count.limit}회🐧
+      </div>
+      
+      <button 
+        className={styles["create-btn"]} 
+        onClick={handleCreateScript}
+      >
+        스크립트 생성하기
+      </button>
     </div>
   );
 }
