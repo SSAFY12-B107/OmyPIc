@@ -1,162 +1,180 @@
 .container {
-    width: 360px;
-    min-height: 800px;
-    background-color: #F9F9F9;
-    padding: 20px;
-  }
-  
-  .header {
-    height: 70px;
-    background-color: white;
-    display: flex;
-    align-items: center;
-    padding: 0 20px;
-    margin: -20px -20px 0;
-  }
-  
-  .logo {
-    width: 55px;
-    height: 63px;
-  }
-  
-  .title {
-    color: #333333;
-    font-size: 16px;
-    margin-left: 54px;
-  }
-  
-  .stepsContainer {
-    display: flex;
-    justify-content: center;
-    gap: 5px;
-    margin: 24px 0;
-  }
-  
-  .stepCircle {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #EFE6FF;
-    border: 0.8px solid rgba(87, 63, 132, 0.2);
-  }
-  
-  .activeStep {
-    background-color: #8A63D2;
-    border: none;
-  }
-  
-  .stepText {
-    font-size: 14px;
-    color: #8E8E8E;
-  }
-  
-  .activeStep .stepText {
-    color: white;
-  }
-  
-  .gradeCard {
-    width: 320px;
-    height: 47px;
-    background-color: white;
-    border-radius: 10px;
-    padding: 0 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 1px 1px 6px rgba(0, 0, 0, 0.07);
-    margin-bottom: 16px;
-  }
-  
-  .iconWrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  
-  .circleIcon {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background-color: #EFE6FF;
-    opacity: 0.5;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .gradeBadge {
-    background-color: #E6D9FF;
-    color: #8A63D2;
-    padding: 4px 15px;
-    border-radius: 15px;
-    font-weight: bold;
-  }
-  
-  .feedbackCard {
-    width: 320px;
-    background-color: white;
-    border-radius: 10px;
-    padding: 16px;
-    box-shadow: 1px 1px 6px rgba(0, 0, 0, 0.07);
-    margin-bottom: 16px;
-  }
-  
-  .sectionTitle {
-    color: #565656;
-    font-size: 16px;
-  }
-  
-  .questionText, .answerText {
-    color: #565656;
-    margin: 14px 16px;
-    font-size: 14px;
-  }
-  
-  .answerBox {
-    background-color: #F8F4FF;
-    border-radius: 10px;
-    margin-top: 10px;
-  }
-  
-  .evaluationCard {
-    width: 320px;
-    background-color: white;
-    border-radius: 10px;
-    padding: 16px;
-    box-shadow: 1px 1px 6px rgba(0, 0, 0, 0.07);
-  }
-  
-  .evaluationTags {
-    margin: 15px 0;
-    display: flex;
-  }
-  
-  .tagGroup {
-    /* display: flex; */
-    gap: 10px;
-    margin-top: 10px;
-  }
-  
-  .tag {
-    background-color: #F2F0F7;
-    color: #565656;
-    padding: 8px 20px;
-    border-radius: 10px;
-    font-size: 14px;
-    display: inline-block;
-    margin-right: 10px;
-  }
-  
-  .activeTag {
-    background-color: #E6D9FF;
-  }
-  
-  .feedbackText {
-    color: #565656;
-    font-size: 14px;
-    line-height: 1.5;
-    margin: 15px 0 0;
-  }
+  width: 36rem;
+  min-height: 80rem;
+  background-color: #F9F9F9;
+  padding: 2rem;
+}
+
+.header {
+  height: 7rem;
+  background-color: white;
+  display: flex;
+  align-items: center;
+  padding: 0 2rem;
+  margin: -2rem -2rem 0;
+}
+
+.logo {
+  width: 5.5rem;
+  height: 6.3rem;
+}
+
+.title {
+  color: #333333;
+  font-size: 1.6rem;
+  margin-left: 5.4rem;
+  font-weight: 700;
+}
+
+.stepsContainer {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 2.4rem 0;
+}
+
+.stepCircle {
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #EFE6FF;
+  border: 0.08rem solid rgba(87, 63, 132, 0.2);
+}
+
+.activeStep {
+  background-color: #8A63D2;
+  border: none;
+}
+
+.stepText {
+  font-size: 1.4rem;
+  color: #8E8E8E;
+}
+
+.activeStep .stepText {
+  color: white;
+}
+
+.gradeCard {
+  width: 32rem;
+  height: 4.7rem;
+  background-color: white;
+  border-radius: 1rem;
+  padding: 0 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0.1rem 0.1rem 0.6rem rgba(0, 0, 0, 0.07);
+  margin-bottom: 1.6rem;
+}
+.gradeTitle{
+  font-weight: 700;
+  font-size: 1.6rem;
+}
+
+.gradeBadge{
+  font-size: 1.6rem;
+
+}
+.iconWrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.circleIcon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background-color: #EFE6FF;
+  opacity: 0.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gradeBadge {
+  background-color: #E6D9FF;
+  color: #8A63D2;
+  padding: 0.4rem 1.5rem;
+  border-radius: 1.5rem;
+  font-weight: bold;
+}
+
+.feedbackCard {
+  width: 32rem;
+  background-color: white;
+  border-radius: 1rem;
+  padding: 1.6rem;
+  box-shadow: 0.1rem 0.1rem 0.6rem rgba(0, 0, 0, 0.07);
+  margin-bottom: 1.6rem;
+}
+
+.sectionTitle {
+  color: #565656;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.questionText {
+  color: #565656;
+  margin: 1.4rem 1.6rem;
+  font-size: 1.4rem;
+}
+
+.answerText {
+  color: #565656;
+  margin: 1.4rem 1.6rem;
+  font-size: 1.4rem;
+  padding: 2rem 2rem;
+}
+
+.answerBox {
+  background-color: #F8F4FF;
+  border-radius: 1rem;
+  margin-top: 1rem;
+}
+
+.evaluationCard {
+  width: 32rem;
+  background-color: white;
+  border-radius: 1rem;
+  padding: 1.6rem;
+  box-shadow: 0.1rem 0.1rem 0.6rem rgba(0, 0, 0, 0.07);
+}
+
+
+.evaluationTags {
+  margin: 1.5rem 0rem;
+}
+
+.tagGroup {
+  gap: 1rem;
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.tag {
+  background-color: #F2F0F7;
+  color: #565656;
+  padding: 0.8rem 2rem;
+  border-radius: 1rem;
+  font-size: 1.4rem;
+  display: inline-block;
+
+}
+
+.activeTag {
+  background-color: #E6D9FF;
+}
+
+.feedbackText {
+  color: #565656;
+  font-size: 1.4rem;
+  line-height: 1.5;
+  margin: 1.5rem 0 0;
+}

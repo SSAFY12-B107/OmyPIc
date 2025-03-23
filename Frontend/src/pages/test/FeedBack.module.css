@@ -4,6 +4,7 @@
     padding: 2rem;
   }
   
+
   .stepsContainer {
     display: flex;
     justify-content: center;
@@ -20,7 +21,10 @@
     justify-content: center;
     background-color: #EFE6FF;
     border: 0.8px solid rgba(87, 63, 132, 0.2);
+    cursor: pointer;
+    
   }
+
   
   .activeStep {
     background-color: #8A63D2;

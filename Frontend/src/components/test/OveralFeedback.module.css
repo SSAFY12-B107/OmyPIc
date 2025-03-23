@@ -1,7 +1,6 @@
 
 .feedbackCard {
     width: 32rem;
-    min-height: 37rem;
     background-color: white;
     border-radius: 10px;
     padding: 1.6rem;
@@ -41,3 +40,26 @@
     font-size: 1.4rem;
     padding: 0 0.4rem;
   }
+
+  .chartContainer {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  }
+  
+  .chartTitle {
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #333;
+  }
+  
+  .radarChart {
+    height: 350px;
+    margin: 0 auto;
+    max-width: 500px;
+  }
+  
