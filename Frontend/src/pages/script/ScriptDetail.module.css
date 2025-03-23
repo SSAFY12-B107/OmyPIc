@@ -13,17 +13,6 @@
   background-color: #E5D8FF;
 }
 
-.create-btn {
-  width: calc(100% - 2rem);
-  margin: 1rem;
-  padding: 1.5rem;
-  border-radius: 0.5rem;
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #fff;
-  background-color: #9466E9;
-}
-
 /* 나의 모의고사 답변 */
 .title-box {
   display: flex;
@@ -62,4 +51,21 @@
 /* 답변 없는 경우 */
 .noContent {
   text-align: center;
+}
+
+.countLimit {
+  margin-top: 2rem;
+  font-size: 1.3rem;
+  text-align: center;
+}
+
+.create-btn {
+  width: calc(100% - 2rem);
+  margin: 0.5rem;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #fff;
+  background-color: #9466E9;
 }

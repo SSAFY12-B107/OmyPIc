@@ -95,6 +95,8 @@ function ScriptDetail({}: Props) {
         </div>
       </div>
 
+      <div className={styles.countLimit}>오늘의 응시권 {0}/5회🐧</div>
+
       <Link to={`/scripts/${category}/${problemId}/write`}>
         <button className={styles["create-btn"]}>스크립트 생성하기</button>
       </Link>
