@@ -3,7 +3,9 @@ import { createSlice, PayloadAction, configureStore } from "@reduxjs/toolkit";
 // (응답) 테스트 타입 정의
 export interface Test {
   _id: string;
-  test_type: boolean;
+  audio_s3_url?: string; // 선택적 속성으로 추가
+  problem_id? : string;
+  test_type: number;
   test_score: number | null;
   test_feedback: string | null;
   problem_data: {
@@ -20,16 +22,10 @@ export interface Test {
 // 테스트 배포 : 응시 횟수 제한
 interface TestState {
   currentTest: Test | null;
-  usageCount: number;
-  maxUsageCount: number;
-  lastResetDate: string; // 마지막 리셋 날짜를 저장 // 횟수 제한
 }
 
 const initialState: TestState = {
   currentTest: null,
-  usageCount: 0,
-  maxUsageCount: 3,
-  lastResetDate: new Date().toISOString().split("T")[0], // YYYY-MM-DD 형식
 };
 
 const testSlice = createSlice({
@@ -39,25 +35,6 @@ const testSlice = createSlice({
     setCurrentTest: (state, action: PayloadAction<Test>) => {
       state.currentTest = action.payload;
     },
-
-    // 테스트 배포 : 모의고사 응시 3회 횟수 제한 
-    incrementUsageCount: (state) => {
-      // 현재 날짜와 마지막 리셋 날짜를 비교
-      const today = new Date().toISOString().split("T")[0];
-      if (today !== state.lastResetDate) {
-        // 날짜가 변경되었으면 카운트 리셋
-        state.usageCount = 1; // 증가 후 값이므로 1로 설정
-        state.lastResetDate = today;
-      } else {
-        // 같은 날이면 카운트 증가
-        state.usageCount += 1;
-      }
-    },
-    // 하루 지나면 0으로 리셋 설정 필요
-    resetUsageCount: (state) => {
-      state.usageCount = 0;
-    },
-    
   },
 });
 
