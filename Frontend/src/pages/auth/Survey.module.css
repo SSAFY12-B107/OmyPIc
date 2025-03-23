@@ -1,26 +1,37 @@
 /* Survey.module.css */
 .surveyContainer {
-    max-width: 768px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem;
-  }
-  
-  .header {
-    margin-bottom: 2rem;
-    text-align: center;
-  }
-  
-  .title {
-    font-size: 14px;
-    font-weight: bold;
-    color: #565656;
-    margin-bottom: 0.5rem;
-  }
-  
-  .content {
-    margin-bottom: 2rem;
-  }
-  
-  .choice {
-    margin-bottom: 3rem;
-  }
+  max-width: 768px;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem;
+}
+
+.content {
+  margin-bottom: 1.5rem;
+}
+
+.tip {
+  background-color: #f8f5ff;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  text-align: center;
+  font-size: 1.4rem;
+  color: #565656;
+  line-height: 1.6;
+}
+
+.choice {
+  margin-bottom: 1.5rem;
+}
+
+.additionalQuestion {
+  margin-top: 0.5rem; /* 추가 질문 사이의 간격 */
+}
+
+.button-group {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  gap: 1rem;
+  padding: 0 1rem;
+  margin-top: 2rem;
+}

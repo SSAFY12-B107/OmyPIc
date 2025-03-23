@@ -5,6 +5,7 @@ import animation from "@/assets/images/speaking_animate.png";
 import { RootState } from "@/store/testSlice";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import { useTestEndAction } from '@/contexts/HeaderContext';
 import MicRecorder from "mic-recorder-to-mp3-fixed";
 import apiClient from "@/api/apiClient";
 import FeedbackModal from "@/components/test/FeedbackModal";
@@ -38,9 +39,6 @@ function TestExam() {
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [recordedFile, setRecordedFile] = useState<File | null>(null);
 
-  // 페이지 이탈 관련 state 추가
-  const [showExitConfirm, setShowExitConfirm] = useState<boolean>(false);
-
   // 랜덤문제 모달창
   const [isOpen, setIsOpen] = useState<boolean>(false);
 
@@ -49,12 +47,6 @@ function TestExam() {
   };
 
   const navigate = useNavigate();
-
-  // 뒤로 가기 버튼 핸들러
-  const handleBackButton = () => {
-    // 모달 표시
-    setShowExitConfirm(true);
-  };
 
   // 테스트 종료 처리 함수
   const handleEndTest = async () => {
@@ -77,10 +69,8 @@ function TestExam() {
     }
   };
 
-  // 테스트 계속하기
-  const handleContinueTest = () => {
-    setShowExitConfirm(false);
-  };
+  // 테스트 종료 함수 등록
+  useTestEndAction(handleEndTest);
 
   //응시 페이지 진입 시 Audio 객체 미리 생성
   useEffect(() => {
@@ -338,22 +328,6 @@ function TestExam() {
         onClose={onClose}
         data={randomProblemResult}
       />
-      {/* 헤더 추가 */}
-      <div className={styles.header}>
-        <button
-          className={styles.backButton}
-          onClick={handleBackButton}
-          aria-label="테스트 종료"
-        >
-          <span className={styles.backIcon}>←</span>
-          <span className={styles.backText}>종료</span>
-        </button>
-        <h1 className={styles.headerTitle}>
-          {currentTest?.test_type ? "실전 모의고사" : "적성고사"}
-        </h1>
-        <div className={styles.headerSpacer}></div>{" "}
-        {/* 양쪽 균형을 위한 빈 공간 */}
-      </div>
 
       <div className={styles.resize}>
         {currentTest?.problem_data ? (
@@ -426,27 +400,6 @@ function TestExam() {
       >
         다음
       </button>
-
-      {/* 페이지 이탈 확인 모달 */}
-      {showExitConfirm && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modal}>
-            <h3 className={styles.modalTitle}>잠깐!😯</h3>
-            <p className={styles.modalText}>테스트를 종료하시겠어요?</p>
-            <div className={styles.modalButtons}>
-              <button className={styles.modalEndBtn} onClick={handleEndTest}>
-                종료하기
-              </button>
-              <button
-                className={styles.modalContinueBtn}
-                onClick={handleContinueTest}
-              >
-                계속 진행하기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,51 +1,128 @@
 import styles from "./Tip.module.css";
 import opigi from "@/assets/images/opigi.png";
 
-// Tip 타입 정의
-export type TipType = "workExperience" | "livingAlone" | "academicBackground";
-
 interface Props {
-  type: TipType;
+  type?: string;
+  tipNumber?: number; // 숫자로 관리하기 위한 prop 추가
 }
 
-function Tip({ type }: Props) {
-  // 각 타입별 텍스트 컨텐츠 정의
+function Tip({ type, tipNumber = 1 }: Props) {
+  // 팁 내용 결정
   const getTipText = () => {
-    switch (type) {
-      case "workExperience":
-        return (
-          <>
-            <strong>'일경험 없음'</strong>을 선택하면
-            <br />
-            비즈니스보다 쉬운
-            <br />
-            일상표현을 할 수 있어요
-          </>
-        );
-      case "academicBackground":
-        return (
-          <>
-            <strong>'아니오'</strong>와 <strong>'수강 후 5년 이상 지남'</strong>
-            을 선택하면
-            <br />
-            학업 관련 문제가 출제되지 않아
-            <br />
-            많은 응시자들이 이 방법을 활용해요.
-          </>
-        );
-
-      case "livingAlone":
-        return (
-          <>
-            <strong>'개인주택이나 아파트에 홀로 거주'</strong>를 선택하면
-            <br />
-            복잡한 가족 관계를 설명할 필요 없이
-            <br />
-            많은 응시자들이 전략적으로 선택해요.
-          </>
-        );
-      default:
-        return null;
+    // tipNumber가 제공되면 숫자로 결정, 그렇지 않으면 type으로 결정
+    if (tipNumber) {
+      switch (tipNumber) {
+        case 1:
+          return (
+            <>
+              <strong>'일 경험 없음'</strong>을 선택하면
+              <br />
+              비즈니스보다 쉬운
+              <br />
+              일상표현을 할 수 있어요
+            </>
+          );
+        case 2:
+          return (
+            <>
+              <strong>'아니오'</strong>와 <strong>'수강 후 5년 이상 지남'</strong>
+              을 선택하면
+              <br />
+              학업 관련 문제가 출제되지 않아
+              <br />
+              많은 응시자들이 이 방법을 활용해요.
+            </>
+          );
+        case 3:
+          return (
+            <>
+              <strong>'개인주택이나 아파트에 홀로 거주'</strong>를 선택하면
+              <br />
+              복잡한 가족 관계를 설명할 필요 없이
+              <br />
+              많은 응시자들이 전략적으로 선택해요.
+            </>
+          );
+        case 4:
+          return (
+            <>
+              <strong>별 표시된 활동</strong>은
+              <br />
+              쉽게 설명할 수 있고 구체적인 경험을
+              <br />
+              떠올리기 좋은 주제예요.
+            </>
+          );
+        case 5:
+          return (
+            <>
+              <strong>별 표시된 취미</strong>는
+              <br />
+              간단한 단어로도 충분히 설명할 수 있어
+              <br />
+              대화를 이어가기 좋은 주제예요.
+            </>
+          );
+        case 6:
+          return (
+            <>
+              <strong>별 표시된 운동</strong>은
+              <br />
+              복잡한 규칙이나 전문 용어 없이도
+              <br />
+              설명하기 쉬운 주제예요.
+            </>
+          );
+        case 7:
+          return (
+            <>
+              <strong>별 표시된 여행지</strong>는
+              <br />
+              간단한 표현으로도 경험을 설명하기
+              <br />
+              쉬워 준비 부담이 적은 주제예요.
+            </>
+          );
+        default:
+          return null;
+      }
+    } else {
+      // 기존 type 기반 로직 유지
+      switch (type) {
+        case "workExperience":
+          return (
+            <>
+              <strong>'일경험 없음'</strong>을 선택하면
+              <br />
+              비즈니스보다 쉬운
+              <br />
+              일상표현을 할 수 있어요
+            </>
+          );
+        case "academicBackground":
+          return (
+            <>
+              <strong>'아니오'</strong>와 <strong>'수강 후 5년 이상 지남'</strong>
+              을 선택하면
+              <br />
+              학업 관련 문제가 출제되지 않아
+              <br />
+              많은 응시자들이 이 방법을 활용해요.
+            </>
+          );
+        case "livingAlone":
+          return (
+            <>
+              <strong>'개인주택이나 아파트에 홀로 거주'</strong>를 선택하면
+              <br />
+              복잡한 가족 관계를 설명할 필요 없이
+              <br />
+              많은 응시자들이 전략적으로 선택해요.
+            </>
+          );
+        default:
+          return null;
+      }
     }
   };
 

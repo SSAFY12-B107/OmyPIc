@@ -8,6 +8,7 @@ import { useDispatch } from "react-redux";
 import { testActions } from "@/store/testSlice";
 import { useEffect } from "react";
 import { useUserHistory } from "@/hooks/useHistory";
+import Navbar from "@/components/common/Navbar";
 
 
 
@@ -18,7 +19,7 @@ function TestMain() {
     data: historyData,
     isLoading,
     isError,
-  } = useUserHistory("67da47b9ad60cfdcd742b11a");
+  } = useUserHistory("507f1f77bcf86cd799439011");
 
 
   // 비동기 액션 연결
@@ -170,6 +171,8 @@ function TestMain() {
           )}
         </section>
       </main>
+
+      <Navbar />
     </div>
   );
 }
