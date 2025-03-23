@@ -26,8 +26,20 @@ export interface AverageScore {
 }
 
 export interface UserHistoryResponse {
-  average_score: AverageScore | null;
+  average_score: AverageScore ;
   test_history: TestHistory[];
+  test_counts : {
+    test_count: {
+      used: number;
+      limit: number;
+      remaining:number;
+    },
+    random_problem :{
+      used:number;
+      limit:number;
+      remaining:number;
+    }
+  }
 }
 
 
