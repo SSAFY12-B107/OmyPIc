@@ -27,7 +27,7 @@ pipeline {
         stage('Check Target Branch') {
             steps {
                 script {
-                    if (env.gitlabTargetBranch != 'master' && !env.GIT_BRANCH.endWith('master')) {
+                    if (env.gitlabTargetBranch != 'master' && !env.GIT_BRANCH.endsWith('master')) {
                         error("This pipeline only runs for MRs targeting the master branch")
                     }
                 }
@@ -37,19 +37,19 @@ pipeline {
         stage('Build & Push Images') {
             parallel {
                 stage('Backend') {
-                    when { changeset "backend/**" }
+                    when { changeset "Backend/**" }
                     steps {
                         script {
-                            buildAndPushImage("${BACKEND_IMAGE}", "./backend")
+                            buildAndPushImage("${BACKEND_IMAGE}", "./Backend")
                         }
                     }
                 }
 
                 stage('Frontend') {
-                    when { changeset "frontend/**" }
+                    when { changeset "Frontend/**" }
                     steps {
                         script {
-                            buildAndPushImage("${FRONTEND_IMAGE}", "./frontend")
+                            buildAndPushImage("${FRONTEND_IMAGE}", "./Frontend")
                         }
                     }
                 }
@@ -59,9 +59,29 @@ pipeline {
 
     post {
         success {
+            script {
+                def Author_ID = sh(script: "git show -s --pretty-%an", returnStdout: true)
+                def Author_Name = sh(script: "git show -s --pretty=%ae", returnStdout: true)
+                mattermostSend(
+                    color: 'good', 
+                    message: "빌드 성공: ${env.JOB_NAME} #${env.BUILD_NUMBER} by ${Author_ID}(${Author_Name})\n(<${env.BUILD_URL}|Details>)",
+                    endpoint: 'https://meeting.ssafy.com/hooks/gd11st38kbd1znej9kh3ftbg6o'
+                    channel: 'B107-Jenkins'
+                )
+            }
             echo 'CI Pipeline succeeded! Images have been built and pushed to Docker Hub.'
         }
         failure {
+            script {
+                def Author_ID = sh(script: "git show -s --pretty-%an", returnStdout: true)
+                def Author_Name = sh(script: "git show -s --pretty=%ae", returnStdout: true)
+                mattermostSend(
+                    color: 'danger', 
+                    message: "빌드 실패: ${env.JOB_NAME} #${env.BUILD_NUMBER} by ${Author_ID}(${Author_Name})\n(<${env.BUILD_URL}|Details>)",
+                    endpoint: 'https://meeting.ssafy.com/hooks/gd11st38kbd1znej9kh3ftbg6o'
+                    channel: 'B107-Jenkins'
+                )
+            }
             echo 'CI Pipeline failed! Check the logs for details.'
         }
         always {
@@ -73,12 +93,14 @@ pipeline {
 
 def buildAndPushImage(String imageName, String context) {
     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
-        def image = docker.build(
-            "${imageName}:${GIT_COMMIT_SHORT}",
-            "--cache-from ${imageName}:latest ${context}"
-        )
-
-        image.push()
-        image.push('latest')
+        // Buildx를 사용하여 빌드 및 푸시를 한 번에 수행
+        sh """
+            docker buildx build \\
+            --cache-from ${imageName}:latest \\
+            --push \\
+            -t ${imageName}:${GIT_COMMIT_SHORT} \\
+            -t ${imageName}:latest \\
+            ${context}
+        """
     }
 }
