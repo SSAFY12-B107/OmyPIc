@@ -235,11 +235,15 @@ async def make_test(
             content={"detail": "사용자를 찾을 수 없습니다"}
         )
     
-    # 사용자의 테스트 생성 횟수 확인 (최신 DB 정보 사용)
-    limits = latest_user.get("limits", latest_user.get("test_limits", {}))
+    # User.from_mongo 메서드를 사용하여 일관된 필드 접근
+    user_obj = User.from_mongo(latest_user)
     
-    # 로깅 추가
-    logger.info(f"사용자 {user_id}의 현재 제한 정보: {limits}")
+    # 로깅 추가 - 데이터 구조 확인
+    logger.info(f"DB에서 가져온 사용자 정보: {latest_user}")
+    logger.info(f"변환된 사용자 객체의 limits 필드: {user_obj.limits}")
+    
+    # User 객체의 limits 필드 사용
+    limits = user_obj.limits
     
     # 테스트 타입에 따른 제한 확인
     if test_type == 0 or test_type == 1:  # 7문제 또는 15문제 테스트 (통합 카운트)
@@ -253,8 +257,8 @@ async def make_test(
                 content={"detail": "7문제와 15문제 테스트는 합산하여 최대 3회까지만 생성 가능합니다"}
             )
         
-        # 필드 이름 확인 (사용자 문서 구조에 맞춤)
-        limit_field = "limits.test_count" if "limits" in latest_user else "test_limits.test_count"
+        # 무조건 limits 필드 사용
+        limit_field = "limits.test_count"
     else:  # 랜덤 1문제
         random_problem_count = limits.get("random_problem", 0)
         logger.info(f"현재 random_problem_count: {random_problem_count}")
@@ -266,18 +270,25 @@ async def make_test(
                 content={"detail": "랜덤 1문제는 최대 5회까지만 생성 가능합니다"}
             )
         
-        # 필드 이름 확인 (사용자 문서 구조에 맞춤)
-        limit_field = "limits.random_problem" if "limits" in latest_user else "test_limits.random_problem"
+        # 무조건 limits 필드 사용
+        limit_field = "limits.random_problem"
 
     # 로깅 추가 - 업데이트 필드
     logger.info(f"테스트 카운트 업데이트 필드: {limit_field}")
     
     try:
-        # 테스트 횟수 증가
-        await db.users.update_one(
+        # 테스트 횟수 증가 - 무조건 limits 필드 사용
+        update_result = await db.users.update_one(
             {"_id": ObjectId(user_id)},
             {"$inc": {limit_field: 1}}
         )
+        
+        # 업데이트 확인 로깅
+        logger.info(f"사용자 {user_id} 업데이트 결과: {update_result.modified_count}개 수정됨")
+        
+        # 업데이트 후 사용자 데이터 확인을 위한 재조회
+        updated_user = await db.users.find_one({"_id": ObjectId(user_id)})
+        logger.info(f"업데이트 후 사용자 데이터: {updated_user}")
 
         # 랜덤 단일 문제 요청인 경우 (test_type == 2)
         if test_type == 2:
