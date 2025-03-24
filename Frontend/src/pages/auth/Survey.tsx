@@ -11,6 +11,7 @@ import Switch from '@/components/survey/Switch';
 import MultiChoice from '@/components/survey/MultiChoice';
 import surveyData from '@/data/surveyData.json';
 
+
 // 타입 정의 추가
 interface SurveyQuestion {
   id: string;
