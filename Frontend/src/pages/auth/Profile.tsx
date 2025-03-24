@@ -3,7 +3,7 @@ import styles from "./Profile.module.css";
 import NavigationButton from "@/components/common/NavigationButton";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "../../store"; // Redux 스토어 타입
+import { RootState } from "@/store/store"; // Redux 스토어 타입
 import { setProfileField, setProfileData } from "../../store/authSlice";
 import { useUser } from "../../hooks/useUser"; // useUser 훅 추가
 

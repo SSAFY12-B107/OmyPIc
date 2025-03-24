@@ -262,7 +262,7 @@ function TestExam() {
         console.log("currentTest?.problem_id", currentTest?.problem_id);
         // params 대신 FormData에 직접 추가
         formData.append("problem_id", currentTest.problem_id);
-        formData.append("user_id", "67da47b9ad60cfdcd742b11a");
+        // formData.append("user_id", "67da47b9ad60cfdcd742b11a");
 
         response = await apiClient.post(
           "tests/random-problem/evaluate",

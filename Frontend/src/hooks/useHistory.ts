@@ -45,9 +45,9 @@ export interface UserHistoryResponse {
 
 
 // 사용자 히스토리 조회 함수
-const fetchUserHistory = async (user_pk: string): Promise<UserHistoryResponse> => {
+const fetchUserHistory = async (): Promise<UserHistoryResponse> => {
     try {
-      const { data } = await apiClient.get(`/tests/history/${user_pk}`);
+      const { data } = await apiClient.get('/tests/history/');
       return data;
 
   
@@ -60,13 +60,12 @@ const fetchUserHistory = async (user_pk: string): Promise<UserHistoryResponse> =
   };
   
   // 사용자 히스토리 조회 훅
-  export const useUserHistory = (user_pk: string | undefined) => {
+  export const useUserHistory = () => {
 
     return useQuery({
-      queryKey: ['userHistory', user_pk],
-      queryFn: () => fetchUserHistory(user_pk!),
-      // userId가 없을 경우 쿼리 실행 중지
-      enabled: !!user_pk,
+      queryKey: ['userHistory'],
+      queryFn: () => fetchUserHistory(),
+
 
     });
   };
