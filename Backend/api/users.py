@@ -10,6 +10,9 @@ from bson import ObjectId
 from datetime import datetime, timezone
 from fastapi.responses import JSONResponse
 
+from models.user import User
+from api.deps import get_current_user
+
 router = APIRouter()
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -46,6 +49,30 @@ async def create_user(user_data: UserCreate = Body(...)):
 
     return user
 
+@router.get("/me", response_model=UserDetailResponse)
+async def get_current_user_profile(
+    current_user: User = Depends(get_current_user),
+    db = Depends(get_mongodb)
+):
+    """
+    현재 로그인한 사용자의 프로필 정보를 조회 (최근 7개의 테스트 정보 포함)
+    토큰 인증 방식으로 사용자를 식별하여 별도의 user_id 파라미터가 필요하지 않습니다.
+    """
+    # 토큰에서 얻은 사용자 ID 활용
+    user_id = str(current_user.id)
+    
+    # 최근 7개의 테스트 정보 조회
+    test_info = await test_service.get_test_by_user_id(db, user_id)
+    
+    # 현재 사용자 정보를 딕셔너리로 변환
+    user_dict = current_user.model_dump(by_alias=True)
+    
+    # 테스트 정보 추가
+    if test_info:
+        user_dict["test"] = test_info
+    
+    # 명시적으로 모델로 변환 후 리턴
+    return UserDetailResponse.model_validate(user_dict)
 
 @router.get("/{user_id}", response_model=UserDetailResponse)
 async def get_user(user_id: str, db = Depends(get_mongodb)):
@@ -76,7 +103,10 @@ async def get_user(user_id: str, db = Depends(get_mongodb)):
     if test_info:
         user["test"] = test_info
     
-    return user
+    # 명시적으로 모델로 변환 후 리턴
+    return UserDetailResponse.model_validate(user)
+
+
 
 
 @router.get("/", response_model=List[UserResponse])

@@ -6,7 +6,7 @@ from datetime import date, datetime
 
 async def create_user(
     name: str,
-    email: Optional[str] = None,  # 이메일 필드 추가
+    email: Optional[str] = None,
     auth_provider: str = "google",
     current_opic_score: Optional[str] = None,
     target_opic_score: Optional[str] = None,
@@ -29,6 +29,13 @@ async def create_user(
         "info": []
     }
     
+    # 제한 정보 추가 (test_limits -> limits로 변경)
+    limits = {
+        "test_count": 0,
+        "random_problem": 0,
+        "script_count": 0  # 스크립트 제한 추가
+    }
+    
     # date 객체를 datetime 객체로 변환 (MongoDB 호환성을 위해)
     converted_target_exam_date = None
     if target_exam_date:
@@ -37,14 +44,15 @@ async def create_user(
     # 사용자 문서 생성
     user_doc = {
         "name": name,
-        "email": email,  # 이메일 필드 추가
+        "email": email,
         "auth_provider": auth_provider,
         "current_opic_score": current_opic_score,
         "target_opic_score": target_opic_score,
-        "target_exam_date": target_exam_date,
+        "target_exam_date": converted_target_exam_date,  # 변환된 날짜 사용
         "is_onboarded": False,
         "created_at": datetime.now(),
-        "background_survey": bg_survey
+        "background_survey": bg_survey,
+        "test_limits": limits  # 테스트 제한 추가
     }
     
     # MongoDB에 사용자 추가
@@ -52,8 +60,13 @@ async def create_user(
     
     # 삽입된 ID로 전체 문서 검색
     user = await users_collection.find_one({"_id": result.inserted_id})
-    user["_id"] = str(user["_id"])  # ObjectId를 문자열로 변환
+    
+    # ObjectId를 문자열로 명시적 변환
+    if user and "_id" in user:
+        user["_id"] = str(user["_id"])
+    
     return user
+
 
 async def get_user_by_email(email: str) -> Optional[Dict]:
     """

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Path, Body
 from fastapi.responses import HTMLResponse, FileResponse
 from typing import Any, List, Dict, Optional, Union
-from bson import ObjectId
+from bson import ObjectId, errors as bson_errors
 from motor.motor_asyncio import AsyncIOMotorDatabase as Database
 from datetime import datetime
 
@@ -11,6 +11,10 @@ from schemas.problem import ProblemResponse, ProblemDetailResponse, QuestionResp
 from gtts import gTTS
 import os
 import base64
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -122,14 +126,30 @@ async def get_problem_detail(
                 else:
                     test_notes = group["docs"]
         
-        # 5. 결과 반환
+        # 5. 스크립트 생성 제한 정보 조회
+        script_limit = None
+        if user_id:
+            user = await db.users.find_one({"_id": ObjectId(user_id)})
+            if user:
+                # limits 필드 또는 test_limits 필드에서 script_count 가져오기
+                limits = user.get("limits", user.get("test_limits", {}))
+                script_count = limits.get("script_count", 0)
+                
+                script_limit = {
+                    "used": script_count,
+                    "limit": 5,  # 최대 제한 값
+                    "remaining": max(0, 5 - script_count)  # 남은 횟수
+                }
+        
+        # 6. 결과 반환
         return {
             "problem": {
                 "_id": str(problem["_id"]),  # 반드시 _id로 반환
                 "content": problem.get("content", "")
             },
             "user_scripts": user_scripts,
-            "test_notes": test_notes
+            "test_notes": test_notes,
+            "script_limit": script_limit  # 스크립트 제한 정보 추가
         }
         
     except HTTPException:
@@ -143,7 +163,7 @@ async def get_problem_detail(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"문제 조회 중 오류가 발생했습니다: {str(e)}"
         )
-
+    
 
 @router.get("/{problem_pk}/basic-question", response_model=QuestionResponse, status_code=status.HTTP_200_OK)
 async def get_basic_questions(
@@ -281,21 +301,59 @@ async def make_custom_questions(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"꼬리 질문 생성 중 오류가 발생했습니다: {str(e)}"
         )
+
+
 @router.post("/{problem_pk}/scripts", response_model=ScriptCreationResponse, status_code=status.HTTP_201_CREATED)
 async def make_script(
     problem_pk: str = Path(..., description="문제 ID"),
     script_data: ScriptCreationRequest = Body(...),
+    user_id: str = Query(..., description="사용자 ID"),
     db: Database = Depends(get_mongodb)
 ) -> ScriptCreationResponse:
     """
     스크립트 작성
     - problem_pk: 문제 ID
     - script_data: 스크립트 생성 요청 데이터 (type에 따라 필요한 필드가 달라짐)
+    - user_id: 사용자 ID
     
     반환:
     - 생성된 스크립트 정보
+    
+    제한:
+    - 스크립트 생성은 사용자당 최대 5회까지만 가능합니다.
     """
+    if not user_id:
+        raise HTTPException(status_code=400, detail="사용자 ID가 필요합니다")
+    
     try:
+        # ObjectId 변환 검증
+        ObjectId(user_id)
+    except bson_errors.InvalidId:
+        raise HTTPException(status_code=400, detail="유효하지 않은 사용자 ID 형식입니다")
+    
+    # 사용자 존재 여부 확인
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+    
+    # 사용자의 스크립트 생성 횟수 확인 (test_limits에서 limits으로 변경된 필드명 확인)
+    limits = user.get("limits", user.get("test_limits", {"test_count": 0, "random_problem": 0, "script_count": 0}))
+    script_count = limits.get("script_count", 0)
+    
+    # 스크립트 생성 제한 확인
+    if script_count >= 5:
+        raise HTTPException(status_code=403, detail="스크립트 생성은 최대 5회까지만 가능합니다")
+    
+    # 스크립트 횟수 증가
+    script_limit_field = "limits.script_count"
+    
+    try:
+        # 스크립트 생성 카운트 증가
+        await db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$inc": {script_limit_field: 1}}
+        )
+
         # 1. 문제 정보 조회
         problem = await db.problems.find_one({"_id": ObjectId(problem_pk)})
         if not problem:
@@ -417,13 +475,25 @@ async def make_script(
             "is_script": True,
             "script_type": script_data.type
         }
-        
+    
+    except HTTPException:
+        # 이미 발생한 HTTPException은 그대로 전달
+        raise
     except Exception as e:
-        # 오류 처리
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"스크립트 생성 중 오류가 발생했습니다: {str(e)}"
-        )
+        # 로깅 추가
+        logger.error(f"스크립트 생성 중 오류 발생: {str(e)}", exc_info=True)
+        
+        # 스크립트 생성이 실패한 경우, 카운트 원복
+        try:
+            await db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$inc": {script_limit_field: -1}}
+            )
+        except Exception as rollback_error:
+            logger.error(f"카운트 롤백 중 오류: {str(rollback_error)}")
+        
+        raise HTTPException(status_code=500, detail=f"스크립트 생성 중 오류 발생: {str(e)}")
+
 
 @router.patch("/scripts/{script_pk}", response_model=ScriptResponse, status_code=status.HTTP_200_OK)
 async def update_script(

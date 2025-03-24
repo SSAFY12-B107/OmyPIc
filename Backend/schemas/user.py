@@ -51,6 +51,23 @@ class UserCreate(BaseModel):
             }
         }
 
+class TestInfo(BaseModel):
+    """사용자의 최근 테스트 정보"""
+    test_date: List[Optional[datetime]] = Field(default_factory=list)
+    test_score: List[Optional[str]] = Field(default_factory=list)
+    
+    model_config = {
+        "populate_by_name": True,
+        "json_schema_extra": {
+            "example": {
+                "test_date": ["2025-03-22T19:38:35.218Z"],
+                "test_score": ["NM"]
+            }
+        }
+    }
+
+
+
 # 사용자 응답 스키마 - 기본 정보
 class UserResponse(BaseModel):
     id: str
@@ -98,28 +115,46 @@ class UserResponse(BaseModel):
             }
         }
 
+class TestInfo(BaseModel):
+    """사용자의 최근 테스트 정보"""
+    test_date: List[Optional[datetime]] = Field(default_factory=list)
+    test_score: List[Optional[str]] = Field(default_factory=list)
+    
+    model_config = {
+        "populate_by_name": True,
+        "json_schema_extra": {
+            "example": {
+                "test_date": ["2025-03-22T19:38:35.218Z"],
+                "test_score": ["NM"]
+            }
+        }
+    }
+
 # 사용자 상세 응답 스키마 - 추가 정보 포함
 class UserDetailResponse(UserResponse):
-    # 기본 정보(UserResponse)에 추가적인 상세 정보가 필요하면 여기에 추가
+    id: str = Field(alias="_id")
+    name: str
     email: Optional[str] = None
     profile_image: Optional[str] = None
-    provider_id: Optional[str] = None
-    
-    class Config:
-        json_schema_extra = {
+    current_opic_score: Optional[str] = None
+    target_opic_score: Optional[str] = None
+    target_exam_date: Optional[datetime] = None
+    is_onboarded: bool
+    background_survey: Optional[Dict] = None
+    test: Optional[TestInfo] = None
+
+    model_config = {
+        "populate_by_name": True,
+        "json_schema_extra": {
             "example": {
                 "id": "67da4792ad60cfdcd742b119",
                 "name": "이재욱",
                 "email": "user@example.com",
                 "profile_image": "https://example.com/profile.jpg",
-                "auth_provider": "google",
-                "provider_id": "123456789",
                 "current_opic_score": "IH",
                 "target_opic_score": "AL",
                 "target_exam_date": "2025-03-19",
                 "is_onboarded": False,
-                "created_at": "2025-03-19T13:26:58.049Z",
-                "updated_at": "2025-03-23T16:55:20.952Z",
                 "background_survey": {
                     "profession": 0,
                     "is_student": False,
@@ -127,18 +162,13 @@ class UserDetailResponse(UserResponse):
                     "living_place": 0,
                     "info": ["주거", "공원 가기", "친구/가족", "해외여행", "기술"]
                 },
-                "average_score": {
-                    "comboset_score": "IH",
-                    "roleplaying_score": "AL",
-                    "total_score": "IH",
-                    "unexpected_score": "IM3"
-                },
-                "test_limits": {
-                    "test_count": 3,
-                    "random_problem": 5
+                "test": {
+                    "test_date": ["2025-03-22T19:38:35.218Z"],
+                    "test_score": ["NM"]
                 }
             }
         }
+    }
 
 # 기존의 UserUpdate 클래스
 class UserUpdate(BaseModel):

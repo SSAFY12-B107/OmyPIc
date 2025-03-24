@@ -174,24 +174,24 @@ async def make_test(
     if not user:
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
     
-    # 사용자의 테스트 생성 횟수 확인
-    test_limits = user.get("test_limits", {"test_count": 0, "random_problem": 0})
+    # 사용자의 테스트 생성 횟수 확인 (test_limits에서 limits으로 변경된 필드명 확인)
+    limits = user.get("limits", user.get("test_limits", {"test_count": 0, "random_problem": 0, "script_count": 0}))
     
     # 테스트 타입에 따른 제한 확인
     if test_type == 0 or test_type == 1:  # 7문제 또는 15문제 테스트 (통합 카운트)
-        if test_limits.get("test_count", 0) >= 3:
+        if limits.get("test_count", 0) >= 3:
             raise HTTPException(status_code=403, detail="7문제와 15문제 테스트는 합산하여 최대 3회까지만 생성 가능합니다")
-        test_limit_field = "test_limits.test_count"
+        limit_field = "limits.test_count"
     else:  # 랜덤 1문제
-        if test_limits.get("random_problem", 0) >= 5:
+        if limits.get("random_problem", 0) >= 5:
             raise HTTPException(status_code=403, detail="랜덤 1문제는 최대 5회까지만 생성 가능합니다")
-        test_limit_field = "test_limits.random_problem"
+        limit_field = "limits.random_problem"
     
     try:
         # 테스트 횟수 증가
         await db.users.update_one(
             {"_id": ObjectId(user_id)},
-            {"$inc": {test_limit_field: 1}}
+            {"$inc": {limit_field: 1}}
         )
 
         # 랜덤 단일 문제 요청인 경우 (test_type == 2)
@@ -228,7 +228,7 @@ async def make_test(
         try:
             await db.users.update_one(
                 {"_id": ObjectId(user_id)},
-                {"$inc": {test_limit_field: -1}}
+                {"$inc": {limit_field: -1}}
             )
         except Exception as rollback_error:
             logger.error(f"카운트 롤백 중 오류: {str(rollback_error)}")

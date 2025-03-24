@@ -30,6 +30,7 @@ class TestCounts(BaseModel):
     """모든 테스트 생성 횟수 정보"""
     test_count: TestCountInfo
     random_problem: TestCountInfo
+    script_count: TestCountInfo
 
 class TestHistoryResponse(BaseModel):
     """테스트 히스토리 응답 모델"""

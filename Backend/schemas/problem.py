@@ -28,6 +28,12 @@ class ProblemListResponse(BaseModel):
     problems: List[ProblemResponse]
     total: int
 
+# 스크립트 제한 정보를 위한 새로운 모델
+class ScriptLimitInfo(BaseModel):
+    used: int
+    limit: int
+    remaining: int
+
 class ProblemDetailContentResponse(BaseModel):
     """문제 응답 스키마(개별 조회 시, 문제 내용)"""
     id: str = Field(..., alias="_id")
@@ -45,6 +51,7 @@ class ProblemDetailResponse(BaseModel):
     problem: ProblemDetailContentResponse
     user_scripts: Optional[List[ProblemDetailScriptResponse]] = []
     test_notes: Optional[List[ProblemDetailScriptResponse]] = []
+    script_limit: Optional[ScriptLimitInfo] = None  # 스크립트 제한 정보 추가
 
 
 # 스크립트 기본/꼬리 질문 응답 모델

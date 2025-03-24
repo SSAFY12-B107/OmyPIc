@@ -211,8 +211,8 @@ async def google_callback(
                     "unexpected_score": None
                 },
                 "test_limits": {             # 초기 test_limits 구조
-                    "test_count": 3,         # 기본 테스트 횟수
-                    "random_problem": 5      # 기본 랜덤 문제 수
+                    "test_count": 0,         # 기본 테스트 횟수
+                    "random_problem": 0      # 기본 랜덤 문제 수
                 }
             }
             
@@ -258,7 +258,7 @@ async def google_callback(
         })
         
         # 8. 프론트엔드로 리다이렉트 (임시 코드 전달)
-        frontend_callback_url = f"{settings.FRONTEND_URL}/auth/callback?code={temp_code}"
+        frontend_callback_url = f"{settings.FRONTEND_URL}/?code={temp_code}"
         return RedirectResponse(url=frontend_callback_url)
 
 @router.post("/exchange-token")
@@ -266,19 +266,6 @@ async def exchange_token(
     code: str = Body(..., embed=True),
     db = Depends(get_mongodb)
 ):
-    """
-    임시 코드를 실제 JWT 토큰으로 교환하는 엔드포인트
-    
-    Args:
-        code (str): 임시 코드
-        db: MongoDB 데이터베이스 인스턴스
-        
-    Returns:
-        JSONResponse: JWT 토큰과 사용자 정보를 포함한 응답
-        
-    Raises:
-        HTTPException: 유효하지 않거나 만료된 코드일 경우
-    """
     # MongoDB에서 임시 코드 검색
     temp_code_doc = await db.temp_codes.find_one({
         "code": code,
@@ -295,12 +282,26 @@ async def exchange_token(
     # 코드 사용 후 삭제 (일회용)
     await db.temp_codes.delete_one({"code": code})
     
+    # user 객체에서 datetime 필드를 문자열로 변환
+    user_data = temp_code_doc["user"]
+    
+    # user 객체에 datetime 필드가 있다면 ISO 형식 문자열로 변환
+    if isinstance(user_data, dict):
+        for key, value in list(user_data.items()):
+            if isinstance(value, datetime):
+                user_data[key] = value.isoformat()
+            # 중첩된 dictionary도 처리
+            elif isinstance(value, dict):
+                for sub_key, sub_value in list(value.items()):
+                    if isinstance(sub_value, datetime):
+                        value[sub_key] = sub_value.isoformat()
+    
     # 응답 생성
     response = JSONResponse(
         content={
             "access_token": temp_code_doc["access_token"],
             "token_type": "bearer",
-            "user": temp_code_doc["user"]
+            "user": user_data
         }
     )
     
@@ -379,6 +380,7 @@ async def logout(
     
     return response
 
+
 # 토큰 검증 시 블랙리스트 확인 로직
 async def is_token_blacklisted(token: str, db) -> bool:
     """
@@ -393,6 +395,7 @@ async def is_token_blacklisted(token: str, db) -> bool:
     """
     result = await db.token_blacklist.find_one({"token": token})
     return result is not None
+
 
 # 유틸리티 함수 추가
 def create_query_string(params: Dict[str, Any]) -> str:
