@@ -3,7 +3,6 @@ import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'ax
 
 // 기본 설정
 const BASE_URL = 'http://localhost:8000/api';
-const SESSION_TOKEN_KEY = 'session_token';
 
 // Access Token을 세션 스토리지에서 가져오는 함수
 const getAccessToken = (): string | null => {
