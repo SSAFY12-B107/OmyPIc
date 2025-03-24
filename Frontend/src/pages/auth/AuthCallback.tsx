@@ -60,7 +60,6 @@ function AuthCallback() {
           
           if (data.user) {
             // 사용자 정보도 저장
-            sessionStorage.user = JSON.stringify(data.user);
             sessionStorage.isOnboarded = data.user.is_onboarded ? 'true' : 'false';
             console.log('사용자 정보 저장됨');
             
