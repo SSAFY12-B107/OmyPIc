@@ -7,7 +7,7 @@ from db.mongodb import get_mongodb
 from services import user as user_service
 from services import test_service
 from bson import ObjectId
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from fastapi.responses import JSONResponse
 
 from models.user import User
@@ -20,38 +20,98 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(user_data: UserCreate = Body(...)):
+async def create_user(user_data: UserCreate = Body(...), db = Depends(get_mongodb)):
     """새 사용자를 생성합니다."""
-    # 백그라운드 서베이 데이터 처리
-    background_survey = None
-    if user_data.background_survey:
-        background_survey = user_data.background_survey.dict(exclude_unset=True)
-    
-    # 시험 날짜 처리
-    if user_data.target_exam_date:
-        target_exam_date = user_data.target_exam_date
-    else:
+    try:
+        # 현재 시간 설정 (UTC 시간대 없이)
+        current_time = datetime.now().replace(tzinfo=None)
+        
+        # 백그라운드 서베이 데이터 처리 - dict로 변환
+        if user_data.background_survey:
+            background_survey = {
+                "profession": user_data.background_survey.profession,
+                "is_student": user_data.background_survey.is_student,
+                "studied_lecture": user_data.background_survey.studied_lecture,
+                "living_place": user_data.background_survey.living_place,
+                "info": user_data.background_survey.info if user_data.background_survey.info else []
+            }
+        else:
+            background_survey = {
+                "profession": 0,
+                "is_student": False,
+                "studied_lecture": 0,
+                "living_place": 0,
+                "info": []
+            }
+        
+        # 평균 점수 초기화
+        average_score = {
+            "comboset_score": None,
+            "roleplaying_score": None,
+            "total_score": None,
+            "unexpected_score": None
+        }
+        
+        # 테스트 제한 설정
+        test_limits = {
+            "test_count": 0,
+            "random_problem": 0
+        }
+        
+        # 날짜 데이터 처리 - MongoDB에 저장 가능한 형식으로 변환
         target_exam_date = None
-    
-    # 사용자 생성
-    user = await user_service.create_user(
-        name=user_data.name,
-        auth_provider=user_data.auth_provider,
-        current_opic_score=user_data.current_opic_score,
-        target_opic_score=user_data.target_opic_score,
-        target_exam_date=target_exam_date,
-        background_survey=background_survey
-    )
-    
-    if not user:
+        if user_data.target_exam_date:
+            # datetime으로 변환
+            if isinstance(user_data.target_exam_date, date):
+                target_exam_date = datetime.combine(user_data.target_exam_date, datetime.min.time())
+            else:
+                target_exam_date = user_data.target_exam_date.replace(tzinfo=None)
+        
+        # 새 사용자 생성 - 모든 필드가 MongoDB에 저장 가능한지 확인
+        new_user = {
+            "name": user_data.name,
+            "auth_provider": user_data.auth_provider,
+            "email": user_data.email,
+            "provider_id": getattr(user_data, "provider_id", None),
+            "profile_image": getattr(user_data, "profile_image", None),
+            "current_opic_score": user_data.current_opic_score,
+            "target_opic_score": user_data.target_opic_score,
+            "target_exam_date": target_exam_date,
+            "is_onboarded": getattr(user_data, "is_onboarded", False),
+            "created_at": current_time,
+            "updated_at": current_time,
+            "background_survey": background_survey,
+            "average_score": average_score,
+            "test_limits": test_limits
+        }
+        
+        # MongoDB에 사용자 추가
+        print("Inserting user document:", new_user)  # 로깅 추가
+        result = await db.users.insert_one(new_user)
+        
+        # 삽입된 ID로 전체 문서 검색
+        user = await db.users.find_one({"_id": result.inserted_id})
+        
+        # 사용자가 생성되지 않은 경우 오류 발생
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="사용자 생성에 실패했습니다."
+            )
+        
+        # MongoDB ObjectId를 문자열로 변환
+        user["_id"] = str(user["_id"])
+        
+        return user
+        
+    except Exception as e:
+        print(f"사용자 생성 오류: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="사용자 생성에 실패했습니다."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"사용자 생성 중 오류가 발생했습니다: {str(e)}"
         )
-    
 
 
-    return user
 
 @router.get("/me", response_model=UserDetailResponse)
 async def get_current_user_profile(

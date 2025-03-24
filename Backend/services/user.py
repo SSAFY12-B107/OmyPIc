@@ -6,60 +6,72 @@ from datetime import date, datetime
 
 async def create_user(
     name: str,
-    email: Optional[str] = None,
     auth_provider: str = "google",
+    email: Optional[str] = None,
+    provider_id: Optional[str] = None,
+    profile_image: Optional[str] = None,
     current_opic_score: Optional[str] = None,
     target_opic_score: Optional[str] = None,
-    target_exam_date: Optional[date] = None,
-    background_survey: Optional[Dict] = None
+    target_exam_date: Optional[datetime] = None,
+    is_onboarded: bool = False
 ) -> Dict:
     """
     새 사용자 생성
+    
+    Google 콜백 로직과 일관성을 유지하기 위해 수정됨
     """
     # MongoDB 데이터베이스 객체 가져오기
     db = await get_mongodb()
-    users_collection = db.users
     
-    # 백그라운드 서베이 정보 준비
-    bg_survey = background_survey or {
-        "profession": None,
-        "is_student": None,
-        "studied_lecture": None,
-        "living_place": None,
+    # 현재 시간
+    current_time = datetime.now()
+    
+    # 백그라운드 서베이 초기 설정
+    background_survey = {
+        "profession": 0,
+        "is_student": False,
+        "studied_lecture": 0,
+        "living_place": 0,
         "info": []
     }
     
-    # 제한 정보 추가 (test_limits -> limits로 변경)
-    limits = {
-        "test_count": 0,
-        "random_problem": 0,
-        "script_count": 0  # 스크립트 제한 추가
+    # 평균 점수 초기화
+    average_score = {
+        "comboset_score": None,
+        "roleplaying_score": None, 
+        "total_score": None,
+        "unexpected_score": None
     }
     
-    # date 객체를 datetime 객체로 변환 (MongoDB 호환성을 위해)
-    converted_target_exam_date = None
-    if target_exam_date:
-        converted_target_exam_date = datetime.combine(target_exam_date, datetime.min.time())
+    # 테스트 제한 설정
+    test_limits = {
+        "test_count": 0,        # 기본 테스트 횟수
+        "random_problem": 0     # 기본 랜덤 문제 수
+    }
     
     # 사용자 문서 생성
     user_doc = {
         "name": name,
-        "email": email,
         "auth_provider": auth_provider,
+        "email": email,
+        "provider_id": provider_id,
+        "profile_image": profile_image,
         "current_opic_score": current_opic_score,
         "target_opic_score": target_opic_score,
-        "target_exam_date": converted_target_exam_date,  # 변환된 날짜 사용
-        "is_onboarded": False,
-        "created_at": datetime.now(),
-        "background_survey": bg_survey,
-        "test_limits": limits  # 테스트 제한 추가
+        "target_exam_date": target_exam_date,
+        "is_onboarded": is_onboarded,
+        "created_at": current_time,
+        "updated_at": current_time,
+        "background_survey": background_survey,
+        "average_score": average_score,
+        "test_limits": test_limits
     }
     
     # MongoDB에 사용자 추가
-    result = await users_collection.insert_one(user_doc)
+    result = await db.users.insert_one(user_doc)
     
     # 삽입된 ID로 전체 문서 검색
-    user = await users_collection.find_one({"_id": result.inserted_id})
+    user = await db.users.find_one({"_id": result.inserted_id})
     
     # ObjectId를 문자열로 명시적 변환
     if user and "_id" in user:

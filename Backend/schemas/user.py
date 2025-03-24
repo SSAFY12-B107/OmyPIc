@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime, date
+from bson import ObjectId
 
 # Background survey 스키마
 class BackgroundSurveySchema(BaseModel):
@@ -29,27 +30,28 @@ class OnboardingData(BaseModel):
     target_exam_date: Optional[date] = None
     background_survey: Optional[Dict[str, Any]] = None
 
-# 사용자 생성 스키마
+
+# 백그라운드 서베이 스키마
+class BackgroundSurvey(BaseModel):
+    profession: Optional[int] = None
+    is_student: Optional[bool] = None
+    studied_lecture: Optional[int] = None
+    living_place: Optional[int] = None
+    info: Optional[List[str]] = None
+
 class UserCreate(BaseModel):
     name: str
     email: Optional[str] = None
     auth_provider: str = "google"
+    provider_id: Optional[str] = None  # 추가
+    profile_image: Optional[str] = None  # 추가
     current_opic_score: Optional[str] = None
     target_opic_score: Optional[str] = None
-    target_exam_date: Optional[date] = None
-    background_survey: Optional[Dict[str, Any]] = None
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "name": "홍길동",
-                "email": "user@example.com",
-                "auth_provider": "google",
-                "current_opic_score": "IH",
-                "target_opic_score": "AL",
-                "target_exam_date": "2025-03-19"
-            }
-        }
+    target_exam_date: Optional[date] = None  # datetime이 아닌 date 타입 사용
+    is_onboarded: bool = False
+    background_survey: Optional[BackgroundSurvey] = None
+
+
 
 class TestInfo(BaseModel):
     """사용자의 최근 테스트 정보"""
@@ -68,52 +70,35 @@ class TestInfo(BaseModel):
 
 
 
-# 사용자 응답 스키마 - 기본 정보
 class UserResponse(BaseModel):
-    id: str
+    id: str = Field(alias="_id")
     name: str
+    email: Optional[str] = None
     auth_provider: str
     current_opic_score: Optional[str] = None
     target_opic_score: Optional[str] = None
-    target_exam_date: Optional[date] = None
-    is_onboarded: bool = False
+    target_exam_date: Optional[date] = None  # datetime이 아닌 date 타입 사용
+    is_onboarded: bool
     created_at: datetime
-    updated_at: Optional[datetime] = None
-    background_survey: Optional[Dict[str, Any]] = None
-    average_score: Optional[Dict[str, Any]] = None
-    test_limits: Optional[Dict[str, Any]] = None
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "id": "67da4792ad60cfdcd742b119",
-                "name": "이재욱",
-                "auth_provider": "google",
-                "current_opic_score": "IH",
-                "target_opic_score": "AL",
-                "target_exam_date": "2025-03-19",
-                "is_onboarded": False,
-                "created_at": "2025-03-19T13:26:58.049Z",
-                "updated_at": "2025-03-23T16:55:20.952Z",
-                "background_survey": {
-                    "profession": 0,
-                    "is_student": False,
-                    "studied_lecture": 0,
-                    "living_place": 0,
-                    "info": ["주거", "공원 가기", "친구/가족", "해외여행", "기술"]
-                },
-                "average_score": {
-                    "comboset_score": "IH",
-                    "roleplaying_score": "AL",
-                    "total_score": "IH",
-                    "unexpected_score": "IM3"
-                },
-                "test_limits": {
-                    "test_count": 3,
-                    "random_problem": 5
-                }
-            }
+    background_survey: Optional[Dict] = None
+
+    model_config = {  # Config 대신 model_config 사용 
+        "populate_by_name": True,
+        "json_encoders": {
+            ObjectId: str,
+            datetime: lambda dt: dt.isoformat()
         }
+    }
+    
+    @field_validator('target_exam_date', mode='before')
+    @classmethod
+    def validate_target_exam_date(cls, v):
+        # datetime을 date로 변환
+        if isinstance(v, datetime):
+            return v.date()
+        return v
+    
+
 
 class TestInfo(BaseModel):
     """사용자의 최근 테스트 정보"""
