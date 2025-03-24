@@ -2,12 +2,18 @@ import { Link } from "react-router-dom";
 import styles from "./ScriptMain.module.css";
 import opigi from "@/assets/images/opigi.png";
 import Navbar from "@/components/common/Navbar";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store";
+import { useGetUserInfo } from '@/hooks/useUserInfo';
+import LoadingSpinner from "../../components/common/LoadingSpinner";
 
 function ScriptMain() {
-  // Redux 스토어에서 카테고리 배열 가져오기
-  const categories = useSelector((state: RootState) => state.auth.categories);
+  // 사용자 정보 가져오기
+  const { data: userInfo, isLoading, error } = useGetUserInfo();
+
+  const categories = userInfo?.background_survey?.info
+
+  if (isLoading) (
+    <LoadingSpinner/>
+  )
 
   return (
     <div className={styles["script-main-container"]}>

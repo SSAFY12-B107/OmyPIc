@@ -7,7 +7,7 @@ import { setUser, setError } from '../store/authSlice';
 import Login from '../pages/auth/Login';
 import Profile from '../pages/auth/Profile';
 import Survey from '../pages/auth/Survey';
-import Loading from '../components/common/Loading'; // 로딩 컴포넌트 필요
+import AuthCallback from '../pages/auth/AuthCallback';
 
 // 인증 콜백 처리 컴포넌트
 function AuthHandler() {
@@ -80,9 +80,9 @@ const AuthRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/survey" element={<Survey />} />
-      <Route path="/callback" element={<AuthHandler />} />
-      <Route path="/google/callback" element={<AuthHandler />} />
-      <Route path="/naver/callback" element={<AuthHandler />} />
+      <Route path="/callback" element={<AuthCallback />} />
+      <Route path="/google/callback" element={<AuthCallback />} />
+      <Route path="/naver/callback" element={<AuthCallback />} />
     </Routes>
   );
 };
