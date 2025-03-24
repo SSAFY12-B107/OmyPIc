@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import styles from "./TestExam.module.css";
 import avatar from "@/assets/images/avatar.png";
 import animation from "@/assets/images/speaking_animate.png";
-import { RootState } from "@/store/testSlice";
+import { RootState } from "@/store/store";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { useTestEndAction } from '@/contexts/HeaderContext';

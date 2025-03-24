@@ -16,14 +16,14 @@ function DetailFeedBack({ data }: DetailFeedBackProps) {
     
   }
   // 피드백 데이터에서 값 추출
-  const question = data.problem || "문제 정보가 없습니다.";
-  const answer = data.user_response || "답변이 기록되지 않았습니다.";
-  const score = data.score || "평가 대기중";
+  const question = data?.problem || "문제 정보가 없습니다.";
+  const answer = data?.user_response || "답변이 기록되지 않았습니다.";
+  const score = data?.score || "평가 대기중";
 
   // 피드백이 없는 경우를 위한 기본값 설정
-  const paragraph = data.feedback?.paragraph || "피드백이 아직 제공되지 않았습니다.";
-  const vocabulary = data.feedback?.vocabulary || "피드백이 아직 제공되지 않았습니다.";
-  const spokenAmount = data.feedback?.spoken_amount || "피드백이 아직 제공되지 않았습니다.";
+  const paragraph = data?.feedback?.paragraph || "피드백이 아직 제공되지 않았습니다.";
+  const vocabulary = data?.feedback?.vocabulary || "피드백이 아직 제공되지 않았습니다.";
+  const spokenAmount = data?.feedback?.spoken_amount || "피드백이 아직 제공되지 않았습니다.";
   
 
   return (
