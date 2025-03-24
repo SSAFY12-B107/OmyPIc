@@ -83,23 +83,27 @@ function ScriptList() {
             {/* 모든 페이지의 문제들을 flat하게 렌더링 */}
             {data?.pages.map((page: Problem[], pageIndex: number) => (
               <div key={pageIndex}>
-                {page.map((problem: Problem, problemIndex: number) => {
-                  // 마지막 페이지의 마지막 아이템에 ref 연결
-                  const isLastPage = pageIndex === data.pages.length - 1;
-                  const isLastItem = problemIndex === page.length - 1;
-                  const shouldAttachRef = isLastPage && isLastItem;
+                {page.length > 0 ? (
+                  page.map((problem: Problem, problemIndex: number) => {
+                    // 마지막 페이지의 마지막 아이템에 ref 연결
+                    const isLastPage = pageIndex === data.pages.length - 1;
+                    const isLastItem = problemIndex === page.length - 1;
+                    const shouldAttachRef = isLastPage && isLastItem;
 
-                  return (
-                    <div key={problem._id} ref={shouldAttachRef ? ref : null}>
-                      <Link to={`/scripts/${category}/${problem._id}`}>
-                        <QuestionBox
-                          title={`Q${pageIndex * 10 + problemIndex + 1}`}
-                          content={problem.content}
-                        />
-                      </Link>
-                    </div>
-                  );
-                })}
+                    return (
+                      <div key={problem._id} ref={shouldAttachRef ? ref : null}>
+                        <Link to={`/scripts/${category}/${problem._id}`}>
+                          <QuestionBox
+                            title={`Q${pageIndex * 10 + problemIndex + 1}`}
+                            content={problem.content}
+                          />
+                        </Link>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div>준비된 질문이 없어요🥲</div>
+                )}
               </div>
             ))}
 
