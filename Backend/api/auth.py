@@ -258,7 +258,7 @@ async def google_callback(
         })
         
         # 8. 프론트엔드로 리다이렉트 (임시 코드 전달)
-        frontend_callback_url = f"{settings.FRONTEND_URL}/?code={temp_code}"
+        frontend_callback_url = f"{settings.FRONTEND_URL}/callback/?code={temp_code}"
         return RedirectResponse(url=frontend_callback_url)
 
 @router.post("/exchange-token")
