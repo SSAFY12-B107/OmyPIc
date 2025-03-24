@@ -232,6 +232,9 @@ async def get_problem_detail(
                 else:
                     test_notes = group["docs"]
         
+        print(f"Current user: {current_user}")
+        print(f"Limits: {current_user.limits}")
+
         # 5. 스크립트 생성 제한 정보 조회
         # current_user는 User 객체이므로 속성으로 접근
         limits = current_user.limits
