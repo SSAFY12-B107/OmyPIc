@@ -7,7 +7,7 @@ from db.mongodb import get_mongodb
 from services import user as user_service
 from services import test_service
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi.responses import JSONResponse
 
 router = APIRouter()
@@ -123,7 +123,7 @@ async def update_user_info(
         
     if user_data.current_opic_score is not None:
         update_data["current_opic_score"] = user_data.current_opic_score
-        
+
     if user_data.target_exam_date is not None:
         # date 객체를 datetime 객체로 변환
         target_date = user_data.target_exam_date
@@ -146,7 +146,7 @@ async def update_user_info(
         update_data["background_survey"] = merged_survey
     
     # 업데이트 시간 추가
-    update_data["updated_at"] = datetime.now()
+    update_data["updated_at"] = datetime.now(timezone.utc)
     
     # 사용자 정보 업데이트
     result = await db.users.update_one(

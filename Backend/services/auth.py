@@ -1,5 +1,5 @@
 # app/services/auth.py
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import time
 import base64
 import hmac
@@ -110,8 +110,9 @@ def create_access_token(data: dict) -> str:
     to_encode = data.copy()
     
     # 만료 시간 설정
-    expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
+
     
     # JWT 토큰 생성
     encoded_jwt = jwt.encode(
@@ -132,10 +133,8 @@ def create_refresh_token(data: dict) -> str:
     Returns:
         str: 생성된 JWT 리프레시 토큰
     """
-    to_encode = data.copy()
-    
-    # 만료 시간 설정 (더 길게)
-    expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode = data.copy() 
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire})
     
     # JWT 토큰 생성 (다른 시크릿 키 사용)
