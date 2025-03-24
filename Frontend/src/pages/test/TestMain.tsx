@@ -34,6 +34,9 @@ function TestMain() {
   const randomRemaining = randomCounts?.remaining;
   const randomLimit = randomCounts?.limit;
 
+  console.log('testRemaining',testRemaining)
+  console.log('randomRemaining',randomRemaining)
+
   const navigate = useNavigate();
 
   // 생성 버튼 핸들링-axios 요청
