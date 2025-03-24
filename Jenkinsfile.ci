@@ -27,8 +27,8 @@ pipeline {
         stage('Check Target Branch') {
             steps {
                 script {
-                    if (env.gitlabTargetBranch != 'dev' && !env.GIT_BRANCH.endsWith('dev')) {
-                        error("This pipeline only runs for MRs targeting the dev branch")
+                    if (env.gitlabTargetBranch != 'master' && !env.GIT_BRANCH.endsWith('master')) {
+                        error("This pipeline only runs for MRs targeting the master branch")
                     }
                 }
             }
@@ -59,9 +59,29 @@ pipeline {
 
     post {
         success {
+            script {
+                def Author_ID = sh(script: "git show -s --pretty-%an", returnStdout: true)
+                def Author_Name = sh(script: "git show -s --pretty=%ae", returnStdout: true)
+                mattermostSend(
+                    color: 'good', 
+                    message: "빌드 성공: ${env.JOB_NAME} #${env.BUILD_NUMBER} by ${Author_ID}(${Author_Name})\n(<${env.BUILD_URL}|Details>)",
+                    endpoint: 'https://meeting.ssafy.com/hooks/gd11st38kbd1znej9kh3ftbg6o'
+                    channel: 'B107-Jenkins'
+                )
+            }
             echo 'CI Pipeline succeeded! Images have been built and pushed to Docker Hub.'
         }
         failure {
+            script {
+                def Author_ID = sh(script: "git show -s --pretty-%an", returnStdout: true)
+                def Author_Name = sh(script: "git show -s --pretty=%ae", returnStdout: true)
+                mattermostSend(
+                    color: 'danger', 
+                    message: "빌드 실패: ${env.JOB_NAME} #${env.BUILD_NUMBER} by ${Author_ID}(${Author_Name})\n(<${env.BUILD_URL}|Details>)",
+                    endpoint: 'https://meeting.ssafy.com/hooks/gd11st38kbd1znej9kh3ftbg6o'
+                    channel: 'B107-Jenkins'
+                )
+            }
             echo 'CI Pipeline failed! Check the logs for details.'
         }
         always {
