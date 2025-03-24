@@ -35,6 +35,8 @@ function ScriptDetail({}: Props) {
     navigate(`/scripts/${category}/${problemId}/write`);
   };
 
+  console.log('problemDetail', problemDetail)
+
   // early return으로 상태 처리
   if (isLoading) {
     return (

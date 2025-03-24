@@ -1,50 +1,61 @@
 import { useState, useEffect, useRef } from "react";
 import styles from "./ScriptBox.module.css";
-// import opigi from "@/assets/images/opigi.png";
 import { usePronunciationAudio } from "@/hooks/usePronunciation";
 
 interface ScriptBoxProps {
   userScript: Array<{
-    id: number;
+    _id: number;
     content: string;
-    // 필요한 다른 속성들
   }>;
 }
 
 function ScriptBox({ userScript }: ScriptBoxProps) {
-  // // 스크립트 생성 여부 확인(임시) : 나중에 확인하고 isLoading 등으로 처리해야함함
-  // const isGenerating: boolean = true;
-
-  // 첫 번째 스크립트 ID 가져오기
-  const firstScriptId =
-    userScript && userScript.length > 0 ? userScript[0].id : null;
-
   // 오디오 관련 상태
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [activeScriptId, setActiveScriptId] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // 발음 듣기 API 훅 사용
+  // 발음 듣기 API 훅 사용 - 필요할 때만 활성화
   const {
     data: audioData,
     isLoading,
-    // error,
-  } = usePronunciationAudio(firstScriptId as number);
+    refetch,
+  } = usePronunciationAudio(activeScriptId as number);
+
+  // 발음 듣기 요청 핸들러
+  const handleRequestAudio = (scriptId: number) => {
+    // 이미 재생 중인 동일 스크립트인 경우 일시정지/재생 토글
+    if (activeScriptId === scriptId && audioRef.current) {
+      handlePlayPause();
+      return;
+    }
+    
+    // 다른 스크립트 선택 또는 새로운 요청인 경우
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+    
+    setActiveScriptId(scriptId);
+    // scriptId가 변경되면 자동으로 refetch가 발생하므로 불필요
+  };
 
   // 오디오 객체 생성 및 이벤트 리스너 설정
   useEffect(() => {
-    // API 응답에서 audio_base64 데이터 확인
     if (audioData?.audio_base64) {
-      // 응답 바디에 맞게 audio_base64 필드 사용
       const base64String = audioData.audio_base64;
-
-      // data URL 방식으로 오디오 소스 생성
-      // data URL 방식으로 오디오 소스 생성
       const audioSrc = `data:audio/${
         audioData.audio_type || "mp3"
       };base64,${base64String}`;
 
       const audio = new Audio(audioSrc);
       audioRef.current = audio;
+
+      // 오디오 로드 완료 시 자동 재생
+      audio.onloadeddata = () => {
+        audio.play();
+        setIsPlaying(true);
+      };
 
       // 오디오 종료 이벤트 처리
       const endedHandler = () => {
@@ -95,46 +106,6 @@ function ScriptBox({ userScript }: ScriptBoxProps) {
           </div>
           <p>나만의 스크립트</p>
         </div>
-        {/* 듣기 버튼 */}
-        {audioData && (
-          <div className={styles["listen-btn"]} onClick={handlePlayPause}>
-            {isLoading ? (
-              // 로딩 스피너
-              <div className={styles.spinner}></div>
-            ) : isPlaying ? (
-              // 일시정지 아이콘
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 20 20"
-                fill="none"
-              >
-                <path
-                  d="M6.66667 14.1667H8.75V5.83333H6.66667V14.1667ZM11.25 5.83333V14.1667H13.3333V5.83333H11.25Z"
-                  fill="#5E5E5E"
-                  fillOpacity="0.5"
-                />
-              </svg>
-            ) : (
-              // 재생 아이콘
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 20 20"
-                fill="none"
-              >
-                <path
-                  d="M8.65417 12.6917L12.6917 10L8.65333 7.30833L8.65417 12.6917ZM10 17.5C8.96444 17.5 7.99056 17.3053 7.07833 16.9158C6.16611 16.5264 5.3725 15.9942 4.6975 15.3192C4.0225 14.6442 3.4875 13.8528 3.0925 12.945C2.6975 12.0383 2.5 11.0678 2.5 10.0333C2.5 9.53222 2.54639 9.03889 2.63917 8.55333C2.73194 8.06778 2.87 7.59139 3.05333 7.12417L3.70333 7.77417C3.58167 8.13528 3.48972 8.50111 3.4275 8.87167C3.36528 9.24222 3.33389 9.61833 3.33333 10C3.33333 11.8611 3.97917 13.4375 5.27083 14.7292C6.5625 16.0208 8.13889 16.6667 10 16.6667C11.8611 16.6667 13.4375 16.0208 14.7292 14.7292C16.0208 13.4375 16.6667 11.8611 16.6667 10C16.6667 8.13889 16.0208 6.5625 14.7292 5.27083C13.4375 3.97917 11.8611 3.33333 10 3.33333C9.625 3.33333 9.255 3.36444 8.89 3.42667C8.525 3.48889 8.16389 3.58111 7.80667 3.70333L7.16 3.0575C7.59833 2.8825 8.04444 2.74583 8.49833 2.6475C8.95222 2.54917 9.42083 2.5 9.90417 2.5C10.9497 2.5 11.9342 2.69472 12.8575 3.08417C13.7808 3.47361 14.5853 4.00861 15.2708 4.68917C15.9564 5.36972 16.4994 6.16611 16.9 7.07833C17.3006 7.99056 17.5006 8.96444 17.5 10C17.4994 11.0356 17.3022 12.0094 16.9083 12.9217C16.5133 13.8339 15.9783 14.6275 15.3033 15.3025C14.6278 15.9781 13.8339 16.5131 12.9217 16.9075C12.0094 17.3025 11.0356 17.5 10 17.5ZM4.93583 5.67333C4.73806 5.67333 4.56583 5.59972 4.41917 5.4525C4.2725 5.30583 4.19917 5.13361 4.19917 4.93583C4.19917 4.73806 4.2725 4.56583 4.41917 4.41917C4.56583 4.2725 4.73806 4.19917 4.93583 4.19917C5.13361 4.19917 5.30583 4.2725 5.4525 4.41917C5.59917 4.56583 5.67278 4.73806 5.67333 4.93583C5.67389 5.13361 5.60028 5.30583 5.4525 5.4525C5.30472 5.59917 5.1325 5.67278 4.93583 5.67333Z"
-                  fill="#5E5E5E"
-                  fillOpacity="0.5"
-                />
-              </svg>
-            )}
-            <span>{isPlaying ? "일시정지" : "발음 듣기"}</span>
-          </div>
-        )}
       </div>
 
       {/* content */}
@@ -142,42 +113,55 @@ function ScriptBox({ userScript }: ScriptBoxProps) {
         {userScript.length > 0 ? (
           // 스크립트 생성된 경우
           userScript.map((script) => (
-            <div key={`script-${script.id}`} className={styles["content-item"]}>
+            <div key={`script-${script._id}`} className={styles["content-item"]}>
               <p>{script.content}</p>
+              {/* 각 스크립트마다 발음 듣기 버튼 추가 */}
+              <div 
+                className={styles["listen-btn"]} 
+                onClick={() => handleRequestAudio(script._id)}
+              >
+                {isLoading && activeScriptId === script._id ? (
+                  // 로딩 스피너
+                  <div className={styles.spinner}></div>
+                ) : isPlaying && activeScriptId === script._id ? (
+                  // 일시정지 아이콘
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                  >
+                    <path
+                      d="M6.66667 14.1667H8.75V5.83333H6.66667V14.1667ZM11.25 5.83333V14.1667H13.3333V5.83333H11.25Z"
+                      fill="#5E5E5E"
+                      fillOpacity="0.5"
+                    />
+                  </svg>
+                ) : (
+                  // 재생 아이콘
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                  >
+                    <path
+                      d="M8.65417 12.6917L12.6917 10L8.65333 7.30833L8.65417 12.6917ZM10 17.5C8.96444 17.5 7.99056 17.3053 7.07833 16.9158C6.16611 16.5264 5.3725 15.9942 4.6975 15.3192C4.0225 14.6442 3.4875 13.8528 3.0925 12.945C2.6975 12.0383 2.5 11.0678 2.5 10.0333C2.5 9.53222 2.54639 9.03889 2.63917 8.55333C2.73194 8.06778 2.87 7.59139 3.05333 7.12417L3.70333 7.77417C3.58167 8.13528 3.48972 8.50111 3.4275 8.87167C3.36528 9.24222 3.33389 9.61833 3.33333 10C3.33333 11.8611 3.97917 13.4375 5.27083 14.7292C6.5625 16.0208 8.13889 16.6667 10 16.6667C11.8611 16.6667 13.4375 16.0208 14.7292 14.7292C16.0208 13.4375 16.6667 11.8611 16.6667 10C16.6667 8.13889 16.0208 6.5625 14.7292 5.27083C13.4375 3.97917 11.8611 3.33333 10 3.33333C9.625 3.33333 9.255 3.36444 8.89 3.42667C8.525 3.48889 8.16389 3.58111 7.80667 3.70333L7.16 3.0575C7.59833 2.8825 8.04444 2.74583 8.49833 2.6475C8.95222 2.54917 9.42083 2.5 9.90417 2.5C10.9497 2.5 11.9342 2.69472 12.8575 3.08417C13.7808 3.47361 14.5853 4.00861 15.2708 4.68917C15.9564 5.36972 16.4994 6.16611 16.9 7.07833C17.3006 7.99056 17.5006 8.96444 17.5 10C17.4994 11.0356 17.3022 12.0094 16.9083 12.9217C16.5133 13.8339 15.9783 14.6275 15.3033 15.3025C14.6278 15.9781 13.8339 16.5131 12.9217 16.9075C12.0094 17.3025 11.0356 17.5 10 17.5ZM4.93583 5.67333C4.73806 5.67333 4.56583 5.59972 4.41917 5.4525C4.2725 5.30583 4.19917 5.13361 4.19917 4.93583C4.19917 4.73806 4.2725 4.56583 4.41917 4.41917C4.56583 4.2725 4.73806 4.19917 4.93583 4.19917C5.13361 4.19917 5.30583 4.2725 5.4525 4.41917C5.59917 4.56583 5.67278 4.73806 5.67333 4.93583C5.67389 5.13361 5.60028 5.30583 5.4525 5.4525C5.30472 5.59917 5.1325 5.67278 4.93583 5.67333Z"
+                      fill="#5E5E5E"
+                      fillOpacity="0.5"
+                    />
+                  </svg>
+                )}
+                <span>{isPlaying && activeScriptId === script._id ? "일시정지" : "발음 듣기"}</span>
+              </div>
             </div>
           ))
         ) : (
           <p className={styles.noContent}>아직 생성된 스크립트가 없습니다.</p>
         )}
       </div>
-      {/* 스크립트 생성중인 경우 고려할 때 */}
-      {/* <div
-        className={`${styles.contentList} ${
-          isGenerating ? styles["generating"] : ""
-        }`}
-      >
-        {userScript.length > 0 ? (
-          isGenerating ? (
-            // 스크립트 생성중인 경우
-            <div className={styles["content-item"]}>
-              <img src={opigi} alt="opigi-img" />
-              <p>스크립트를 생성하고 있어요</p>
-            </div>
-          ) : (
-            // 스크립트 생성된 경우
-            userScript.map((script, scriptIdx) => (
-              <div
-                key={`script-${script.id}`}
-                className={styles["content-item"]}
-              >
-                <p>{script.content}</p>
-              </div>
-            ))
-          )
-        ) : (
-          <p className={styles.noContent}>아직 생성된 스크립트가 없습니다.</p>
-        )}
-      </div> */}
     </div>
   );
 }
