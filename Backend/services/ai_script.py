@@ -125,16 +125,76 @@ async def get_problem_category(problem_pk: str) -> str:
         str: 문제 카테고리
     """
     try:
-        # problems 컬렉션에서 해당 ID의 문서 조회
-        problem = await get_mongodb().problems.find_one({"_id": problem_pk})
+        # MongoDB 연결
+        db = await get_mongodb()
         
-        if not problem or "problem_category" not in problem:
-            logger.error(f"문제 정보를 찾을 수 없거나 카테고리 정보가 없습니다: {problem_pk}")
+        # ObjectId로 변환 시도
+        from bson import ObjectId
+        try:
+            # 먼저 ObjectId로 조회 시도
+            problem_id = ObjectId(problem_pk)
+            problem = await db["problems"].find_one({"_id": problem_id})
+        except Exception:
+            # ObjectId 변환 실패 시 문자열 그대로 조회 시도
+            problem = await db["problems"].find_one({"_id": problem_pk})
+        
+        # 문제 정보 로깅
+        if problem:
+            logger.info(f"문제 정보 조회 성공: {problem_pk}")
+        else:
+            logger.error(f"문제 정보를 찾을 수 없습니다: {problem_pk}")
+            return None
+            
+        # problem_category 필드 확인
+        if "problem_category" not in problem:
+            logger.error(f"문제에 카테고리 정보가 없습니다: {problem_pk}")
             return None
             
         return problem["problem_category"]
     except Exception as e:
         logger.error(f"문제 카테고리 조회 중 오류 발생: {str(e)}")
+        # 디버깅을 위한 추가 정보 로깅
+        logger.error(f"오류 상세 정보: {traceback.format_exc()}")
+        return None
+
+# MongoDB에서 문제 내용을 가져오는 함수
+async def get_problem_content(problem_pk: str) -> Dict[str, Any]:
+    """
+    MongoDB에서 problem_pk에 해당하는 문제의 상세 내용을 가져옵니다.
+    
+    Args:
+        problem_pk (str): 문제 ID
+        
+    Returns:
+        Dict[str, Any]: 문제 상세 내용 (title, content, category 등)
+    """
+    try:
+        # MongoDB 연결
+        db = await get_mongodb()
+        
+        # ObjectId로 변환 시도
+        from bson import ObjectId
+        try:
+            # 먼저 ObjectId로 조회 시도
+            problem_id = ObjectId(problem_pk)
+            problem = await db["problems"].find_one({"_id": problem_id})
+        except Exception:
+            # ObjectId 변환 실패 시 문자열 그대로 조회 시도
+            problem = await db["problems"].find_one({"_id": problem_pk})
+        
+        # 문제 정보 로깅
+        if problem:
+            logger.info(f"문제 정보 조회 성공: {problem_pk}")
+            logger.info(f"문제 상세 내용: {problem}")
+            return problem
+        else:
+            logger.error(f"문제 정보를 찾을 수 없습니다: {problem_pk}")
+            return None
+            
+    except Exception as e:
+        logger.error(f"문제 상세 내용 조회 중 오류 발생: {str(e)}")
+        # 디버깅을 위한 추가 정보 로깅
+        logger.error(f"오류 상세 정보: {traceback.format_exc()}")
         return None
 
 # Fallback 함수 - LLM이 사용 불가능한 경우 사용
@@ -253,12 +313,15 @@ async def generate_follow_up_questions(problem_pk: str, answers: Dict[str, str])
                 HumanMessagePromptTemplate.from_template(human_template)
             ])
             
-            # 꼬리질문 생성
+            # 꼬리질문 생성 - 최신 LangChain 방식 사용
             chain = chat_prompt | llm
             follow_up = await chain.ainvoke({})
             
             # 결과 정리 (불필요한 따옴표나 공백 제거)
-            follow_up = follow_up.strip().strip('"\'')
+            if hasattr(follow_up, 'content'):
+                follow_up = follow_up.content.strip().strip('"\'')
+            else:
+                follow_up = str(follow_up).strip().strip('"\'')
             follow_up_questions.append(follow_up)
             
         return follow_up_questions
@@ -270,6 +333,7 @@ async def generate_follow_up_questions(problem_pk: str, answers: Dict[str, str])
 async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
     """
     사용자 답변을 바탕으로 OPIc IH 수준의 영어 스크립트를 생성합니다.
+    문제 내용을 직접 조회하여 사용합니다.
     
     Args:
         problem_pk (str): 문제 ID
@@ -284,13 +348,27 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
         str: 생성된 OPIc IH 수준의 영어 스크립트
     """
     try:
-        # MongoDB에서 문제 카테고리 가져오기
-        category = await get_problem_category(problem_pk)
+        # MongoDB에서 문제 상세 내용 가져오기
+        problem_data = await get_problem_content(problem_pk)
+        
+        if not problem_data:
+            logger.error(f"문제 상세 내용을 찾을 수 없습니다: {problem_pk}")
+            return "Script generation failed: Problem content not found."
+        
+        # 문제 카테고리 및 실제 문제 내용 추출
+        category = problem_data.get("problem_category")
+        problem_title = problem_data.get("title", "")
+        problem_content = problem_data.get("content", "")
+        
+        logger.info(f"문제 제목: {problem_title}")
+        logger.info(f"문제 내용: {problem_content}")
         
         # DB 조회 실패 시 기본 카테고리 사용
         if not category:
             logger.warning(f"MongoDB에서 카테고리를 찾을 수 없어 기본값을 사용합니다: {problem_pk}")
             category = get_fallback_category(problem_pk)
+        
+        logger.info(f"Using category: {category} for problem: {problem_pk}")
             
         # 카테고리를 질문 유형 키로 변환
         type_key = get_question_type_key(category)
@@ -302,7 +380,7 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
         
         # LLM 모델 설정 (Groq LLM 사용)
         llm = ChatGroq(
-            temperature=0.7,  # 창의성을 위해 약간 높임
+            temperature=0.3,  # 창의성을 위해 약간 높임
             model_name="llama-3.3-70b-versatile",  # Groq에서 제공하는 Llama 모델
             api_key=get_next_groq_key()  # Groq API 키
         )
@@ -312,6 +390,7 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
             logger.error("answers가 딕셔너리가 아닙니다.")
             return "Script generation failed: Invalid input format."
             
+        # 기본 답변과 커스텀 답변 추출 및 타입 검사
         basic_answers = answers.get("basic_answers", {})
         custom_answers = answers.get("custom_answers", {})
         
@@ -332,7 +411,34 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
                 logger.error("custom_answers를 딕셔너리로 변환할 수 없습니다.")
                 custom_answers = {}
         
-        questions = question_type_data["questions"]
+        # 디버깅 로그 추가
+        logger.info(f"Basic answers: {basic_answers}")
+        logger.info(f"Custom answers: {custom_answers}")
+        
+        # 기본 질문 또는 문제에서 추출한 실제 질문 사용
+        questions = []
+        
+        # 실제 문제 내용이 있으면 사용, 없으면 기본 질문 사용
+        if problem_content:
+            # 문제 내용을 줄 단위로 분할하여 질문 추출 시도
+            content_lines = problem_content.split('\n')
+            for line in content_lines:
+                # 질문으로 보이는 줄 (물음표가 있거나 의문문 형태) 추가
+                if '?' in line or line.strip().endswith('까요') or line.strip().endswith('나요'):
+                    questions.append(line.strip())
+            
+            # 질문을 추출하지 못했거나 너무 적은 경우 기본 질문 추가
+            if len(questions) < 3:
+                logger.warning(f"문제에서 충분한 질문을 추출하지 못했습니다. 기본 질문 사용: {questions}")
+                questions.extend(question_type_data["questions"][:3 - len(questions)])
+        else:
+            # 기본 질문 사용
+            questions = question_type_data["questions"][:3]
+        
+        # 최대 3개 질문으로 제한
+        questions = questions[:3]
+        logger.info(f"사용할 질문 목록: {questions}")
+        
         combined_info = []
         
         # 원래 질문과 기본 답변, 커스텀 답변 결합
@@ -346,16 +452,24 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
                 basic_answer = basic_answers.get(answer_key, "")
                 custom_answer = custom_answers.get(answer_key, "")
                 
-                if basic_answer or custom_answer:
+                # 디버깅 로그
+                logger.info(f"Question {i}: {question}")
+                logger.info(f"Basic answer {i}: {basic_answer}")
+                logger.info(f"Custom answer {i}: {custom_answer}")
+                
+                # 우선순위: 커스텀 답변 > 기본 답변
+                effective_answer = custom_answer if custom_answer else basic_answer
+                
+                if effective_answer:
                     combined_info.append({
                         "question": question,
-                        "basic_answer": basic_answer,
-                        "custom_answer": custom_answer
+                        "answer": effective_answer
                     })
         
         # 답변이 없는 경우 처리
         if not combined_info:
-            return "Script generation failed: No answers provided."
+            logger.error("유효한 답변이 없습니다.")
+            return "Script generation failed: No valid answers provided."
         
         # 유형별 안내 지침
         type_specific_guidance = {
@@ -371,6 +485,7 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
         You are an expert in generating natural, conversational English scripts for OPIc tests at the IH (Intermediate High) level.
         
         Topic type: {question_type_data["type"]}
+        Problem title: {problem_title}
         Guidance: {type_specific_guidance.get(question_type_data["type"], "Create a natural, conversational response that demonstrates paragraph-level discourse.")}
         
         Follow these requirements exactly:
@@ -382,39 +497,59 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
         6. Maintain coherent paragraph-level discourse.
         7. Avoid overly formal language - this should sound natural when spoken.
         8. Include 1-2 hesitations or self-corrections to sound natural (like "um", "I mean", etc.).
+        9. Make sure to fully incorporate the user's actual answers into the script.
+        10. Create a script that directly addresses the original problem and questions.
         
         The final output should ONLY be the English script - do not include any explanations, introductions, or annotations.
         """
         
         human_template = """
+        Original problem: {problem_content}
+        
         Here are the user's Korean answers to questions about {topic_type}:
         
         {answer_details}
         
-        Create a natural, conversational English script at the OPIc IH level that integrates these ideas into a coherent response.
+        Create a natural, conversational English script at the OPIc IH level that directly addresses the original problem and incorporates the user's answers into a coherent response.
         The script should be 7-9 sentences long (1-1.5 minutes when spoken).
         """
 
         # 답변 상세 정보 구성
         answer_details = ""
-        for item in combined_info:
-            answer_text = item["custom_answer"] if item["custom_answer"] else item["basic_answer"]
-            answer_details += f"Question: {item['question']}\nAnswer: {answer_text}\n\n"
+        for idx, item in enumerate(combined_info):
+            answer_details += f"Question {idx+1}: {item['question']}\nAnswer {idx+1}: {item['answer']}\n\n"
         
+        # 디버깅 로그
+        logger.info(f"Final prompt answer details: {answer_details}")
+        
+        # LangChain 최신 방식으로 사용 - RunnableSequence
         chat_prompt = ChatPromptTemplate.from_messages([
             SystemMessagePromptTemplate.from_template(system_template),
             HumanMessagePromptTemplate.from_template(human_template)
         ])
         
-        # 스크립트 생성
+        # 파이프라인 사용
         chain = chat_prompt | llm
-        script = await chain.ainvoke({
+        
+        # ainvoke 메서드 사용
+        response = await chain.ainvoke({
             "topic_type": question_type_data["type"],
+            "problem_content": problem_content,
             "answer_details": answer_details
         })
         
-        # 결과 정리
-        script = script.strip()
+        # LLM 응답에서 콘텐츠 추출
+        if hasattr(response, 'content'):
+            script = response.content.strip()
+        else:
+            script = str(response).strip()
+            
+        if not script:
+            script = "Script generation failed: Empty response from LLM."
+    
+        # 로그에 성공 메시지 및 스크립트 일부 기록
+        logger.info(f"OPIc 스크립트 생성 성공 (처음 100자): {script[:100]}...")
+        
         return script
         
     except Exception as e:
