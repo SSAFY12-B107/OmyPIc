@@ -15,7 +15,6 @@ function TestMain() {
   const {
     data: historyData,
     isLoading,
-    isError,
   } = useUserHistory("67da47b9ad60cfdcd742b11a");
 
   // 비동기 액션 연결
@@ -26,11 +25,11 @@ function TestMain() {
   const testCounts = historyData?.test_counts?.test_count;
   const randomCounts = historyData?.test_counts?.random_problem;
 
-  const testUsed = testCounts?.used;
+
   const testRemaining = testCounts?.remaining;
   const testLimit = testCounts?.limit;
 
-  const randomUsed = randomCounts?.used;
+
   const randomRemaining = randomCounts?.remaining;
   const randomLimit = randomCounts?.limit;
 
