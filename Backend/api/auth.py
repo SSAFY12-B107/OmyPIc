@@ -266,18 +266,33 @@ async def exchange_token(
     code: str = Body(..., embed=True),
     db = Depends(get_mongodb)
 ):
+    # 로깅 추가
+    print(f"Received code for exchange: {code}")
+    
+    # 중요: UTC 시간 사용으로 통일
+    current_time = datetime.now(timezone.utc)
+    
     # MongoDB에서 임시 코드 검색
     temp_code_doc = await db.temp_codes.find_one({
         "code": code,
-        "expires_at": {"$gt": datetime.now()}
+        "expires_at": {"$gt": current_time}
     })
     
-    # 유효한 코드인지 확인
+    # 디버깅 로그 추가
     if not temp_code_doc:
+        # 만료 여부 확인을 위해 expires_at 조건 없이 다시 쿼리
+        expired_check = await db.temp_codes.find_one({"code": code})
+        if expired_check:
+            print(f"Code found but expired. Expires at: {expired_check['expires_at']}, Current time: {current_time}")
+        else:
+            print(f"Code not found in database: {code}")
+        
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="유효하지 않거나 만료된 코드입니다"
         )
+    
+    print(f"Valid code found with expiry: {temp_code_doc['expires_at']}")
     
     # 코드 사용 후 삭제 (일회용)
     await db.temp_codes.delete_one({"code": code})
