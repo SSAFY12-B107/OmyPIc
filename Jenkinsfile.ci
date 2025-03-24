@@ -27,8 +27,8 @@ pipeline {
         stage('Check Target Branch') {
             steps {
                 script {
-                    if (env.gitlabTargetBranch != 'master' && !env.GIT_BRANCH.endsWith('master')) {
-                        error("This pipeline only runs for MRs targeting the master branch")
+                    if (env.gitlabTargetBranch != 'dev' && !env.GIT_BRANCH.endsWith('dev')) {
+                        error("This pipeline only runs for MRs targeting the dev branch")
                     }
                 }
             }
@@ -65,7 +65,7 @@ pipeline {
                 mattermostSend(
                     color: 'good', 
                     message: "빌드 성공: ${env.JOB_NAME} #${env.BUILD_NUMBER} by ${Author_ID}(${Author_Name})\n(<${env.BUILD_URL}|Details>)",
-                    endpoint: 'https://meeting.ssafy.com/hooks/gd11st38kbd1znej9kh3ftbg6o'
+                    endpoint: 'https://meeting.ssafy.com/hooks/gd11st38kbd1znej9kh3ftbg6o',
                     channel: 'B107-Jenkins'
                 )
             }
@@ -78,7 +78,7 @@ pipeline {
                 mattermostSend(
                     color: 'danger', 
                     message: "빌드 실패: ${env.JOB_NAME} #${env.BUILD_NUMBER} by ${Author_ID}(${Author_Name})\n(<${env.BUILD_URL}|Details>)",
-                    endpoint: 'https://meeting.ssafy.com/hooks/gd11st38kbd1znej9kh3ftbg6o'
+                    endpoint: 'https://meeting.ssafy.com/hooks/gd11st38kbd1znej9kh3ftbg6o',
                     channel: 'B107-Jenkins'
                 )
             }
