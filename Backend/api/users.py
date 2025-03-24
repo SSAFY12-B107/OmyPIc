@@ -76,7 +76,8 @@ async def get_user(user_id: str, db = Depends(get_mongodb)):
     if test_info:
         user["test"] = test_info
     
-    return user
+    # 명시적으로 모델로 변환 후 리턴
+    return UserDetailResponse.model_validate(user)
 
 
 @router.get("/", response_model=List[UserResponse])
