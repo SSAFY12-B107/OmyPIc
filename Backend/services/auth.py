@@ -147,36 +147,43 @@ def create_refresh_token(data: dict) -> str:
     
     return encoded_jwt
 
-def verify_token(token: str, secret_key: str) -> dict:
+async def verify_token(token: str, db):
     """
-    JWT 토큰 검증 및 디코드
+    JWT 토큰 검증 (블랙리스트 확인 포함)
     
     Args:
         token (str): 검증할 JWT 토큰
-        secret_key (str): 토큰 검증에 사용할 시크릿 키
+        db: MongoDB 데이터베이스 인스턴스
         
     Returns:
-        dict: 디코드된 토큰 데이터
+        dict: 토큰 페이로드
         
     Raises:
-        HTTPException: 토큰이 유효하지 않을 경우
+        HTTPException: 토큰이 유효하지 않거나 블랙리스트에 있는 경우
     """
+    from api.auth import is_token_blacklisted
+    
+    # 블랙리스트 확인
+    if await is_token_blacklisted(token, db):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="로그아웃된 토큰입니다",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # 기존 토큰 검증 로직
     try:
         payload = jwt.decode(
-            token,
-            secret_key,
-            algorithms=[settings.JWT_ALGORITHM]
+            token, 
+            settings.SECRET_KEY, 
+            algorithms=[settings.ALGORITHM]
         )
         return payload
-    except jwt.ExpiredSignatureError:
+    except jwt.PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="토큰이 만료되었습니다"
-        )
-    except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="유효하지 않은 토큰입니다"
+            detail="유효하지 않은 토큰입니다",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
 def verify_access_token(token: str) -> dict:

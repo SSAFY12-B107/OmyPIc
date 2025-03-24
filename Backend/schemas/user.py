@@ -1,99 +1,176 @@
-# Backend/schemas/user.py
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, List, Dict, Any
 from datetime import datetime, date
-from bson import ObjectId
-from .custom_types import PyObjectId
+
+# Background survey 스키마
+class BackgroundSurveySchema(BaseModel):
+    profession: Optional[int] = None
+    is_student: Optional[bool] = None
+    studied_lecture: Optional[int] = None
+    living_place: Optional[int] = None
+    info: Optional[List[str]] = None
+
+# Average score 스키마
+class AverageScoreSchema(BaseModel):
+    comboset_score: Optional[str] = None
+    roleplaying_score: Optional[str] = None
+    total_score: Optional[str] = None
+    unexpected_score: Optional[str] = None
+
+# Test limits 스키마
+class TestLimitsSchema(BaseModel):
+    test_count: Optional[int] = None
+    random_problem: Optional[int] = None
 
 # 온보딩 데이터 스키마
 class OnboardingData(BaseModel):
-    profession: Optional[int] = None
-    is_student: Optional[bool] = None
-    studied_lecture: Optional[int] = None
-    living_place: Optional[int] = None
-    info: Optional[List[str]] = None
-
-# 백그라운드 서베이 스키마
-class BackgroundSurvey(BaseModel):
-    profession: Optional[int] = None
-    is_student: Optional[bool] = None
-    studied_lecture: Optional[int] = None
-    living_place: Optional[int] = None
-    info: Optional[List[str]] = None
+    target_opic_score: Optional[str] = None
+    current_opic_score: Optional[str] = None
+    target_exam_date: Optional[date] = None
+    background_survey: Optional[Dict[str, Any]] = None
 
 # 사용자 생성 스키마
 class UserCreate(BaseModel):
     name: str
-    email: Optional[str] = None  # 이메일 필드 추가
+    email: Optional[str] = None
     auth_provider: str = "google"
     current_opic_score: Optional[str] = None
     target_opic_score: Optional[str] = None
-    target_exam_date: Optional[datetime] = None
-    is_onboarded: bool = False
-    background_survey: Optional[BackgroundSurvey] = None
+    target_exam_date: Optional[date] = None
+    background_survey: Optional[Dict[str, Any]] = None
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "name": "홍길동",
+                "email": "user@example.com",
+                "auth_provider": "google",
+                "current_opic_score": "IH",
+                "target_opic_score": "AL",
+                "target_exam_date": "2025-03-19"
+            }
+        }
 
-# 사용자 업데이트 스키마
-class UserUpdate(BaseModel):
-    name: Optional[str] = None
-    email: Optional[str] = None  # 이메일 필드 추가
-    current_opic_score: Optional[str] = None
-    target_opic_score: Optional[str] = None
-    target_exam_date: Optional[datetime] = None
-    is_onboarded: Optional[bool] = None
-    background_survey: Optional[BackgroundSurvey] = None
-
-# 사용자 응답 스키마
+# 사용자 응답 스키마 - 기본 정보
 class UserResponse(BaseModel):
-    id: str = Field(alias="_id")
+    id: str
     name: str
-    email: Optional[str] = None  # 이메일 필드 추가
     auth_provider: str
     current_opic_score: Optional[str] = None
     target_opic_score: Optional[str] = None
-    target_exam_date: Optional[datetime] = None
-    is_onboarded: bool
+    target_exam_date: Optional[date] = None
+    is_onboarded: bool = False
     created_at: datetime
-    background_survey: Optional[Dict] = None
-
+    updated_at: Optional[datetime] = None
+    background_survey: Optional[Dict[str, Any]] = None
+    average_score: Optional[Dict[str, Any]] = None
+    test_limits: Optional[Dict[str, Any]] = None
+    
     class Config:
-        populate_by_name = True
-        json_encoders = {
-            ObjectId: str,
-            datetime: lambda dt: dt.isoformat()
+        json_schema_extra = {
+            "example": {
+                "id": "67da4792ad60cfdcd742b119",
+                "name": "이재욱",
+                "auth_provider": "google",
+                "current_opic_score": "IH",
+                "target_opic_score": "AL",
+                "target_exam_date": "2025-03-19",
+                "is_onboarded": False,
+                "created_at": "2025-03-19T13:26:58.049Z",
+                "updated_at": "2025-03-23T16:55:20.952Z",
+                "background_survey": {
+                    "profession": 0,
+                    "is_student": False,
+                    "studied_lecture": 0,
+                    "living_place": 0,
+                    "info": ["주거", "공원 가기", "친구/가족", "해외여행", "기술"]
+                },
+                "average_score": {
+                    "comboset_score": "IH",
+                    "roleplaying_score": "AL",
+                    "total_score": "IH",
+                    "unexpected_score": "IM3"
+                },
+                "test_limits": {
+                    "test_count": 3,
+                    "random_problem": 5
+                }
+            }
         }
 
+# 사용자 상세 응답 스키마 - 추가 정보 포함
+class UserDetailResponse(UserResponse):
+    # 기본 정보(UserResponse)에 추가적인 상세 정보가 필요하면 여기에 추가
+    email: Optional[str] = None
+    profile_image: Optional[str] = None
+    provider_id: Optional[str] = None
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": "67da4792ad60cfdcd742b119",
+                "name": "이재욱",
+                "email": "user@example.com",
+                "profile_image": "https://example.com/profile.jpg",
+                "auth_provider": "google",
+                "provider_id": "123456789",
+                "current_opic_score": "IH",
+                "target_opic_score": "AL",
+                "target_exam_date": "2025-03-19",
+                "is_onboarded": False,
+                "created_at": "2025-03-19T13:26:58.049Z",
+                "updated_at": "2025-03-23T16:55:20.952Z",
+                "background_survey": {
+                    "profession": 0,
+                    "is_student": False,
+                    "studied_lecture": 0,
+                    "living_place": 0,
+                    "info": ["주거", "공원 가기", "친구/가족", "해외여행", "기술"]
+                },
+                "average_score": {
+                    "comboset_score": "IH",
+                    "roleplaying_score": "AL",
+                    "total_score": "IH",
+                    "unexpected_score": "IM3"
+                },
+                "test_limits": {
+                    "test_count": 3,
+                    "random_problem": 5
+                }
+            }
+        }
 
-class TestInfo(BaseModel):
-    test_date: List[Optional[datetime]] = None
-    test_score:List[Optional[str]] = None
-
-
-# 사용자 프로필 정보 응답 스키마
-class UserDetailResponse(BaseModel):
-    id: str = Field(alias="_id")
-    name: str
-    email: Optional[str]
+# 기존의 UserUpdate 클래스
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
     current_opic_score: Optional[str] = None
     target_opic_score: Optional[str] = None
-    target_exam_date: Optional[datetime] = None
-    is_onboarded: bool
-    background_survey: Optional[Dict] = None
-    test: Optional[TestInfo] = None
+    target_exam_date: Optional[date] = None
+    is_onboarded: Optional[bool] = None
+    background_survey: Optional[Dict[str, Any]] = None
 
+# 새로운 사용자 정보 업데이트 스키마
+class UserUpdateSchema(BaseModel):
+    target_opic_score: Optional[str] = None
+    current_opic_score: Optional[str] = None
+    target_exam_date: Optional[date] = None
+    is_onboarded: Optional[bool] = None
+    background_survey: Optional[dict] = None
+    
     class Config:
-        populate_by_name = True
-        json_encoders = {
-            ObjectId: str,
-            datetime: lambda dt: dt.isoformat()
+        json_schema_extra = {
+            "example": {
+                "target_opic_score": "AL",
+                "current_opic_score": "IH",
+                "target_exam_date": "2025-03-19",
+                "is_onboarded": False,
+                "background_survey": {
+                    "profession": 0,
+                    "is_student": False,
+                    "studied_lecture": 0,
+                    "living_place": 0,
+                    "info": ["주거", "공원 가기", "친구/가족", "해외여행", "기술"]
+                }
+            }
         }
-
-# 사용자 인증 정보 스키마
-class UserAuth(BaseModel):
-    email: str
-    password: str
-
-# 토큰 정보 스키마
-class Token(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    refresh_token: Optional[str] = None

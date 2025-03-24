@@ -1,13 +1,25 @@
-from langchain_groq import ChatGroq
-from langchain.chains import LLMChain
-from langchain.prompts import ChatPromptTemplate
-from langchain.prompts.chat import SystemMessagePromptTemplate, HumanMessagePromptTemplate
-from typing import Dict, List, Any
 import os
 import logging
+import traceback
+from typing import Dict, List, Any
 
-# 로깅 설정
-logger = logging.getLogger(__name__)
+# 모든 imports 전에 로깅 설정
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+# 로거 정의
+logger = logging.getLogger("script_generator")
+
+try:
+    from langchain_groq import ChatGroq
+    from langchain.chains import LLMChain
+    from langchain.prompts import ChatPromptTemplate
+    from langchain.prompts.chat import SystemMessagePromptTemplate, HumanMessagePromptTemplate
+    from api.deps import get_next_groq_key, get_next_gemini_key
+    from models.database import db
+except ImportError as e:
+    logger.error(f"필수 모듈 임포트 실패: {str(e)}")
 
 # 문제 유형과 질문 하드코딩
 question_types = {
@@ -53,20 +65,111 @@ question_types = {
     }
 }
 
-# ObjectID에서 질문 유형 결정하는 함수
-def get_question_type_from_problem_pk(problem_pk: str) -> str:
+# 카테고리를 질문 유형 키로 변환하는 함수
+def get_question_type_key(category: str) -> str:
     """
-    problem_pk(ObjectID)를 기반으로 문제 유형을 결정합니다.
+    문제 카테고리를 질문 유형 키로 변환합니다.
+    
+    Args:
+        category (str): 문제 카테고리
+        
+    Returns:
+        str: 질문 유형 키
+    """
+    category_mapping = {
+        "묘사": "description",
+        "과거 경험": "past_experience",
+        "루틴": "routine",
+        "비교": "comparison",
+        "롤플레잉": "roleplaying"
+    }
+    
+    return category_mapping.get(category)
+
+# 테스트 목적의 기본 카테고리 제공 함수
+def get_fallback_category(problem_pk: str) -> str:
+    """
+    DB 연결이 안될 경우를 대비한 기본 카테고리 제공 함수
     
     Args:
         problem_pk (str): 문제 ID
         
     Returns:
-        str: 결정된 질문 유형 키 (description, past_experience 등)
+        str: 기본 카테고리
     """
-    types = list(question_types.keys())
-    index = int(problem_pk[0], 16) % len(types)
-    return types[index]
+    # 간단한 해시 기반 카테고리 결정 (실제 사용은 get_problem_category 함수 사용)
+    if not problem_pk or len(problem_pk) < 1:
+        return "묘사"  # 기본값
+        
+    first_char = problem_pk[0]
+    if first_char in "0123":
+        return "묘사"
+    elif first_char in "456":
+        return "과거 경험"
+    elif first_char in "78":
+        return "루틴" 
+    elif first_char in "9a":
+        return "비교"
+    else:
+        return "롤플레잉"
+
+# MongoDB에서 문제 카테고리를 가져오는 함수
+async def get_problem_category(problem_pk: str) -> str:
+    """
+    MongoDB에서 problem_pk에 해당하는 문제의 카테고리를 가져옵니다.
+    
+    Args:
+        problem_pk (str): 문제 ID
+        
+    Returns:
+        str: 문제 카테고리
+    """
+    try:
+        # problems 컬렉션에서 해당 ID의 문서 조회
+        problem = await db.problems.find_one({"_id": problem_pk})
+        
+        if not problem or "problem_category" not in problem:
+            logger.error(f"문제 정보를 찾을 수 없거나 카테고리 정보가 없습니다: {problem_pk}")
+            return None
+            
+        return problem["problem_category"]
+    except Exception as e:
+        logger.error(f"문제 카테고리 조회 중 오류 발생: {str(e)}")
+        return None
+
+# Fallback 함수 - LLM이 사용 불가능한 경우 사용
+def generate_fallback_follow_up_questions(answers: Dict[str, str]) -> List[str]:
+    """
+    LLM이 사용 불가능한 경우 간단한 꼬리질문을 생성하는 함수
+    
+    Args:
+        answers (Dict[str, str]): 사용자 답변 (question1, question2, question3)
+        
+    Returns:
+        List[str]: 생성된 꼬리질문 목록
+    """
+    follow_up_questions = []
+    
+    for i in range(3):
+        question_key = f"question{i+1}"
+        answer = answers.get(question_key, "")
+        
+        if not answer:
+            continue
+            
+        # 답변 길이에 따른 꼬리질문 분기
+        if len(answer) < 30:
+            follow_up_questions.append(f"방금 말씀해 주신 내용에 대해 좀 더 자세히 설명해 주실 수 있을까요?")
+        else:
+            # 답변 길이에 따라 다양한 질문 패턴 사용
+            if i == 0:
+                follow_up_questions.append(f"방금 말씀하신 것 중에서 가장 중요하다고 생각하는 부분은 무엇인가요? 그 이유도 함께 알려주세요.")
+            elif i == 1:
+                follow_up_questions.append(f"그런 경험이 당신에게 어떤 의미가 있나요? 어떤 영향을 미쳤나요?")
+            else:
+                follow_up_questions.append(f"그 상황에서 다른 선택을 했다면 어떻게 달라졌을 것 같나요?")
+    
+    return follow_up_questions
 
 async def generate_follow_up_questions(problem_pk: str, answers: Dict[str, str]) -> List[str]:
     """
@@ -80,20 +183,27 @@ async def generate_follow_up_questions(problem_pk: str, answers: Dict[str, str])
         List[str]: 생성된 꼬리질문 목록
     """
     try:
-        # 질문 유형 결정
-        type_key = get_question_type_from_problem_pk(problem_pk)
-        question_type_data = question_types.get(type_key)
+        # MongoDB에서 문제 카테고리 가져오기
+        category = await get_problem_category(problem_pk)
         
-        if not question_type_data:
-            logger.error(f"문제 유형을 찾을 수 없습니다: {type_key}")
-            return ["질문 유형을 결정할 수 없습니다."]
+        # DB 조회 실패 시 기본 카테고리 사용
+        if not category:
+            logger.warning(f"MongoDB에서 카테고리를 찾을 수 없어 기본값을 사용합니다: {problem_pk}")
+            category = get_fallback_category(problem_pk)
+            
+        # 카테고리를 질문 유형 키로 변환
+        type_key = get_question_type_key(category)
+        if not type_key or type_key not in question_types:
+            logger.error(f"지원되지 않는 문제 카테고리입니다: {category}")
+            return ["지원되지 않는 질문 유형입니다."]
+            
+        question_type_data = question_types[type_key]
         
         # LLM 모델 설정 (Groq LLM 사용)
         llm = ChatGroq(
             temperature=0.3,
             model_name="llama-3.3-70b-versatile",  # Groq에서 제공하는 Llama 모델
-            api_key="GROQ API"  # Groq API 키
-            ##Warining #아직까지 직접입력을 넣어줘야함!
+            api_key=get_next_groq_key()  # Groq API 키
         )
         
         # 질문 유형별 맞춤 프롬프트 템플릿
@@ -154,42 +264,8 @@ async def generate_follow_up_questions(problem_pk: str, answers: Dict[str, str])
         return follow_up_questions
         
     except Exception as e:
-        logger.error(f"꼬리질문 생성 중 오류 발생: {str(e)}")
+        logger.error(f"꼬리질문 생성 중 오류 발생: {str(e)}\n{traceback.format_exc()}")
         return [f"꼬리질문 생성 중 오류가 발생했습니다: {str(e)}"]
-
-# Fallback 함수 - LLM이 사용 불가능한 경우 사용
-def generate_fallback_follow_up_questions(answers: Dict[str, str]) -> List[str]:
-    """
-    LLM이 사용 불가능한 경우 간단한 꼬리질문을 생성하는 함수
-    
-    Args:
-        answers (Dict[str, str]): 사용자 답변 (question1, question2, question3)
-        
-    Returns:
-        List[str]: 생성된 꼬리질문 목록
-    """
-    follow_up_questions = []
-    
-    for i in range(3):
-        question_key = f"question{i+1}"
-        answer = answers.get(question_key, "")
-        
-        if not answer:
-            continue
-            
-        # 답변 길이에 따른 꼬리질문 분기
-        if len(answer) < 30:
-            follow_up_questions.append(f"방금 말씀해 주신 내용에 대해 좀 더 자세히 설명해 주실 수 있을까요?")
-        else:
-            # 답변 길이에 따라 다양한 질문 패턴 사용
-            if i == 0:
-                follow_up_questions.append(f"방금 말씀하신 것 중에서 가장 중요하다고 생각하는 부분은 무엇인가요? 그 이유도 함께 알려주세요.")
-            elif i == 1:
-                follow_up_questions.append(f"그런 경험이 당신에게 어떤 의미가 있나요? 어떤 영향을 미쳤나요?")
-            else:
-                follow_up_questions.append(f"그 상황에서 다른 선택을 했다면 어떻게 달라졌을 것 같나요?")
-    
-    return follow_up_questions
 
 async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
     """
@@ -208,24 +284,53 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
         str: 생성된 OPIc IH 수준의 영어 스크립트
     """
     try:
-        # 질문 유형 결정
-        type_key = get_question_type_from_problem_pk(problem_pk)
-        question_type_data = question_types.get(type_key)
+        # MongoDB에서 문제 카테고리 가져오기
+        category = await get_problem_category(problem_pk)
         
-        if not question_type_data:
-            logger.error(f"문제 유형을 찾을 수 없습니다: {type_key}")
-            return "Script generation failed: Question type could not be determined."
+        # DB 조회 실패 시 기본 카테고리 사용
+        if not category:
+            logger.warning(f"MongoDB에서 카테고리를 찾을 수 없어 기본값을 사용합니다: {problem_pk}")
+            category = get_fallback_category(problem_pk)
+            
+        # 카테고리를 질문 유형 키로 변환
+        type_key = get_question_type_key(category)
+        if not type_key or type_key not in question_types:
+            logger.error(f"지원되지 않는 문제 카테고리입니다: {category}")
+            return "Script generation failed: Unsupported question type."
+            
+        question_type_data = question_types[type_key]
         
         # LLM 모델 설정 (Groq LLM 사용)
         llm = ChatGroq(
             temperature=0.7,  # 창의성을 위해 약간 높임
             model_name="llama-3.3-70b-versatile",  # Groq에서 제공하는 Llama 모델
-            api_key="GROQ API"  # Groq API 키
+            api_key=get_next_groq_key()  # Groq API 키
         )
         
-        # 답변 정리 - QuestionAnswers 객체에서 필드를 직접 접근
-        basic_answers = answers["basic_answers"]
+        # 답변 정리
+        if not isinstance(answers, dict):
+            logger.error("answers가 딕셔너리가 아닙니다.")
+            return "Script generation failed: Invalid input format."
+            
+        basic_answers = answers.get("basic_answers", {})
         custom_answers = answers.get("custom_answers", {})
+        
+        # 입력값 타입 체크 및 변환
+        if not isinstance(basic_answers, dict):
+            logger.warning("basic_answers가 딕셔너리가 아닙니다. 변환을 시도합니다.")
+            try:
+                basic_answers = dict(basic_answers)
+            except:
+                logger.error("basic_answers를 딕셔너리로 변환할 수 없습니다.")
+                basic_answers = {}
+                
+        if not isinstance(custom_answers, dict):
+            logger.warning("custom_answers가 딕셔너리가 아닙니다. 변환을 시도합니다.")
+            try:
+                custom_answers = dict(custom_answers)
+            except:
+                logger.error("custom_answers를 딕셔너리로 변환할 수 없습니다.")
+                custom_answers = {}
         
         questions = question_type_data["questions"]
         combined_info = []
@@ -237,23 +342,9 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
             if i <= len(questions):
                 question = questions[i-1]
                 
-                # 객체에서 속성으로 직접 접근
-                try:
-                    # 먼저 딕셔너리인지 확인
-                    if isinstance(basic_answers, dict):
-                        basic_answer = basic_answers.get(answer_key, "")
-                    else:
-                        # 그렇지 않으면 속성으로 접근
-                        basic_answer = getattr(basic_answers, answer_key, "")
-                        
-                    if isinstance(custom_answers, dict):
-                        custom_answer = custom_answers.get(answer_key, "")
-                    else:
-                        custom_answer = getattr(custom_answers, answer_key, "")
-                except AttributeError:
-                    logger.warning(f"답변 접근 오류: {answer_key}")
-                    basic_answer = ""
-                    custom_answer = ""
+                # 안전하게 답변 추출
+                basic_answer = basic_answers.get(answer_key, "")
+                custom_answer = custom_answers.get(answer_key, "")
                 
                 if basic_answer or custom_answer:
                     combined_info.append({
@@ -327,5 +418,47 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
         return script
         
     except Exception as e:
-        logger.error(f"OPIc 스크립트 생성 중 오류 발생: {str(e)}")
-        return f"Script generation failed: Error occurred during generation: {str(e)}"
+        error_msg = f"OPIc 스크립트 생성 중 오류 발생: {str(e)}"
+        logger.error(f"{error_msg}\n{traceback.format_exc()}")
+        return f"Script generation failed: {str(e)}"
+
+# 메인 함수 - 직접 실행 테스트용
+async def main():
+    """
+    모듈 테스트용 메인 함수
+    """
+    test_problem_pk = "639f45d21a8c87e123456789"
+    test_answers = {
+        "basic_answers": {
+            "answer1": "테스트 답변 1입니다.",
+            "answer2": "테스트 답변 2입니다.",
+            "answer3": "테스트 답변 3입니다."
+        },
+        "custom_answers": {
+            "answer1": "커스텀 답변 1입니다.",
+            "answer2": "",
+            "answer3": ""
+        }
+    }
+    
+    try:
+        # 꼬리질문 테스트
+        questions = {
+            "question1": test_answers["basic_answers"]["answer1"],
+            "question2": test_answers["basic_answers"]["answer2"],
+            "question3": test_answers["basic_answers"]["answer3"]
+        }
+        
+        follow_up = await generate_follow_up_questions(test_problem_pk, questions)
+        print("생성된 꼬리질문:")
+        for q in follow_up:
+            print(f"- {q}")
+            
+        # OPIc 스크립트 테스트
+        script = await generate_opic_script(test_problem_pk, test_answers)
+        print("\n생성된 OPIc 스크립트:")
+        print(script)
+        
+    except Exception as e:
+        print(f"테스트 중 오류 발생: {str(e)}")
+        traceback.print_exc()
