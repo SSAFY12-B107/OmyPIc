@@ -1,33 +1,63 @@
-# from sqlalchemy import Column, String, Boolean, Date, ForeignKey, DateTime
-# from sqlalchemy.orm import relationship
+from datetime import datetime, date
+from typing import List, Dict, Optional
+from pydantic import BaseModel, Field, EmailStr
+from bson import ObjectId
 
-# from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-# from fastapi_users.db import SQLAlchemyUserDatabase
+class User(BaseModel):
+    id: Optional[str] = Field(default=None, alias="_id")  # MongoDB의 _id를 문자열로 표현
+    name: str
+    email: Optional[str] = None  # 이메일 필드
+    auth_provider: str = "google"
+    current_opic_score: Optional[str] = None
+    target_opic_score: Optional[str] = None
+    target_exam_date: Optional[date] = None
+    is_onboarded: bool = False
+    created_at: datetime = Field(default_factory=datetime.now)
+    background_survey: dict = Field(default_factory=lambda: {
+        "profession": None,
+        "is_student": None,
+        "studied_lecture": None,
+        "living_place": None,
+        "info": []
+    })
+    # 테스트 횟수 제한 필드 추가
+    limits: dict = Field(default_factory=lambda: {
+        "test_count": 0,  # 7문제 + 15문제 테스트 합산 (최대 3회)
+        "random_problem": 0,  # 랜덤 1문제 (최대 5회)
+        "script_count": 0  # 스크립트 생성 (최대 5회)
+    })
 
-# from db.base_class import Base 
-
-# from datetime import datetime
-
-# class UserModel(SQLAlchemyBaseUserTableUUID, Base):
-#     __tablename__ = "users"
-    
-#     hashed_password = Column(String(length=1024), nullable=True) 
-
-#     name = Column(String(length=100), nullable=False)
-#     current_opic_score = Column(String(length=10), nullable=True)  # 현재 오픽 성적 / 예상 성적 (AL, IH, IM3 등)
-#     target_opic_score = Column(String(length=10), nullable=True)  # 희망 오픽 성적
-#     target_exam_date = Column(Date, nullable=True)  # 희망 시험 일자
-#     auth_provider = Column(String(length=20), nullable=False)  # 'kakao', 'google' 등
-#     is_onboarded = Column(Boolean, default=False)  # 초기 설문 완료 여부
-#     created_at = Column(DateTime, default=datetime.now())
-
-# class SocialAccount(Base):
-#     __tablename__ = "social_accounts"
-    
-#     id = Column(String, primary_key=True)
-#     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-#     provider = Column(String(20), nullable=False)  # 'kakao', 'google' 등
-#     social_id = Column(String(length=100), nullable=False)
-#     social_email = Column(String(length=300), nullable=False)  # 소셜 계정 이메일
-    
-#     user = relationship("UserModel", backref="social_accounts")
+    class Config:
+        populate_by_name = True
+        json_encoders = {
+            ObjectId: str,
+            datetime: lambda dt: dt.isoformat()
+        }
+        
+    @classmethod
+    def from_mongo(cls, mongo_doc):
+        """
+        MongoDB 문서에서 User 모델로 변환
+        """
+        if mongo_doc:
+            # MongoDB의 _id를 문자열로 변환
+            if "_id" in mongo_doc and isinstance(mongo_doc["_id"], ObjectId):
+                mongo_doc["_id"] = str(mongo_doc["_id"])
+                
+            # test_limits 필드가 있으면 limits로 이동
+            if "test_limits" in mongo_doc:
+                mongo_doc["limits"] = mongo_doc.pop("test_limits")
+                
+            # limits 필드가 없는 경우 기본값 추가
+            if "limits" not in mongo_doc:
+                mongo_doc["limits"] = {
+                    "test_count": 0,
+                    "random_problem": 0,
+                    "script_count": 0
+                }
+            # 기존 limits에 script_count가 없는 경우 추가
+            elif "script_count" not in mongo_doc["limits"]:
+                mongo_doc["limits"]["script_count"] = 0
+                
+            return cls(**mongo_doc)
+        return None

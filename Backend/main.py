@@ -1,12 +1,24 @@
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+import time
+import logging
 
+from api import problems_api, tests_api
+from api import auth, users
 from core.config import settings
-# from api.auth import router as auth_router
-from api.users import router as users_router
+from db.mongodb import connect_to_mongo, close_mongo_connection
 
-from db.mongodb import connect_to_mongo, close_mongo_connection, mongo_db
+from prometheus_client import Summary, make_asgi_app
+from starlette.middleware.base import BaseHTTPMiddleware
+
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Prometheus 메트릭 설정 (API 요청 시간 측정)
+# REQUEST_TIME = Summary("request_processing_seconds", "Time spent processing request")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -16,7 +28,7 @@ async def lifespan(app: FastAPI):
     await connect_to_mongo()
     
     # MongoDB 인덱스 생성
-    await setup_mongodb_indexes()
+    await setup_mongo_indexes()
     
     yield  # 애플리케이션 실행
     
@@ -25,30 +37,12 @@ async def lifespan(app: FastAPI):
     
     print("Shutting down...")
 
-async def setup_mongodb_indexes():
+async def setup_mongo_indexes():
     """필요한 MongoDB 인덱스를 설정합니다."""
-    db = mongo_db.db
-    
-    # 사용자 컬렉션 인덱스
-    # await db.users.create_index("email", unique=True)
-    # await db.users.create_index("username")
-    # await db.users.create_index([("social_accounts.provider", 1), 
-    #                             ("social_accounts.provider_user_id", 1)])
-    
-    # # 문제 컬렉션 인덱스
-    # await db.problems.create_index("category")
-    # await db.problems.create_index("problem_type")
-    # await db.problems.create_index([("content", "text")])
-    # await db.problems.create_index("related_problems")
-    
-    # # 테스트 컬렉션 인덱스
-    # await db.tests.create_index("user_id")
-    # await db.tests.create_index("test_type")
-    # await db.tests.create_index("test_title")
-    
     print("MongoDB 인덱스가 생성되었습니다.")
 
 
+# FastAPI 애플리케이션 생성
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description=settings.PROJECT_DESCRIPTION,
@@ -56,25 +50,51 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 기본 라우트
-@app.get("/")
-async def root():
-    return {"message": f"Welcome to {settings.PROJECT_NAME} API"}
+
+# 요청 시간 로깅 + Prometheus 메트릭 수집 미들웨어 추가
+@app.middleware("http")
+async def log_request_time(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    
+    # Prometheus 메트릭 기록
+    # REQUEST_TIME.observe(process_time)
+    
+    # 로깅
+    logger.info(f"URL: {request.url.path}, Time taken: {process_time:.4f} seconds")
+    
+    return response
+
+
+# Prometheus 메트릭 엔드포인트 추가 (/metrics)
+# app.mount("/metrics", make_asgi_app())
 
 # 라우터 등록
-# app.include_router(auth_router, prefix="/api")
-app.include_router(users_router, prefix="/api")
+app.include_router(auth.router, prefix="/api/auth", tags=["인증"])
+app.include_router(users.router, prefix="/api/users", tags=["사용자"])
+app.include_router(tests_api.router, prefix="/api/tests", tags=["모의고사"])
+app.include_router(problems_api.router, prefix="/api/problems", tags=["문제"])
 
-# 앱 실행 부분
+
+@app.get("/")
+async def root():
+    return {
+        "project_name": settings.PROJECT_NAME,
+        "version": settings.PROJECT_VERSION,
+        "message": "OmyPIC API 서비스에 오신 것을 환영합니다!"
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
