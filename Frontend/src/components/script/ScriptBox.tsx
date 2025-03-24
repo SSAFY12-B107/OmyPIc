@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import styles from "./ScriptBox.module.css";
-import opigi from "@/assets/images/opigi.png";
+// import opigi from "@/assets/images/opigi.png";
 import { usePronunciationAudio } from "@/hooks/usePronunciation";
 
 interface ScriptBoxProps {
@@ -27,7 +27,7 @@ function ScriptBox({ userScript }: ScriptBoxProps) {
   const {
     data: audioData,
     isLoading,
-    error,
+    // error,
   } = usePronunciationAudio(firstScriptId as number);
 
   // 오디오 객체 생성 및 이벤트 리스너 설정

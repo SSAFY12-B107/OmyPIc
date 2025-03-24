@@ -9,6 +9,7 @@ import {
   Title,
   Tooltip,
   Legend,
+  ChartOptions
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
 
@@ -23,7 +24,7 @@ ChartJS.register(
 );
 
 interface AverageGradeChartProps {
-  averageScore?: AverageScore | null;
+  averageScore: AverageScore | null | undefined;
 }
 
 // 점수 변환 함수 (등급 → 숫자)
@@ -45,7 +46,7 @@ const AverageGradeChart: React.FC<AverageGradeChartProps> = ({
   averageScore,
 }) => {
   // 차트 옵션 설정
-  const options = {
+  const options: ChartOptions<'bar'> = {
     responsive: true,
     maintainAspectRatio: false,
 
@@ -55,7 +56,6 @@ const AverageGradeChart: React.FC<AverageGradeChartProps> = ({
         callbacks: {
           label: function (context: any) {
             const value = context.raw;
-            console.log(value, value);
             const gradeMap: { [key: number]: string } = {
               100: "AL",
               80: "IH",
@@ -75,7 +75,8 @@ const AverageGradeChart: React.FC<AverageGradeChartProps> = ({
         max: 100,
         ticks: {
           stepSize: 20,
-          callback: function (value: number) {
+          callback: function(tickValue: string | number) {
+            const value = Number(tickValue);
             const labelMap: { [key: number]: string } = {
               0: "IL",
               20: "IM1",
@@ -87,9 +88,20 @@ const AverageGradeChart: React.FC<AverageGradeChartProps> = ({
             return labelMap[value] || "";
           },
         },
-        grid: { drawBorder: false },
+        grid: {
+        },
+        border: {
+          display: false
+        }
       },
-      x: { grid: { display: false } },
+      x: { 
+        grid: { 
+          display: false,
+        },
+        border: {
+          display: false
+        }
+      }
     },
   };
 

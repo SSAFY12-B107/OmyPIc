@@ -1,6 +1,8 @@
-import { useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/hooks/useUser";
+import { useSelector } from 'react-redux';
+import { RootState } from "@/store/store";
 import styles from "./Survey.module.css";
 import Tip from "@/components/survey/Tip";
 import GeneralSurvey from '@/components/survey/GeneralSurvey';
@@ -9,18 +11,60 @@ import Switch from '@/components/survey/Switch';
 import MultiChoice from '@/components/survey/MultiChoice';
 import surveyData from '@/data/surveyData.json';
 
+// 타입 정의 추가
+interface SurveyQuestion {
+  id: string;
+  question: string;
+  options: Array<{
+    value: string | number;
+    label: string;
+    recommended?: boolean;
+  }>;
+  minSelect?: number;
+}
+
+interface SurveyPage {
+  pageId: number;
+  title?: string;
+  description?: string;
+  tip?: string;
+  type: 'single' | 'multiple';
+  questions: SurveyQuestion[];
+}
+
+interface StepData {
+  type: string;
+  pageId: number;
+  title?: string;
+  tip?: string;
+  description?: string;
+  questions?: SurveyQuestion[];
+}
+
+interface SurveyData {
+  profession: string | number;
+  is_student: boolean;
+  studied_lecture: string | number;
+  living_place: string | number;
+  info: (string | number)[];
+}
+
 const Survey = () => {
     const navigate = useNavigate();
     const [currentStep, setCurrentStep] = useState(0);
     const [selectedAnswers, setSelectedAnswers] = useState<Record<string, any>>({});
-    const { submitSurvey } = useUser();
+    
+    // 중복 선언 제거: useUser에서 필요한 함수들 가져오기
+    const { saveProfileAndSurvey } = useUser();
+    
+    // Redux에서 프로필 데이터 가져오기
+    const { profileData } = useSelector((state: RootState) => state.auth);
     
     // JSON 데이터에서 페이지 정보 가져오기
-    const pages = surveyData.surveyData.pages;
-    const totalPages = surveyData.surveyData.totalPages;
+    const pages = surveyData.surveyData.pages as SurveyPage[];
     
     // 중간에 있는 "안내 페이지"를 포함한 전체 단계 구성
-    const steps = [
+    const steps: StepData[] = [
         // 0번째 단계 (첫 번째 전환 페이지)
         {
           type: "switching",
@@ -43,6 +87,8 @@ const Survey = () => {
         ...pages.slice(3).map(page => ({
           type: page.type === "single" ? "survey" : "multichoice",
           pageId: page.pageId,
+          title: page.title,
+          description: page.description,
           tip: page.tip,
           questions: page.questions
         }))
@@ -56,11 +102,6 @@ const Survey = () => {
         console.log("현재 선택된 답변:", selectedAnswers);
     }, [currentStep, selectedAnswers]);
     
-    // 특정 페이지 전에 전환 페이지가 필요한지 확인
-    const needsSwitchingPage = (pageId: number) => {
-        // 페이지 4(여가 활동)는 다중 선택이 시작되는 시점이므로 전환 페이지가 필요
-        return pageId === 4;
-    };
     
     const handlePrev = () => {
         if (currentStep > 0) {
@@ -136,61 +177,61 @@ const Survey = () => {
 
     // 다중 선택 항목의 총 선택 개수 계산
     const getTotalSelectedItems = () => {
-    let total = 0;
-    
-    // 모든 다중 선택 문항(4-7번)의 ID 목록
-    const multiChoiceQuestionIds = pages
-      .filter(page => page.type === 'multiple')
-      .flatMap(page => page.questions.map(q => q.id));
-    
-    // 각 문항에 대해 선택된 항목 개수 합산
-    multiChoiceQuestionIds.forEach(questionId => {
-      const selected = selectedAnswers[questionId];
-      if (selected && Array.isArray(selected)) {
-        total += selected.length;
-      }
-    });
-    
-    return total;
+      let total = 0;
+      
+      // 모든 다중 선택 문항(4-7번)의 ID 목록
+      const multiChoiceQuestionIds = pages
+        .filter(page => page.type === 'multiple')
+        .flatMap(page => page.questions.map(q => q.id));
+      
+      // 각 문항에 대해 선택된 항목 개수 합산
+      multiChoiceQuestionIds.forEach(questionId => {
+        const selected = selectedAnswers[questionId];
+        if (selected && Array.isArray(selected)) {
+          total += selected.length;
+        }
+      });
+      
+      return total;
     };
 
     // 설문 데이터 제출 함수
     const handleSubmit = async () => {
-        try {
-        // 서베이 데이터 구성
-        const surveyData = {
+      try {
+          // 서베이 데이터 구성
+          const surveyData: SurveyData = {
             profession: selectedAnswers['profession'],
             is_student: selectedAnswers['is_student'] === true || selectedAnswers['is_student'] === 'true',
             studied_lecture: selectedAnswers['studied_lecture'],
             living_place: selectedAnswers['living_place'],
             info: [] // 다중 선택 항목 통합
-        };
-        
-        // 모든 다중 선택 응답 통합
-        const multiChoiceQuestionIds = pages
+          };
+          
+          // 모든 다중 선택 응답 통합
+          const multiChoiceQuestionIds = pages
             .filter(page => page.type === 'multiple')
             .flatMap(page => page.questions.map(q => q.id));
-        
-        multiChoiceQuestionIds.forEach(questionId => {
+          
+          multiChoiceQuestionIds.forEach(questionId => {
             const selected = selectedAnswers[questionId];
             if (selected && Array.isArray(selected)) {
-            surveyData.info = [...surveyData.info, ...selected];
+                surveyData.info = [...surveyData.info, ...selected];
             }
-        });
-        
-        console.log('제출할 서베이 데이터:', surveyData);
-        
-        // 서베이 제출
-        const result = await submitSurvey(surveyData);
-        
-        if (result.success) {
+          });
+          
+          console.log('제출할 서베이 데이터:', surveyData);
+          console.log('프로필 데이터:', profileData);
+          
+          // 프로필과 서베이 데이터 함께 저장
+          const result = await saveProfileAndSurvey(surveyData);
+          
+          if (result.success) {
             // 제출 성공 시 메인 페이지로 이동
             navigate('/');
-        }
-        // 실패 시 오류 처리는 이미 useUser 훅에서 처리됨
-        } catch (error) {
-        console.error('서베이 제출 오류:', error);
-        }
+          }
+      } catch (error) {
+          console.error('서베이 제출 오류:', error);
+      }
     };
 
     return (
@@ -207,7 +248,7 @@ const Survey = () => {
                 // 단일 선택 설문
                 <>  
                     <div className={styles.choice}>
-                        {currentStepData.questions.map((question, index) => (
+                        {currentStepData.questions?.map((question, index) => (
                             <div key={question.id} className={index > 0 ? styles.additionalQuestion : ''}>
                                 <GeneralSurvey 
                                     questionNumber={`${currentStepData.pageId}`}
@@ -249,13 +290,13 @@ const Survey = () => {
                     )}
                 </div>
                 
-                {currentStepData.questions.map(question => (
+                {currentStepData.questions?.map(question => (
                     <MultiChoice 
                         key={question.id}
                         questionNumber={`${currentStepData.pageId}`}
                         questionText={question.question}
                         choices={question.options.map(opt => ({
-                            id: typeof opt.value === 'string' ? opt.value : opt.value,
+                            id: opt.value, // 수정된 부분: 불필요한 조건문 제거
                             text: opt.label,
                             recommended: opt.recommended || false
                         }))}
@@ -271,23 +312,22 @@ const Survey = () => {
                     <Tip tipNumber={currentStepData.pageId} />
                 </div>
                 
-
                 <div className={styles["button-group"]}>
-                <NavigationButton 
-                    type="prev" 
-                    onClick={handlePrev}
-                />
-                <NavigationButton 
-                    type="next" 
-                    onClick={handleNext}
-                    // 마지막 단계인 경우 "제출"로 텍스트 변경
-                    label={currentStep === steps.length - 1 ? "제출" : "다음"}
-                />
+                    <NavigationButton 
+                        type="prev" 
+                        onClick={handlePrev}
+                    />
+                    <NavigationButton 
+                        type="next" 
+                        onClick={handleNext}
+                        // 마지막 단계인 경우 "제출"로 텍스트 변경
+                        label={currentStep === steps.length - 1 ? "제출" : "다음"}
+                    />
                 </div>
             </>
-                        )}
-                    </div>
-                );
-            };
+            )}
+        </div>
+    );
+};
 
 export default Survey;
