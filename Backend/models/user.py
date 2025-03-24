@@ -21,9 +21,10 @@ class User(BaseModel):
         "info": []
     })
     # 테스트 횟수 제한 필드 추가
-    test_limits: dict = Field(default_factory=lambda: {
+    limits: dict = Field(default_factory=lambda: {
         "test_count": 0,  # 7문제 + 15문제 테스트 합산 (최대 3회)
-        "random_problem": 0  # 랜덤 1문제 (최대 5회)
+        "random_problem": 0,  # 랜덤 1문제 (최대 5회)
+        "script_count": 0  # 스크립트 생성 (최대 5회)
     })
 
     class Config:
@@ -43,11 +44,20 @@ class User(BaseModel):
             if "_id" in mongo_doc and isinstance(mongo_doc["_id"], ObjectId):
                 mongo_doc["_id"] = str(mongo_doc["_id"])
                 
-            # test_limits 필드가 없는 경우 기본값 추가
-            if "test_limits" not in mongo_doc:
-                mongo_doc["test_limits"] = {
+            # test_limits 필드가 있으면 limits로 이동
+            if "test_limits" in mongo_doc:
+                mongo_doc["limits"] = mongo_doc.pop("test_limits")
+                
+            # limits 필드가 없는 경우 기본값 추가
+            if "limits" not in mongo_doc:
+                mongo_doc["limits"] = {
                     "test_count": 0,
-                    "random_problem": 0
+                    "random_problem": 0,
+                    "script_count": 0
                 }
+            # 기존 limits에 script_count가 없는 경우 추가
+            elif "script_count" not in mongo_doc["limits"]:
+                mongo_doc["limits"]["script_count"] = 0
+                
             return cls(**mongo_doc)
         return None
