@@ -29,10 +29,11 @@ async def create_user(
         "info": []
     }
     
-    # 테스트 제한 정보 추가
-    test_limits = {
+    # 제한 정보 추가 (test_limits -> limits로 변경)
+    limits = {
         "test_count": 0,
-        "random_problem": 0
+        "random_problem": 0,
+        "script_count": 0  # 스크립트 제한 추가
     }
     
     # date 객체를 datetime 객체로 변환 (MongoDB 호환성을 위해)
@@ -51,7 +52,7 @@ async def create_user(
         "is_onboarded": False,
         "created_at": datetime.now(),
         "background_survey": bg_survey,
-        "test_limits": test_limits  # 테스트 제한 추가
+        "test_limits": limits  # 테스트 제한 추가
     }
     
     # MongoDB에 사용자 추가
@@ -60,11 +61,12 @@ async def create_user(
     # 삽입된 ID로 전체 문서 검색
     user = await users_collection.find_one({"_id": result.inserted_id})
     
-    # ObjectId를 문자열로 명시적 변환 - 이 부분이 중요합니다
+    # ObjectId를 문자열로 명시적 변환
     if user and "_id" in user:
         user["_id"] = str(user["_id"])
     
     return user
+
 
 async def get_user_by_email(email: str) -> Optional[Dict]:
     """
