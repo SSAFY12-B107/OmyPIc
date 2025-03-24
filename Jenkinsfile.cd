@@ -11,6 +11,18 @@ pipeline {
     }
     
     stages {
+        
+        stage('Check MR Target') {
+            steps {
+                script {
+                    // MR이 master 브랜치로 향하는 경우에만 진행
+                    if(env.gitlabTargetBranch != 'master') {
+                        error("This pipeline only runs for MRs targeting the master branch")
+                    }
+                }
+            }
+        }
+        
         stage('Deploy') {
             steps {
                 script {
