@@ -7,7 +7,7 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 
 function ScriptMain() {
   // 사용자 정보 가져오기
-  const { data: userInfo, isLoading, error } = useGetUserInfo();
+  const { data: userInfo, isLoading } = useGetUserInfo();
 
   const categories = userInfo?.background_survey?.info
 

@@ -119,13 +119,13 @@ const Header: React.FC = () => {
                 onClick={handleCancelExit}
                 className={styles.cancelButton}
               >
-                종료하기
+                계속하기
               </button>
               <button
                 onClick={handleConfirmExit}
                 className={styles.confirmButton}
               >
-                계속하기기
+                종료하기
               </button>
             </div>
           </div>

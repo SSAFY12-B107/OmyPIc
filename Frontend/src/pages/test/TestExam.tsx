@@ -15,7 +15,17 @@ function TestExam() {
   const audioCache = useRef<Record<string, HTMLAudioElement>>({}).current;
 
   // 문제 모음 가져오기(리덕스)
-  const { currentTest } = useSelector((state: RootState) => state.tests);
+  const currentTest = useSelector((state: RootState) => 
+    state && state.tests ? state.tests.currentTest : undefined
+  );
+
+  const state = useSelector((state: RootState) => state);
+
+  console.log('전체 Redux 상태:', state);
+  console.log('전체 currentTest 상태:', currentTest)
+
+
+
 
   // 테스트 타입에 따른 최대 문제 수 설정
   const maxValue =
@@ -48,18 +58,18 @@ function TestExam() {
 
   const navigate = useNavigate();
 
-  // 테스트 종료 처리 함수
-  const handleEndTest = async () => {
+  // 테스트 종료 처리 함수를 useCallback으로 메모이제이션
+  const handleEndTest = useCallback(async () => {
     try {
       if (!currentTest?._id) {
         console.error("테스트 ID가 없습니다.");
         navigate("/tests");
         return;
       }
-
+  
       // 테스트 종료 API 호출
       await apiClient.delete(`/tests/${currentTest._id}`);
-
+  
       // 성공적으로 API 호출 후 테스트 목록 페이지로 이동
       navigate("/tests");
     } catch (error) {
@@ -67,7 +77,7 @@ function TestExam() {
       // 오류가 발생하더라도 페이지 이동
       navigate("/tests");
     }
-  };
+  }, [currentTest?._id, navigate]);
 
   // 테스트 종료 함수 등록
   useTestEndAction(handleEndTest);
