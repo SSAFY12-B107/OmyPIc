@@ -426,7 +426,7 @@ def create_query_string(params: Dict[str, Any]) -> str:
     return urlencode(params)
 
 @router.post("/refresh-token")
-async def refresh_token(
+async def refresh_token_endpoint(
     refresh_token: Optional[str] = Cookie(None, alias="refresh_token"),
     db = Depends(get_mongodb)
 ):
@@ -443,7 +443,7 @@ async def refresh_token(
         JSONResponse: 새 액세스 토큰과 사용자 정보를 포함한 응답
         
     Raises:
-        HTTPException: 리프레시 토큰이 없거나 유효하지 않은 경우, 또는 블랙리스트에 있는 경우
+        HTTPException: 리프레시 토큰이 없거나 유효하지 않은 경우
     """
     # 리프레시 토큰 필수 확인
     if not refresh_token:
@@ -453,22 +453,16 @@ async def refresh_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # 토큰 블랙리스트 확인
-    is_blacklisted = await is_token_blacklisted(refresh_token, db)
-    if is_blacklisted:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="로그아웃된 토큰입니다",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
     try:
-        # PyJWT를 사용한 토큰 검증
+        # 리프레시 토큰은 REFRESH_TOKEN_SECRET_KEY로 디코딩
         payload = jwt.decode(
             refresh_token,
-            settings.SECRET_KEY,
-            algorithms=[settings.ALGORITHM]
+            settings.REFRESH_TOKEN_SECRET_KEY,  # 리프레시 토큰용 시크릿 키 사용
+            algorithms=[settings.JWT_ALGORITHM]
         )
+        
+        # 디버깅 로그 추가
+        print(f"Refresh token payload: {payload}")
         
         # 사용자 ID 추출
         user_id = payload.get("sub")
@@ -479,8 +473,16 @@ async def refresh_token(
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
-        # MongoDB에서 사용자 정보 조회
-        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        # MongoDB에서 사용자 정보 조회 - 문자열 ID를 ObjectId로 변환
+        try:
+            user = await db.users.find_one({"_id": ObjectId(user_id)})
+        except Exception as e:
+            print(f"Error converting ObjectId: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"유효하지 않은 사용자 ID 형식: {user_id}"
+            )
+            
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -496,24 +498,8 @@ async def refresh_token(
         
         new_access_token = create_access_token(token_payload)
         
-        # 사용자 정보 반환 (필요한 필드만)
-        user_data = {
-            "id": str(user["_id"]),
-            "name": user.get("name"),
-            "auth_provider": user.get("auth_provider"),
-            "current_opic_score": user.get("current_opic_score"),
-            "target_opic_score": user.get("target_opic_score"),
-            "target_exam_date": user.get("target_exam_date"),
-            "is_onboarded": user.get("is_onboarded", False),
-            "background_survey": user.get("background_survey"),
-            "average_score": user.get("average_score"),
-            "test_limits": user.get("test_limits")
-        }
-        
         return JSONResponse(content={
-            "access_token": new_access_token,
-            "token_type": "bearer",
-            "user": user_data
+            "access_token": new_access_token
         })
         
     except jwt.ExpiredSignatureError:
@@ -523,10 +509,128 @@ async def refresh_token(
             detail="만료된 토큰입니다",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.PyJWTError:
-        # PyJWT의 일반 예외 처리
+    except jwt.PyJWTError as e:
+        # PyJWT의 일반 예외 처리 - 자세한 오류 메시지 추가
+        print(f"JWT Error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="유효하지 않은 토큰입니다",
+            detail=f"유효하지 않은 토큰입니다: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    except Exception as e:
+        # 기타 예외 처리 - 디버깅을 위해 추가
+        print(f"Unexpected error in refresh_token: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="서버 오류가 발생했습니다"
+        )
+
+
+
+
+
+
+# @router.post("/refresh-token")
+# async def refresh_token(
+#     refresh_token: Optional[str] = Cookie(None, alias="refresh_token"),
+#     db = Depends(get_mongodb)
+# ):
+#     """
+#     리프레시 토큰을 사용하여 새 액세스 토큰을 발급합니다.
+    
+#     쿠키에서 리프레시 토큰을 가져와 검증한 후, 유효한 경우 새 액세스 토큰을 발급합니다.
+    
+#     Args:
+#         refresh_token (str, optional): 쿠키에 저장된 리프레시 토큰
+#         db: MongoDB 데이터베이스 인스턴스
+        
+#     Returns:
+#         JSONResponse: 새 액세스 토큰과 사용자 정보를 포함한 응답
+        
+#     Raises:
+#         HTTPException: 리프레시 토큰이 없거나 유효하지 않은 경우, 또는 블랙리스트에 있는 경우
+#     """
+#     # 리프레시 토큰 필수 확인
+#     if not refresh_token:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="리프레시 토큰이 필요합니다",
+#             headers={"WWW-Authenticate": "Bearer"},
+#         )
+    
+#     # 토큰 블랙리스트 확인
+#     is_blacklisted = await is_token_blacklisted(refresh_token, db)
+#     if is_blacklisted:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="로그아웃된 토큰입니다",
+#             headers={"WWW-Authenticate": "Bearer"},
+#         )
+    
+#     try:
+#         # PyJWT를 사용한 토큰 검증
+#         payload = jwt.decode(
+#             refresh_token,
+#             settings.JWT_SECRET_KEY,
+#             algorithms=[settings.JWT_ALGORITHM]
+#         )
+        
+#         # 사용자 ID 추출
+#         user_id = payload.get("sub")
+#         if user_id is None:
+#             raise HTTPException(
+#                 status_code=status.HTTP_401_UNAUTHORIZED,
+#                 detail="유효하지 않은 토큰입니다",
+#                 headers={"WWW-Authenticate": "Bearer"},
+#             )
+        
+#         # MongoDB에서 사용자 정보 조회
+#         user = await db.users.find_one({"_id": ObjectId(user_id)})
+#         if not user:
+#             raise HTTPException(
+#                 status_code=status.HTTP_404_NOT_FOUND,
+#                 detail="사용자를 찾을 수 없습니다"
+#             )
+        
+#         # 새 액세스 토큰 생성
+#         token_payload = {
+#             "sub": str(user["_id"]),
+#             "name": user.get("name"),
+#             "auth_provider": user.get("auth_provider")
+#         }
+        
+#         new_access_token = create_access_token(token_payload)
+        
+#         # 사용자 정보 반환 (필요한 필드만)
+#         user_data = {
+#             "id": str(user["_id"]),
+#             "name": user.get("name"),
+#             "auth_provider": user.get("auth_provider"),
+#             "current_opic_score": user.get("current_opic_score"),
+#             "target_opic_score": user.get("target_opic_score"),
+#             "target_exam_date": user.get("target_exam_date"),
+#             "is_onboarded": user.get("is_onboarded", False),
+#             "background_survey": user.get("background_survey"),
+#             "average_score": user.get("average_score"),
+#             "test_limits": user.get("test_limits")
+#         }
+        
+#         return JSONResponse(content={
+#             "access_token": new_access_token,
+#             "user": user_data
+#         })
+        
+#     except jwt.ExpiredSignatureError:
+#         # PyJWT의 만료 예외 처리
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="만료된 토큰입니다",
+#             headers={"WWW-Authenticate": "Bearer"},
+#         )
+#     except jwt.PyJWTError:
+#         # PyJWT의 일반 예외 처리
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="유효하지 않은 토큰입니다",
+#             headers={"WWW-Authenticate": "Bearer"},
+#         )
