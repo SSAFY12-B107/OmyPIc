@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import styles from "./Home.module.css";
 // import CharacterChange from "@/components/home/CharacterChange";
 import LevelChart from "@/components/home/LevelChart";
@@ -49,7 +50,7 @@ function Home() {
           </button>
         </div>
         <div className={styles["user-info"]}>
-          <p>Hello, {userInfo.name}!</p>
+          <p>Hello, {userInfo?.name}!</p>
           {/* <img src="" alt="" /> */}
           {/* user-img 없는 경우 */}
           <div className={styles["basic-img"]}>

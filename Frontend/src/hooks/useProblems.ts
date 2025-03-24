@@ -17,6 +17,11 @@ export interface ProblemDetail {
   };
   user_scripts: any[]; // 필요에 따라 더 구체적인 타입 정의 가능
   test_notes: any[];   // 필요에 따라 더 구체적인 타입 정의 가능
+  script_limit: {
+    used: number;
+    limit: number;
+    remaining: number;
+  }
 }
 
 // 문제 목록 조회를 위한 파라미터 인터페이스
@@ -52,7 +57,11 @@ export const useGetProblemDetail = (problem_id: string) => {
   return useQuery<ProblemDetail>({
     queryKey: ["problem", problem_id],
     queryFn: async () => {
-      const response = await apiClient.get<ProblemDetail>(`/problems/detail/${problem_id}`);
+      const response = await apiClient.get<ProblemDetail>(`/problems/detail/${problem_id}`, {
+        params: {
+          user_id: '67da4792ad60cfdcd742b119'
+        }
+    });
       return response.data;
     }
   })

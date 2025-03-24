@@ -118,23 +118,24 @@ function ScriptWrite() {
   const generateScript = useCallback(() => {
     if (!problemId) return;
     
-    // 이미 커스텀 질문 모드라면 스크립트 생성 후 페이지 이동 (모달 없이)
-    if (isCustomMode) {
-      createScriptMutation.mutate(
-        { problemId, scriptData: scriptRequestData },
-        {
-          onSuccess: () => {
-            // 스크립트 생성 후 스크립트 상세 페이지로 바로 이동
-            navigate(detailPagePath);
-            dispatch(clearScriptState());
-          },
-          onError: (error: Error) => {
-            console.error("스크립트 생성 중 오류가 발생했습니다.", error);
-          }
+    // 이미 커스텀 질문 모드라면 즉시 페이지 이동
+  if (isCustomMode) {
+    // 스크립트 생성 요청 보내기
+    createScriptMutation.mutate(
+      { problemId, scriptData: scriptRequestData },
+      {
+        // 오류 발생 시에만 처리 (성공 핸들러는 필요 없음)
+        onError: (error: Error) => {
+          console.error("스크립트 생성 중 오류가 발생했습니다.", error);
         }
-      );
-      return;
-    }
+      }
+    );
+    
+    // API 응답을 기다리지 않고 즉시 상세 페이지로 이동
+    navigate(detailPagePath);
+    dispatch(clearScriptState());
+    return;
+  }
 
     // 기본 질문 모드라면 모달 표시
     setShowModal(true);
@@ -197,7 +198,7 @@ function ScriptWrite() {
                 onChange={handleAnswerChange}
               ></textarea>
               <div className={styles.imgBox}>
-                <img src={opigi} alt="" />
+                <img src={opigi} alt="opigi-img" />
                 <p>나</p>
               </div>
             </div>
