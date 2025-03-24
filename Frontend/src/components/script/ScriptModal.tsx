@@ -1,18 +1,19 @@
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import styles from "./ScriptModal.module.css";
 import opigi from "@/assets/images/opigi.png";
+import LoadingSpinner from "@/components/common/LoadingSpinner"; // 기존 로딩 스피너 import
 import { setContent, setQuestions, setIsCustomMode } from "@/store/scriptSlice";
 import { QuestionsResponse, useGenerateCustomQuestions } from "@/hooks/useScripts";
 
 interface Props {
-  isGenerating: boolean; // 스크립트 생성 중인지 여부
+  isGenerating: boolean;
   onClose: () => void;
-  scriptContent: string; // 생성된 스크립트 내용
-  detailPagePath: string; // 상세 페이지 경로
-  problemId: string; // 문제 ID
-  currentAnswers: string[]; // 현재 답변 배열
+  scriptContent: string;
+  detailPagePath: string;
+  problemId: string;
+  currentAnswers: string[];
 }
 
 function ScriptModal({
@@ -26,10 +27,16 @@ function ScriptModal({
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const generateCustomQuestionsMutation = useGenerateCustomQuestions();
+  
+  // 꼬리 질문 생성 중 상태 추가
+  const [isGeneratingCustom, setIsGeneratingCustom] = useState(false);
 
   // AI 꼬리 질문 생성 함수
   const generateCustomQuestions = useCallback(() => {
     if (!problemId) return;
+
+    // 꼬리 질문 생성 중 상태로 변경
+    setIsGeneratingCustom(true);
 
     // 기본 질문에 대한 답변을 꼬리 질문 생성 요청으로 변환
     const customQuestionsRequest = {
@@ -42,6 +49,7 @@ function ScriptModal({
       { problemId, answers: customQuestionsRequest },
       {
         onSuccess: (data: QuestionsResponse) => {
+          setIsGeneratingCustom(false);
           if (data.content) {
             dispatch(setContent(data.content));
           }
@@ -52,6 +60,7 @@ function ScriptModal({
           onClose(); // 모달 닫기
         },
         onError: (error: Error) => {
+          setIsGeneratingCustom(false);
           console.error("AI 꼬리 질문 생성 중 오류가 발생했습니다.", error);
           navigate(detailPagePath);
         },
@@ -76,13 +85,24 @@ function ScriptModal({
         <div className={styles.modalTitle}>
           {isGenerating
             ? "스크립트를 생성하고 있어요"
-            : "스크립트가 완성되었어요!"}
+            : isGeneratingCustom 
+              ? "AI 꼬리 질문을 생성하고 있어요" 
+              : "스크립트가 완성되었어요!"}
         </div>
-        <img 
-          src={opigi} 
-          alt="opigi-img" 
-          className={isGenerating ? styles.generatingImage : styles.completedImage} 
-        />
+        
+        {/* 로딩 중이거나 완료된 상태에 따라 다른 UI 표시 */}
+        {isGeneratingCustom ? (
+          <div className={styles.loadingWrapper}>
+            <LoadingSpinner />
+            <p className={styles.loadingText}>꼬리 질문 생성 중...</p>
+          </div>
+        ) : (
+          <img 
+            src={opigi} 
+            alt="opigi-img" 
+            className={isGenerating ? styles.generatingImage : styles.completedImage} 
+          />
+        )}
 
         {isGenerating ? (
           // 스크립트 생성 중일 경우
@@ -93,6 +113,18 @@ function ScriptModal({
             </div>
             <div className={styles.tipTxt}>
               2분 꽉 채워 말하면 고득점 확률 UP!<br/>생각나는 관련 내용을 덧붙여보세요
+            </div>
+          </div>
+        ) : isGeneratingCustom ? (
+          // 꼬리 질문 생성 중일 경우
+          <div className={styles.tipBox}>
+            <div className={styles.tipTitleBox}>
+              <span>Tip</span>
+              <p>AI가 더 구체적인 질문을 생성 중입니다</p>
+            </div>
+            <div className={styles.tipTxt}>
+              잠시만 기다려주세요. 귀하의 답변을 바탕으로<br/>
+              더 깊이 있는 질문을 준비하고 있습니다.
             </div>
           </div>
         ) : (
@@ -111,13 +143,14 @@ function ScriptModal({
                 <button 
                   className={styles.yesBtn} 
                   onClick={handleYesClick}
-                  disabled={generateCustomQuestionsMutation.isPending}
+                  disabled={isGeneratingCustom}
                 >
                   네
                 </button>
                 <button 
                   className={styles.noBtn} 
                   onClick={handleNoClick}
+                  disabled={isGeneratingCustom}
                 >
                   아니요
                 </button>

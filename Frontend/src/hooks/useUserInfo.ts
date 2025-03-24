@@ -6,6 +6,14 @@ import { useDispatch } from 'react-redux';
 // import { clearUser } from '../store/authSlice';
 // import { useAuth } from '../contexts/AuthContext';
 
+interface BackgroundSurvey {
+  profession: number;
+  is_student: boolean;
+  studied_lecture: number;
+  living_place: number;
+  info: string[];
+}
+
 // 사용자 정보 인터페이스 정의
 interface UserInfo {
   _id: string;
@@ -15,9 +23,9 @@ interface UserInfo {
   target_opic_score: string;
   target_exam_date: string;
   is_onboarded: boolean;
-  background_survey: Record<string, any>;
+  background_survey: BackgroundSurvey;
   test: {
-    test_date: (string | null)[]; // 길이 제한 없는 배열
+    test_date: (string | null)[];
     test_score: (string | null)[];
   };
 }

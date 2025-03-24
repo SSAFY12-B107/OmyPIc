@@ -12,6 +12,7 @@ export interface AuthState {
   user: any | null;
   isAuthenticated: boolean;
   profileData: ProfileData;
+  categories: string[]; // 사용자가 선택한 주제 배열
   loading: boolean;
   error: string | null;
 }
@@ -25,6 +26,7 @@ const initialAuthState: AuthState = {
     currentGrade: '',
     examDate: ''
   },
+  categories: [],
   loading: false,
   error: null
 };
@@ -49,6 +51,10 @@ const authSlice = createSlice({
     setProfileData: (state, action: PayloadAction<ProfileData>) => {
       state.profileData = action.payload;
     },
+    // 카테고리 설정 액션
+    setCategories: (state, action: PayloadAction<string[]>) => {
+      state.categories = action.payload;
+    },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload;
     },
@@ -64,6 +70,7 @@ export const {
   clearUser, 
   setProfileField, 
   setProfileData, 
+  setCategories,
   setLoading, 
   setError 
 } = authSlice.actions;
