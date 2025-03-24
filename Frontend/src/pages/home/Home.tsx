@@ -6,8 +6,6 @@ import Navbar from "@/components/common/Navbar";
 import { useTestDate } from '@/hooks/useTestDate';
 import { useGetUserInfo, useLogout } from '@/hooks/useUserInfo';
 import LoadingSpinner from "@/components/common/LoadingSpinner";
-import { useDispatch } from 'react-redux';
-import { setCategories } from '@/store/authSlice';
 
 function Home() {
   // 사용자 정보 가져오기
@@ -19,15 +17,6 @@ function Home() {
   // 시험일 계산 - API에서 받아온 데이터로 교체
   const testDateIso = userInfo?.target_exam_date || "2025-03-19T15:20:11.275000";
   const { formattedDate, dday } = useTestDate(testDateIso);
-
-  const dispatch = useDispatch(); // 추가: Redux dispatch 사용
-  
-  useEffect(() => {
-    // userInfo가 로드되면 categories 설정
-    if (userInfo?.background_survey?.info) {
-      dispatch(setCategories(userInfo.background_survey.info));
-    }
-  }, [userInfo, dispatch]);
 
   // 로딩 상태 처리
   if (userInfoIsLoading) {
