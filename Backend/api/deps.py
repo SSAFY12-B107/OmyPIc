@@ -30,7 +30,6 @@ async def get_current_user(
     프론트엔드에서 전달받은 액세스 토큰으로 현재 사용자 정보를 가져오는 의존성 함수
     """    
     try:
-        
         # 토큰 검증
         payload = jwt.decode(
             credentials.credentials, 
@@ -48,29 +47,63 @@ async def get_current_user(
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="유효하지 않은 인증 정보",
-                headers={"WWW-Authenticate": "Bearer"},
+                headers={
+                    "WWW-Authenticate": "Bearer",
+                    "X-Error-Type": "invalid_payload"  # 오류 유형 식별자
+                },
             )
         
+        try:
+            logger.info(f"ObjectId 변환 시도: {user_id}")
+            user_object_id = ObjectId(user_id)
+            logger.info(f"ObjectId 변환 성공: {user_id}")
+        except Exception as e:
+            logger.error(f"ObjectId 변환 실패: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="유효하지 않은 사용자 ID 형식",
+                headers={
+                    "WWW-Authenticate": "Bearer",
+                    "X-Error-Type": "invalid_user_id_format"  # 오류 유형 식별자
+                },
+            )
+            
         # 사용자 조회
-        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        user = await db.users.find_one({"_id": user_object_id})
         if user is None:
             logger.warning(f"사용자를 찾을 수 없음: {user_id}")
-            # 상태 코드를 401에서 404로 변경
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=status.HTTP_404_NOT_FOUND,  # 404 사용
                 detail="사용자를 찾을 수 없습니다",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-            
-        return User.from_mongo(user)
         
-    except jwt.JWTError:
-        # 이 부분은 401 유지 (인증 실패)
-        logger.error(f"JWT 토큰 검증 실패")
+        logger.info(f"User.from_mongo 메서드로 사용자 객체 생성")
+        user_obj = User.from_mongo(user)
+        logger.info(f"사용자 인증 완료: {user.get('name', '알 수 없음')}")
+        return user_obj
+        
+    except jwt.ExpiredSignatureError:
+        # 토큰 만료 처리 - 특별한 헤더로 구분
+        logger.warning("JWT 토큰이 만료되었습니다")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="유효하지 않은 인증 정보",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="인증 토큰이 만료되었습니다. 리프레시 토큰을 사용하여 갱신하세요.",
+            headers={
+                "WWW-Authenticate": "Bearer",
+                "X-Error-Type": "token_expired"  # 명확한 오류 유형 식별자
+            },
+        )
+    except jwt.InvalidTokenError:
+        # 기타 JWT 검증 실패
+        logger.error("JWT 토큰 검증 실패")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="유효하지 않은 인증 토큰입니다",
+            headers={
+                "WWW-Authenticate": "Bearer",
+                "X-Error-Type": "invalid_token"  # 오류 유형 식별자
+            },
         )
     except HTTPException:
         # 이미 생성된 HTTPException은 그대로 전달
@@ -82,30 +115,8 @@ async def get_current_user(
             detail="인증 처리 중 오류가 발생했습니다",
             headers={"WWW-Authenticate": "Bearer"},
         )
-        
-    except JWTError as e:
-        # 오류 메시지 개선
-        error_msg = str(e)
-        if "expired" in error_msg.lower():
-            logger.error(f"JWT 토큰 만료: {error_msg}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="인증 토큰이 만료되었습니다. 다시 로그인하거나 토큰을 갱신하세요.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        else:
-            logger.error(f"JWT 디코딩 오류: {error_msg}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="유효하지 않은 인증 토큰입니다.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-    except Exception as e:
-        logger.error(f"인증 과정에서 예상치 못한 오류: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="서버 내부 오류가 발생했습니다"
-        )
+    
+    
 
 async def get_current_user_for_multipart(
     request: Request,
