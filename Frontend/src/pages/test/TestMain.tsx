@@ -15,7 +15,7 @@ function TestMain() {
   const {
     data: historyData,
     isLoading,
-  } = useUserHistory("67da47b9ad60cfdcd742b11a");
+  } = useUserHistory();
 
   // 비동기 액션 연결
   const dispatch = useDispatch();
@@ -60,11 +60,11 @@ function TestMain() {
         const response = await apiClient.post(
           `/tests/${test_type}`,
           {},
-          {
-            params: {
-              user_id: "67da47b9ad60cfdcd742b11a",
-            },
-          }
+          // {
+          //   // params: {
+          //   //   user_id: "67da47b9ad60cfdcd742b11a",
+          //   // },
+          // }
         );
 
         // 응답 데이터를 Redux에 저장
