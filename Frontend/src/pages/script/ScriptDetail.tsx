@@ -26,7 +26,7 @@ function ScriptDetail({}: Props) {
   // 스크립트 생성 버튼 클릭 핸들러
   const handleCreateScript = () => {
     // 생성권 한도 체크
-    if (problemDetail.script_limit.remaining === 0 ) {
+    if (problemDetail?.script_limit.remaining === 0 ) {
       alert("오늘은 생성권을 모두 사용했어요🐧");
       return;
     }
