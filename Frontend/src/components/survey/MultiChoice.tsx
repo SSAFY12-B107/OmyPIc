@@ -26,7 +26,6 @@ function MultiChoice({
   selected = [],
   onSelect,
   totalSelected = 0, // 기본값 설정
-  requiredTotal = 12 // 기본값 설정
 }: Props) {
   // 선택된 항목들을 관리하는 상태
   const [selectedItems, setSelectedItems] = useState<(string | number)[]>(selected);
@@ -48,14 +47,6 @@ function MultiChoice({
     if (onSelect) {
       onSelect(updatedItems);
     }
-  };
-
-  // Survey 컴포넌트 내 handleMultiSelect
-  const handleMultiSelect = (questionId: string, values: any[]) => {
-    console.log(`Question ${questionId} selected values:`, values);
-    updateAnswer(questionId, values);
-    // 디버깅용 로그 추가
-    console.log("총 선택 항목 수:", getTotalSelectedItems());
   };
 
   return (

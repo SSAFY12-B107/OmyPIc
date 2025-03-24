@@ -1,4 +1,3 @@
-// src/hooks/useUser.ts
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
@@ -23,26 +22,18 @@ export const useUser = () => {
   // 로그인 상태 확인
   const checkAuth = async () => {
     try {
-      const accessToken = sessionStorage.getItem('access_token');
-      if (!accessToken) return false;
-      
       dispatch(setLoading(true));
-      
-      const response = await fetch(`${API_BASE_URL}/users/me`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
+
+      const response = await fetch(`${API_BASE_URL}/users/`, {
+        credentials: 'include', // 쿠키 기반 인증을 사용할 경우
       });
-      
+
       if (response.ok) {
         const userData = await response.json();
         dispatch(setUser(userData));
         return true;
       } else {
         dispatch(clearUser());
-        sessionStorage.removeItem('access_token');
-        sessionStorage.removeItem('refresh_token');
-        sessionStorage.removeItem('isOnboarded');
         return false;
       }
     } catch (error) {
@@ -56,14 +47,7 @@ export const useUser = () => {
 
   // 로그아웃
   const logout = () => {
-    // Redux 상태 초기화
     dispatch(clearUser());
-    
-    // 세션 스토리지 초기화
-    sessionStorage.removeItem('access_token');
-    sessionStorage.removeItem('refresh_token');
-    sessionStorage.removeItem('isOnboarded');
-    sessionStorage.removeItem('user');
   };
 
   // 프로필 데이터 업데이트
@@ -81,183 +65,108 @@ export const useUser = () => {
     try {
       setIsSubmitting(true);
       dispatch(setLoading(true));
-      
-      const accessToken = sessionStorage.getItem('access_token');
-      if (!accessToken) {
-        throw new Error('인증되지 않았습니다');
+
+      if (!user) {
+        throw new Error('로그인이 필요합니다.');
       }
 
-      const response = await fetch(`${API_BASE_URL}/users/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          current_opic_score: profileData.currentGrade,
-          target_opic_score: profileData.wishGrade,
-          target_exam_date: profileData.examDate
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || '프로필 저장에 실패했습니다');
-      }
-
-      const result = await response.json();
-      
-      // 사용자 정보 업데이트
-      dispatch(setUser({
-        ...user,
+      const requestData = {
+        name: user.name,
+        auth_provider: user.auth_provider,
+        email: user.email,
         current_opic_score: profileData.currentGrade,
         target_opic_score: profileData.wishGrade,
         target_exam_date: profileData.examDate
-      }));
+      };
+
+      console.log('requestData', requestData)
+
+      const response = await fetch(`api/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData)
+      });
+
+      if (!response.ok) {
+        throw new Error('프로필 저장에 실패했습니다');
+      }
+
+      const result = await response.json();
+      dispatch(setUser(result));
 
       return { success: true, data: result };
     } catch (error) {
       console.error('프로필 저장 오류:', error);
-      const errorMsg = error instanceof Error ? error.message : '프로필 저장 중 오류가 발생했습니다';
-      dispatch(setError(errorMsg));
-      return { success: false, error: errorMsg };
+      if (error instanceof Error) {
+        dispatch(setError(error.message));
+      } else {
+        dispatch(setError('An unknown error occurred'));
+      }
+      return { success: false, error: (error instanceof Error) ? error.message : 'An unknown error occurred' };
     } finally {
       setIsSubmitting(false);
       dispatch(setLoading(false));
     }
   };
 
-  // 서베이 데이터 서버에 저장
-  const submitSurvey = async (surveyData: any) => {
+  // 🔹 설문 데이터 저장 요청
+  const saveProfileAndSurvey = async (surveyData: any) => {
     try {
       setIsSubmitting(true);
       dispatch(setLoading(true));
-      
-      const accessToken = sessionStorage.getItem('access_token');
-      if (!accessToken) {
-        throw new Error('인증되지 않았습니다');
-      }
-
-      const response = await fetch(`${API_BASE_URL}/users/survey`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify(surveyData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || '서베이 제출에 실패했습니다');
-      }
-
-      const result = await response.json();
-      
-      // 사용자 정보 업데이트 (onboarded 상태 포함)
-      dispatch(setUser({
-        ...user,
-        is_onboarded: true,
-        background_survey: surveyData
-      }));
-      
-      // 온보딩 완료 상태 저장
-      sessionStorage.setItem('isOnboarded', 'true');
-
-      return { success: true, data: result };
-    } catch (error) {
-      console.error('서베이 제출 오류:', error);
-      const errorMsg = error instanceof Error ? error.message : '서베이 제출 중 오류가 발생했습니다';
-      dispatch(setError(errorMsg));
-      return { success: false, error: errorMsg };
-    } finally {
-      setIsSubmitting(false);
-      dispatch(setLoading(false));
-    }
-  };
-
-    // 프로필과 서베이 데이터를 함께 저장하는 함수
-    const saveProfileAndSurvey = async (surveyData: any) => {
-    try {
-      setIsSubmitting(true);
-      dispatch(setLoading(true));
-      
-      const accessToken = sessionStorage.getItem('access_token');
-      if (!accessToken) {
-        throw new Error('인증되지 않았습니다');
+  
+      if (!user) {
+        throw new Error("로그인이 필요합니다.");
       }
   
-      // 현재 사용자 정보 가져오기
-      const userStr = sessionStorage.getItem('user');
-      if (!userStr) {
-        throw new Error('사용자 정보를 찾을 수 없습니다');
-      }
-      
-      const user = JSON.parse(userStr);
-      
-      // POST /api/users/에 맞는 요청 데이터 구성
+      // 프로필 및 설문 데이터를 모두 포함한 requestData 구성
       const requestData = {
-        name: user.name,
+        name: user.name,  // ✅ 프로필 정보 추가
+        email: user.email,
         auth_provider: user.auth_provider,
-        email: user.email || "user@example.com", // 필요시 기본값 제공
-        current_opic_score: profileData.currentGrade,
-        target_opic_score: profileData.wishGrade,
-        target_exam_date: profileData.examDate,
-        background_survey: surveyData
-      };
-      
-      console.log('저장할 통합 데이터:', requestData);
-      
-      // 사용자 생성 API 호출
-      const response = await fetch(`${API_BASE_URL}/users`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify(requestData)
-      });
-      
-      // 응답 처리
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API 오류 응답:', errorText);
-        try {
-          const errorData = JSON.parse(errorText);
-          throw new Error(errorData.detail || '데이터 저장에 실패했습니다');
-        } catch (e) {
-          throw new Error('데이터 저장에 실패했습니다: ' + errorText);
-        }
-      }
-      
-      const result = await response.json();
-      
-      // 사용자 정보 업데이트
-      dispatch(setUser({
-        ...user,
-        current_opic_score: profileData.currentGrade,
-        target_opic_score: profileData.wishGrade,
-        target_exam_date: profileData.examDate,
+        provider_id: user.provider_id || "",
+        profile_image: user.profile_image || "",
+        current_opic_score: profileData.wishGrade || "",
+        target_opic_score: profileData.wishGrade || "",
+        target_exam_date: profileData.examDate || null,
         is_onboarded: true,
-        background_survey: surveyData
-      }));
-      
-      // 세션 스토리지 업데이트
-      sessionStorage.setItem('user', JSON.stringify(result));
-      sessionStorage.setItem('isOnboarded', 'true');
-      
+        background_survey: {
+          profession: surveyData.profession,
+          is_student: surveyData.is_student,
+          studied_lecture: surveyData.studied_lecture,
+          living_place: surveyData.living_place,
+          info: surveyData.info || []
+        }
+      };
+  
+      console.log("📌 서버로 보내는 데이터:", JSON.stringify(requestData, null, 2));
+  
+      const response = await fetch(`${API_BASE_URL}/users/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestData),
+      });
+  
+      const result = await response.json();
+  
+      if (!response.ok) {
+        console.error("❌ 서버 응답 오류:", JSON.stringify(result, null, 2));
+        throw new Error(result.detail || "설문 저장에 실패했습니다.");
+      }
+  
+      console.log("✅ 서버 응답 성공:", result);
       return { success: true, data: result };
     } catch (error) {
-      console.error('데이터 저장 오류:', error);
-      const errorMsg = error instanceof Error ? error.message : '데이터 저장 중 오류가 발생했습니다';
-      dispatch(setError(errorMsg));
-      return { success: false, error: errorMsg };
+      console.error("❌ 설문 저장 오류:", error);
+      return { success: false, error: error instanceof Error ? error.message : "알 수 없는 오류 발생" };
     } finally {
       setIsSubmitting(false);
       dispatch(setLoading(false));
     }
   };
-
+  
+  
+  
   return {
     user,
     isAuthenticated,
@@ -268,7 +177,6 @@ export const useUser = () => {
     updateProfile,
     updateProfileField,
     saveProfile,
-    submitSurvey,
-    saveProfileAndSurvey
+    saveProfileAndSurvey, // 추가된 함수
   };
 };
