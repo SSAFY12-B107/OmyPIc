@@ -23,7 +23,7 @@ ChartJS.register(
 );
 
 interface AverageGradeChartProps {
-  averageScore?: AverageScore | null;
+  averageScore: AverageScore | null | undefined;
 }
 
 // 점수 변환 함수 (등급 → 숫자)
@@ -126,11 +126,8 @@ const AverageGradeChart: React.FC<AverageGradeChartProps> = ({
   return (
     <div className={styles.container}>
       <div className={styles.chartContainer}>
-        {!averageScore ? (
-          <div className={styles.emptyData}>첫 시험에 도전해보세요!🐧🐟</div>
-        ) : (
           <Bar options={options} data={chartData} />
-        )}
+
       </div>
     </div>
   );
