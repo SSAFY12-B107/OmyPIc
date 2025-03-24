@@ -13,12 +13,12 @@ pipeline {
         )
 
         GIT_AUTHOR_ID = sh(
-            script: "git show -s --pretty=%an"
+            script: "git show -s --pretty=%an",
             returnStdout: true
         )
 
         GIT_AUTHOR_EMAIL = sh(
-            script: "git show -s --pretty=%ae"
+            script: "git show -s --pretty=%ae",
             returnStdout: true
         )
     }
