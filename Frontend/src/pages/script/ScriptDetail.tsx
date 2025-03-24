@@ -26,7 +26,7 @@ function ScriptDetail({}: Props) {
   // 스크립트 생성 버튼 클릭 핸들러
   const handleCreateScript = () => {
     // 생성권 한도 체크
-    if (problemDetail.test_count.used >= problemDetail.test_count.limit) {
+    if (problemDetail.script_limit.used >= problemDetail.script_limit.limit) {
       alert("오늘은 생성권을 모두 사용했어요🐧");
       return;
     }
@@ -110,7 +110,7 @@ function ScriptDetail({}: Props) {
       </div>
 
       <div className={styles.countLimit}>
-        오늘의 생성권 {problemDetail.test_count.used}/{problemDetail.test_count.limit}회🐧
+        오늘의 생성권 {problemDetail.script_limit.used}/{problemDetail.script_limit.limit}회🐧
       </div>
       
       <button 
