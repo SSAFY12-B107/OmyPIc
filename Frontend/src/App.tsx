@@ -11,6 +11,7 @@ import ScriptMain from "./pages/script/ScriptMain";
 import ScriptList from "./pages/script/ScriptList";
 import ScriptDetail from "./pages/script/ScriptDetail";
 import ScriptWrite from "./pages/script/ScriptWrite";
+import AuthCallback from "./pages/auth/AuthCallback";
 
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
         <Route path="/auth/login" element={<Login />} />
         <Route path="/auth/survey" element={<Survey />} />
         <Route path="/auth/profile" element={<Profile />} />
+        <Route path="/callback" element={<AuthCallback />} />
 
         {/* Test 관련 라우트 */}
         <Route path="/tests" element={<TestMain />} />

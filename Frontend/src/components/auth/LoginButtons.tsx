@@ -5,9 +5,24 @@ import googleLogin from '@/assets/images/google_login.png'
 function LoginButtons() {
   // Google 로그인 처리 함수
   const handleGoogleLogin = () => {
+    // 서버 요청을 위한 옵션 설정
+    const requestOptions = {
+      method: 'GET',
+      credentials: 'include', // 쿠키 포함
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      mode: 'cors' // CORS 모드 명시
+    };
+
     // HTTP로 요청
-    fetch('http://localhost:8000/api/auth/google/login')
-      .then(response => response.json())
+    fetch('http://localhost:8000/api/auth/google/login', requestOptions)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then(data => {
         console.log('받은 인증 URL:', data.auth_url);
         if (data.auth_url) {
@@ -23,6 +38,8 @@ function LoginButtons() {
       })
       .catch(error => {
         console.error('구글 로그인 초기화 오류:', error);
+        // 오류 발생 시 직접 리다이렉트 시도 (백업 방법)
+        window.location.href = 'http://localhost:8000/api/auth/google/login';
       });
   };
 
