@@ -10,7 +10,7 @@ import {
   setError,
   ProfileData
 } from '../store/authSlice';
-import { RootState } from '../store';
+import { RootState } from '../store/store';
 
 // API 기본 URL
 const API_BASE_URL = 'http://localhost:8000/api';
@@ -87,33 +87,62 @@ export const useUser = () => {
         throw new Error('인증되지 않았습니다');
       }
 
-      const response = await fetch(`${API_BASE_URL}/users/profile`, {
-        method: 'PUT',
+      // 현재 유저 정보 가져오기
+      let userData = user;
+      if (!userData) {
+        const userStr = sessionStorage.getItem('user');
+        if (userStr) {
+          userData = JSON.parse(userStr);
+        } else {
+          userData = {
+            name: '사용자',
+            auth_provider: 'google',
+            email: 'user@example.com'
+          };
+        }
+      }
+
+      // 프로필 요청 데이터 구성
+      const requestData = {
+        name: userData.name || '사용자',
+        auth_provider: userData.auth_provider || 'google',
+        email: userData.email || 'user@example.com',
+        current_opic_score: profileData.currentGrade,
+        target_opic_score: profileData.wishGrade,
+        target_exam_date: profileData.examDate
+      };
+
+      // users 엔드포인트에 POST 요청
+      const response = await fetch(`${API_BASE_URL}/users`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`
         },
-        body: JSON.stringify({
-          current_opic_score: profileData.currentGrade,
-          target_opic_score: profileData.wishGrade,
-          target_exam_date: profileData.examDate
-        })
+        body: JSON.stringify(requestData)
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || '프로필 저장에 실패했습니다');
+        const errorText = await response.text();
+        throw new Error(errorText || '프로필 저장에 실패했습니다');
       }
 
       const result = await response.json();
       
       // 사용자 정보 업데이트
       dispatch(setUser({
-        ...user,
+        ...result,
         current_opic_score: profileData.currentGrade,
         target_opic_score: profileData.wishGrade,
         target_exam_date: profileData.examDate
       }));
+
+      // 세션 스토리지에 사용자 정보 저장
+      try {
+        sessionStorage.setItem('user', JSON.stringify(result));
+      } catch (e) {
+        console.warn('사용자 정보 저장 실패:', e);
+      }
 
       return { success: true, data: result };
     } catch (error) {
@@ -138,31 +167,65 @@ export const useUser = () => {
         throw new Error('인증되지 않았습니다');
       }
 
-      const response = await fetch(`${API_BASE_URL}/users/survey`, {
+      // 현재 유저 정보 가져오기
+      let userData = user;
+      if (!userData) {
+        const userStr = sessionStorage.getItem('user');
+        if (userStr) {
+          userData = JSON.parse(userStr);
+        } else {
+          userData = {
+            name: '사용자',
+            auth_provider: 'google',
+            email: 'user@example.com'
+          };
+        }
+      }
+
+      // 요청 데이터 구성
+      const requestData = {
+        name: userData.name || '사용자',
+        auth_provider: userData.auth_provider || 'google',
+        email: userData.email || 'user@example.com',
+        current_opic_score: userData.current_opic_score || profileData.currentGrade,
+        target_opic_score: userData.target_opic_score || profileData.wishGrade,
+        target_exam_date: userData.target_exam_date || profileData.examDate,
+        background_survey: surveyData
+      };
+
+      // users 엔드포인트에 POST 요청
+      const response = await fetch(`${API_BASE_URL}/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`
         },
-        body: JSON.stringify(surveyData)
+        body: JSON.stringify(requestData)
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || '서베이 제출에 실패했습니다');
+        const errorText = await response.text();
+        throw new Error(errorText || '서베이 제출에 실패했습니다');
       }
 
       const result = await response.json();
       
       // 사용자 정보 업데이트 (onboarded 상태 포함)
       dispatch(setUser({
-        ...user,
+        ...result,
         is_onboarded: true,
         background_survey: surveyData
       }));
       
       // 온보딩 완료 상태 저장
       sessionStorage.setItem('isOnboarded', 'true');
+      
+      // 세션 스토리지에 사용자 정보 저장
+      try {
+        sessionStorage.setItem('user', JSON.stringify(result));
+      } catch (e) {
+        console.warn('사용자 정보 저장 실패:', e);
+      }
 
       return { success: true, data: result };
     } catch (error) {
@@ -176,8 +239,8 @@ export const useUser = () => {
     }
   };
 
-    // 프로필과 서베이 데이터를 함께 저장하는 함수
-    const saveProfileAndSurvey = async (surveyData: any) => {
+  // 프로필과 서베이 데이터를 함께 저장하는 함수
+  const saveProfileAndSurvey = async (surveyData: any) => {
     try {
       setIsSubmitting(true);
       dispatch(setLoading(true));
@@ -187,19 +250,28 @@ export const useUser = () => {
         throw new Error('인증되지 않았습니다');
       }
   
-      // 현재 사용자 정보 가져오기
-      const userStr = sessionStorage.getItem('user');
-      if (!userStr) {
-        throw new Error('사용자 정보를 찾을 수 없습니다');
+      // 현재 사용자 정보 확인
+      let userData = user;
+      
+      // Redux에 사용자 정보가 없는 경우 세션 스토리지 확인
+      if (!userData) {
+        const userStr = sessionStorage.getItem('user');
+        if (userStr) {
+          userData = JSON.parse(userStr);
+        } else {
+          userData = {
+            name: '사용자',
+            auth_provider: 'google',
+            email: 'user@example.com'
+          };
+        }
       }
       
-      const user = JSON.parse(userStr);
-      
-      // POST /api/users/에 맞는 요청 데이터 구성
+      // POST /api/users/ 엔드포인트에 맞는 요청 데이터 구성
       const requestData = {
-        name: user.name,
-        auth_provider: user.auth_provider,
-        email: user.email || "user@example.com", // 필요시 기본값 제공
+        name: userData.name || '사용자',
+        auth_provider: userData.auth_provider || 'google',
+        email: userData.email || "user@example.com",
         current_opic_score: profileData.currentGrade,
         target_opic_score: profileData.wishGrade,
         target_exam_date: profileData.examDate,
@@ -208,7 +280,7 @@ export const useUser = () => {
       
       console.log('저장할 통합 데이터:', requestData);
       
-      // 사용자 생성 API 호출
+      // users 엔드포인트로 POST 요청
       const response = await fetch(`${API_BASE_URL}/users`, {
         method: 'POST',
         headers: {
@@ -222,29 +294,24 @@ export const useUser = () => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('API 오류 응답:', errorText);
-        try {
-          const errorData = JSON.parse(errorText);
-          throw new Error(errorData.detail || '데이터 저장에 실패했습니다');
-        } catch (e) {
-          throw new Error('데이터 저장에 실패했습니다: ' + errorText);
-        }
+        throw new Error('데이터 저장에 실패했습니다: ' + errorText);
       }
       
       const result = await response.json();
       
       // 사용자 정보 업데이트
       dispatch(setUser({
-        ...user,
-        current_opic_score: profileData.currentGrade,
-        target_opic_score: profileData.wishGrade,
-        target_exam_date: profileData.examDate,
-        is_onboarded: true,
-        background_survey: surveyData
+        ...result,
+        is_onboarded: true
       }));
       
       // 세션 스토리지 업데이트
-      sessionStorage.setItem('user', JSON.stringify(result));
       sessionStorage.setItem('isOnboarded', 'true');
+      try {
+        sessionStorage.setItem('user', JSON.stringify(result));
+      } catch (e) {
+        console.warn('사용자 정보 저장 실패:', e);
+      }
       
       return { success: true, data: result };
     } catch (error) {
