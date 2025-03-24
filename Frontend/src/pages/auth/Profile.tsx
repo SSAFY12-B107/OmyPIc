@@ -99,35 +99,27 @@ function ProfilePage() {
     console.log("이전 버튼 클릭");
   };
 
-  const handleNext = async () => {
+  const handleNext = () => {
     if (!validateForm()) {
       return;
     }
     
-    // 프로필 데이터를 Redux에 저장
+    // 프로필 데이터를 Redux에만 저장하고 API 호출은 하지 않음
     dispatch(setProfileData({
       wishGrade: formData.wishGrade,
       currentGrade: formData.currentGrade,
       examDate: formData.examDate
     }));
     
-    // 백엔드에 프로필 저장
-    const result = await saveProfile();
+    // localStorage에도 저장 (선택적)
+    localStorage.setItem("profileData", JSON.stringify({
+      wishGrade: formData.wishGrade,
+      currentGrade: formData.currentGrade,
+      examDate: formData.examDate
+    }));
     
-    if (result.success) {
-      // localStorage도 사용하는 경우 (선택적)
-      localStorage.setItem("profileData", JSON.stringify({
-        wishGrade: formData.wishGrade,
-        currentGrade: formData.currentGrade,
-        examDate: formData.examDate
-      }));
-      
-      // 다음 페이지로 이동
-      navigate("/auth/survey");
-    } else {
-      // 에러 처리 (이미 useUser 훅에서 처리됨)
-      console.error("프로필 저장 실패:", result.error);
-    }
+    // 서베이 페이지로 이동
+    navigate("/auth/survey");
   };
 
   return (
