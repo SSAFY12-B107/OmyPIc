@@ -3,7 +3,6 @@ import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'ax
 
 // 기본 설정
 const BASE_URL = 'http://localhost:8000/api';
-const SESSION_TOKEN_KEY = 'session_token';
 
 // Access Token을 세션 스토리지에서 가져오는 함수
 const getAccessToken = (): string | null => {
@@ -48,24 +47,28 @@ apiClient.interceptors.response.use(
   },
   async (error: AxiosError) => {
     const originalRequest = error.config;
+
+    // 오류 유형 확인
+    const errorType = error.response?.headers['x-error-type'];
     
-    // AccessToken 만료 에러 체크 (서버 응답에 따라 수정 필요!!)
-    if (error.response?.status === 401 && originalRequest) {
+    // AccessToken 만료 에러 체크
+    if (error.response?.status === 401 && errorType === 'token_expired' && originalRequest) {
       try {
-        // 토큰 갱신 요청
-        const response = await apiClient.post('/auth/refresh-token', {});
-        
-        // 새 액세스 토큰 저장
-        const newToken = response.data.accessToken;
-        setAccessToken(newToken);
-        
-        // 실패한 요청의 헤더에 새 토큰 설정
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        }
-        
-        // 원래 요청 재시도
-        return apiClient(originalRequest);
+          // 토큰 갱신 요청
+          const response = await apiClient.post('/auth/refresh-token', {});
+          
+          // 새 액세스 토큰 저장
+          const newToken = response.data.accessToken;
+          setAccessToken(newToken);
+          
+          // 실패한 요청의 헤더에 새 토큰 설정
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          }
+
+          // 원래 요청 재시도
+          return apiClient(originalRequest);
+          
       } catch (refreshError) {
         // 토큰 갱신 실패 시 로그아웃 처리 등
         sessionStorage.removeItem('access_token');
