@@ -17,7 +17,7 @@ try:
     from langchain.prompts import ChatPromptTemplate
     from langchain.prompts.chat import SystemMessagePromptTemplate, HumanMessagePromptTemplate
     from api.deps import get_next_groq_key, get_next_gemini_key
-    from models.database import db
+    from db.mongodb import get_mongodb, get_collection
 except ImportError as e:
     logger.error(f"필수 모듈 임포트 실패: {str(e)}")
 
@@ -126,7 +126,7 @@ async def get_problem_category(problem_pk: str) -> str:
     """
     try:
         # problems 컬렉션에서 해당 ID의 문서 조회
-        problem = await db.problems.find_one({"_id": problem_pk})
+        problem = await get_mongodb().problems.find_one({"_id": problem_pk})
         
         if not problem or "problem_category" not in problem:
             logger.error(f"문제 정보를 찾을 수 없거나 카테고리 정보가 없습니다: {problem_pk}")
@@ -254,8 +254,8 @@ async def generate_follow_up_questions(problem_pk: str, answers: Dict[str, str])
             ])
             
             # 꼬리질문 생성
-            chain = LLMChain(llm=llm, prompt=chat_prompt)
-            follow_up = await chain.arun({})
+            chain = chat_prompt | llm
+            follow_up = await chain.ainvoke({})
             
             # 결과 정리 (불필요한 따옴표나 공백 제거)
             follow_up = follow_up.strip().strip('"\'')
@@ -407,8 +407,8 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
         ])
         
         # 스크립트 생성
-        chain = LLMChain(llm=llm, prompt=chat_prompt)
-        script = await chain.arun({
+        chain = chat_prompt | llm
+        script = await chain.ainvoke({
             "topic_type": question_type_data["type"],
             "answer_details": answer_details
         })
