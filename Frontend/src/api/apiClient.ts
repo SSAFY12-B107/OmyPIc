@@ -53,7 +53,7 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && originalRequest) {
       try {
         // 토큰 갱신 요청
-        const response = await apiClient.post('/auth/refresh', {});
+        const response = await apiClient.post('/auth/refresh-token', {});
         
         // 새 액세스 토큰 저장
         const newToken = response.data.accessToken;

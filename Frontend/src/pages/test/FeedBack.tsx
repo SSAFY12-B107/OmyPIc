@@ -1,5 +1,5 @@
 // FeedBack.tsx
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import styles from "./Feedback.module.css";
 import DetailFeedBack from "@/components/test/DetailFeedback";
@@ -9,7 +9,7 @@ import {
   getProblemData,
   getTotalProblems,
 } from "@/hooks/useFeedBack";
-import apiClient from "@/api/apiClient";
+
 
 function TestFeedback() {
   // URL에서 test_pk 파라미터 가져오기
@@ -18,8 +18,6 @@ function TestFeedback() {
   // 피드백 데이터 가져오기
   const {
     data: feedbackData,
-    isLoading,
-    isError,
     error,
   } = useFeedback(test_pk);
 

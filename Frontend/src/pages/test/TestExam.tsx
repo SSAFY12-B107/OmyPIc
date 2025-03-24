@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import styles from "./TestExam.module.css";
 import avatar from "@/assets/images/avatar.png";
 import animation from "@/assets/images/speaking_animate.png";
-import { RootState } from "@/store/testSlice";
+import { RootState } from "@/store/store";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { useTestEndAction } from '@/contexts/HeaderContext';
@@ -262,7 +262,7 @@ function TestExam() {
         console.log("currentTest?.problem_id", currentTest?.problem_id);
         // params 대신 FormData에 직접 추가
         formData.append("problem_id", currentTest.problem_id);
-        formData.append("user_id", "67da47b9ad60cfdcd742b11a");
+        // formData.append("user_id", "67da47b9ad60cfdcd742b11a");
 
         response = await apiClient.post(
           "tests/random-problem/evaluate",

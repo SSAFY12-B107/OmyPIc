@@ -75,6 +75,7 @@
   color: #333;
   display: -webkit-box;
   -webkit-line-clamp: 2; /* 최대 2줄 */
+  line-clamp: 2; /* 표준 속성 추가 */
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
