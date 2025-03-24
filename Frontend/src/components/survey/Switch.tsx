@@ -1,4 +1,3 @@
-import React from 'react';
 import styles from './Switch.module.css';
 import NavigationButton from "@/components/common/NavigationButton";
 import opigi from "../../assets/images/opigi.png";

@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import styles from "./Home.module.css";
 // import CharacterChange from "@/components/home/CharacterChange";
 import LevelChart from "@/components/home/LevelChart";

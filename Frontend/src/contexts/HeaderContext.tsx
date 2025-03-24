@@ -176,11 +176,7 @@ export const useTestEndAction = (action: () => void) => {
   }, [action]);
 
   useEffect(() => {
-    setTestEndAction(
-      () =>
-        (...args: any[]) =>
-          actionRef.current(...args)
-    );
+    setTestEndAction(() => () => actionRef.current());
 
     return () => {
       setTestEndAction(null);
