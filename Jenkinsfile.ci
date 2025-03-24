@@ -28,8 +28,7 @@ pipeline {
             steps {
                 checkout([
                     $class: 'GitSCM',
-                    branches: [[name: "${env.gitlabSourceBranch}"]],
-                    extensions: [[$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: 'origin', mergeTarget: "${env.gitlabTargetBranch}"]]],
+                    branches: [[name: "dev"]],
                     userRemoteConfigs: [[url: 'https://lab.ssafy.com/s12-ai-speech-sub1/S12P21B107.git', credentialsId: 'gitlab-user-pwd']]
                 ])
             }
@@ -39,7 +38,7 @@ pipeline {
             steps {
                 script {
                     if (env.gitlabTargetBranch != 'dev' && !env.GIT_BRANCH.endsWith('dev')) {
-                        error("This pipeline only runs for MRs targeting the dev branch")
+                        error("This pipeline only runs for pushes targeting the dev branch")
                     }
                 }
             }
