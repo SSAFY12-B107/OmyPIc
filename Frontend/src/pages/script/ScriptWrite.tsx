@@ -197,7 +197,7 @@ function ScriptWrite() {
                 onChange={handleAnswerChange}
               ></textarea>
               <div className={styles.imgBox}>
-                <img src={opigi} alt="" />
+                <img src={opigi} alt="opigi-img" />
                 <p>나</p>
               </div>
             </div>

@@ -7,7 +7,7 @@ function CharacterChange({}: Props) {
   return (
     <div className={styles['character-change']}>
       <p>[학습의지가 불타서 행복해!]</p>
-      <img src={opigi} alt="" />
+      <img src={opigi} alt="opigi-img" />
     </div>
   )
 }
