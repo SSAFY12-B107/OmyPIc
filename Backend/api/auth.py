@@ -260,25 +260,11 @@ async def google_callback(
         frontend_callback_url = f"{settings.FRONTEND_URL}/?code={temp_code}"
         return RedirectResponse(url=frontend_callback_url)
 
-
 @router.post("/exchange-token")
 async def exchange_token(
     code: str = Body(..., embed=True),
     db = Depends(get_mongodb)
 ):
-    """
-    임시 코드를 실제 JWT 토큰으로 교환하는 엔드포인트
-    
-    Args:
-        code (str): 임시 코드
-        db: MongoDB 데이터베이스 인스턴스
-        
-    Returns:
-        JSONResponse: JWT 토큰과 사용자 정보를 포함한 응답
-        
-    Raises:
-        HTTPException: 유효하지 않거나 만료된 코드일 경우
-    """
     # MongoDB에서 임시 코드 검색
     temp_code_doc = await db.temp_codes.find_one({
         "code": code,
@@ -295,12 +281,26 @@ async def exchange_token(
     # 코드 사용 후 삭제 (일회용)
     await db.temp_codes.delete_one({"code": code})
     
+    # user 객체에서 datetime 필드를 문자열로 변환
+    user_data = temp_code_doc["user"]
+    
+    # user 객체에 datetime 필드가 있다면 ISO 형식 문자열로 변환
+    if isinstance(user_data, dict):
+        for key, value in list(user_data.items()):
+            if isinstance(value, datetime):
+                user_data[key] = value.isoformat()
+            # 중첩된 dictionary도 처리
+            elif isinstance(value, dict):
+                for sub_key, sub_value in list(value.items()):
+                    if isinstance(sub_value, datetime):
+                        value[sub_key] = sub_value.isoformat()
+    
     # 응답 생성
     response = JSONResponse(
         content={
             "access_token": temp_code_doc["access_token"],
             "token_type": "bearer",
-            "user": temp_code_doc["user"]
+            "user": user_data
         }
     )
     
