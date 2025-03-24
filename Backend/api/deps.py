@@ -1,7 +1,8 @@
 # Backend/api/deps.py
-from fastapi import Depends, HTTPException, status, Cookie
+from fastapi import Depends, HTTPException, status, Cookie, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from db.mongodb import get_mongodb
+from motor.motor_asyncio import AsyncIOMotorDatabase as Database
 from bson import ObjectId
 from bson.errors import InvalidId
 from datetime import datetime
@@ -50,35 +51,37 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
-        # 사용자 조회 (ObjectId 또는 문자열 ID로)
-        users_collection = db["users"]
-        user_data = None
-        
-        # 방법 1: ObjectId로 조회 시도
-        try:
-            object_id = ObjectId(user_id)
-            logger.info(f"ObjectId 변환 성공: {object_id}")
-            user_data = await users_collection.find_one({"_id": object_id})
-        except InvalidId:
-            logger.warning(f"ObjectId 변환 실패: {user_id}")
-            # ObjectId 변환 실패 시 문자열 ID로 시도하지 않고 오류 발생
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="유효하지 않은 사용자 ID 형식입니다."
-            )
-        
-        if user_data is None:
+        # 사용자 조회
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        if user is None:
             logger.warning(f"사용자를 찾을 수 없음: {user_id}")
+            # 상태 코드를 401에서 404로 변경
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="사용자를 찾을 수 없습니다"
+                detail="사용자를 찾을 수 없습니다",
+                headers={"WWW-Authenticate": "Bearer"},
             )
             
-        # User.from_mongo 메서드 활용
-        logger.info("User.from_mongo 메서드로 사용자 객체 생성")
-        user = User.from_mongo(user_data)
-        logger.info(f"사용자 인증 완료: {user.name}")
-        return user
+        return User.from_mongo(user)
+        
+    except jwt.JWTError:
+        # 이 부분은 401 유지 (인증 실패)
+        logger.error(f"JWT 토큰 검증 실패")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="유효하지 않은 인증 정보",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except HTTPException:
+        # 이미 생성된 HTTPException은 그대로 전달
+        raise
+    except Exception as e:
+        logger.error(f"인증 과정에서 예상치 못한 오류: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="인증 처리 중 오류가 발생했습니다",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
         
     except JWTError as e:
         # 오류 메시지 개선
@@ -104,38 +107,64 @@ async def get_current_user(
             detail="서버 내부 오류가 발생했습니다"
         )
 
-
-
-# OAuth2 스키마 설정
-# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
-
-# async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
-#     """
-#     현재 인증된 사용자 정보 가져오기 (필수)
-#     """
-#     if not token:
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="인증이 필요합니다",
-#             headers={"WWW-Authenticate": "Bearer"},
-#         )
+async def get_current_user_for_multipart(
+    request: Request,
+    db: Database = Depends(get_mongodb)
+) -> User:
+    """파일 업로드 요청에서 사용자 인증을 처리합니다."""
+    try:
+        # 헤더에서 Authorization 토큰 추출 시도
+        auth_header = request.headers.get("Authorization")
+        if auth_header:
+            # Bearer 토큰 추출
+            try:
+                scheme, token = auth_header.split()
+                if scheme.lower() != "bearer":
+                    raise HTTPException(status_code=401, detail="Bearer 형식의 토큰이 필요합니다")
+                
+                # 토큰 검증
+                payload = jwt.decode(
+                    token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+                )
+                user_id = payload.get("sub")
+                
+                if not user_id:
+                    raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다")
+                
+                # 사용자 조회
+                user = await db.users.find_one({"_id": ObjectId(user_id)})
+                if not user:
+                    raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+                
+                return User.from_mongo(user)
+            except ValueError:
+                # Authorization 헤더가 "Bearer 토큰" 형식이 아닌 경우
+                raise HTTPException(status_code=401, detail="잘못된 인증 형식입니다")
+            except jwt.JWTError:
+                # 토큰 검증 실패
+                raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다")
         
-#     return await get_current_user(token)
-
-
-# async def get_current_user_id_from_token(token: str = Depends(oauth2_scheme)) -> str:
-#     """
-#     현재 인증된 사용자 ID 가져오기
-#     """
-#     if not token:
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="인증이 필요합니다",
-#             headers={"WWW-Authenticate": "Bearer"},
-#         )
-#     user = await auth_service.get_current_user(token)
-#     return user["_id"]  # 사용자 ID 반환
-
+        # 폼 데이터에서 user_id 추출 시도
+        form = await request.form()
+        if "user_id" not in form:
+            raise HTTPException(status_code=401, detail="인증 정보가 필요합니다")
+        
+        user_id = form.get("user_id")
+        if not ObjectId.is_valid(user_id):
+            raise HTTPException(status_code=400, detail="유효하지 않은 사용자 ID 형식입니다")
+        
+        # 사용자 조회
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+        
+        return User.from_mongo(user)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"인증 처리 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=401, detail="인증에 실패했습니다")
 
 # API 키 순환자 초기화
 _gemini_key_cycle = None

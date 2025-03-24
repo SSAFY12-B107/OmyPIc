@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Path, status, Query, Response, UploadFile, File, BackgroundTasks, Body
+from fastapi import APIRouter, HTTPException, Depends, Path, status, Query, Response, UploadFile, File, BackgroundTasks, Body, Form
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 import traceback
 from typing import Any, Dict, Union
@@ -7,6 +7,8 @@ from motor.motor_asyncio import AsyncIOMotorDatabase as Database
 
 from datetime import datetime
 from db.mongodb import get_mongodb
+from api.deps import get_current_user, get_current_user_for_multipart
+from models.user import User
 
 import base64
 import os
@@ -31,25 +33,20 @@ evaluator = ResponseEvaluator()
 
 router = APIRouter()
 
-@router.get("/history/{user_pk}", response_model=TestHistoryResponse)
+@router.get("/history", response_model=TestHistoryResponse)
 async def get_test_history(
-    user_pk: str,
+    current_user: User = Depends(get_current_user),
     db: Database = Depends(get_mongodb)
 ) -> Any:
     """
-    모의고사 히스토리 조회
+    로그인한 사용자의 모의고사 히스토리 조회
     """
     try:
-        # 사용자 정보 조회
-        user = await db.users.find_one({"_id": ObjectId(user_pk)})
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="해당 사용자를 찾을 수 없습니다."
-            )
-
+        # 현재 사용자 정보 사용
+        user_pk = str(current_user.id)
+        
         # 사용자의 테스트 생성 횟수 정보 가져오기
-        test_limits = user.get("test_limits", {"test_count": 0, "random_problem": 0})
+        test_limits = current_user.test_limits if hasattr(current_user, 'test_limits') else {"test_count": 0, "random_problem": 0}
         
         # 남은 횟수 계산
         test_counts = {
@@ -63,6 +60,7 @@ async def get_test_history(
                 "limit": 5,
                 "remaining": max(0, 5 - test_limits.get("random_problem", 0))
             }
+            # script_count 필드 제거함
         }
 
         # 사용자의 테스트 내역 조회
@@ -81,10 +79,12 @@ async def get_test_history(
             })
 
         # 응답 생성
+        average_score = current_user.average_score if hasattr(current_user, 'average_score') else None
+        
         response = {
-            "average_score": user.get("average_score", None),
+            "average_score": average_score,
             "test_history": test_history,
-            "test_counts": test_counts  # 테스트 생성 횟수 정보 추가
+            "test_counts": test_counts
         }
 
         return response
@@ -95,6 +95,70 @@ async def get_test_history(
             detail=f"테스트 히스토리 조회 중 오류 발생: {str(e)}"
         )
 
+
+@router.get("/remaining", response_model=Dict[str, Any])
+async def get_remaining_tests(
+    current_user: User = Depends(get_current_user),
+    db: Database = Depends(get_mongodb)
+):
+    """
+    현재 로그인한 사용자의 남은 테스트 생성 횟수를 조회합니다.
+    
+    Returns:
+        Dict: 남은 테스트 횟수 정보
+    """
+    try:
+        # 현재 사용자 정보 사용
+        user_id = str(current_user.id)
+        
+        # 최신 사용자 정보 DB에서 다시 조회
+        latest_user = await db.users.find_one({"_id": ObjectId(user_id)})
+        if not latest_user:
+            return JSONResponse(
+                status_code=404,
+                content={"detail": "사용자를 찾을 수 없습니다"}
+            )
+        
+        # 테스트 횟수 제한 정보 (limits 또는 test_limits 필드에서 조회)
+        limits = latest_user.get("limits", latest_user.get("test_limits", {"test_count": 0, "random_problem": 0}))
+        
+        # 남은 횟수 계산
+        remaining_tests = {
+            "test_count": {
+                "used": limits.get("test_count", 0),
+                "limit": 3,
+                "remaining": max(0, 3 - limits.get("test_count", 0)),
+                "description": "7문제와 15문제 테스트 합산 (최대 3회)"
+            },
+            "random_problem": {
+                "used": limits.get("random_problem", 0),
+                "limit": 5,
+                "remaining": max(0, 5 - limits.get("random_problem", 0)),
+                "description": "랜덤 1문제 (최대 5회)"
+            }
+        }
+        
+        # script_count가 limits에 있으면 포함
+        if "script_count" in limits:
+            remaining_tests["script_count"] = {
+                "used": limits.get("script_count", 0),
+                "limit": 5,
+                "remaining": max(0, 5 - limits.get("script_count", 0)),
+                "description": "스크립트 생성 (최대 5회)"
+            }
+        
+        return {
+            "user_id": user_id,
+            "remaining_tests": remaining_tests
+        }
+        
+    except Exception as e:
+        logger.error(f"테스트 횟수 조회 중 오류 발생: {str(e)}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"테스트 횟수 조회 중 오류 발생: {str(e)}"}
+        )
+    
 
 @router.get("/{test_pk}", response_model=TestDetailResponse)
 async def get_test_detail(
@@ -148,7 +212,7 @@ async def get_test_detail(
 @router.post("/{test_type}", response_model=Union[TestCreationResponse, SingleProblemResponse])
 async def make_test(
     test_type: int = Path(..., ge=0, le=2, description="테스트 유형: 0은 7문제, 1은 15문제, 2는 랜덤 1문제"),
-    user_id: str = Query(..., description="사용자 ID"),
+    current_user: User = Depends(get_current_user),
     db: Database = Depends(get_mongodb)
 ) -> Union[TestCreationResponse, SingleProblemResponse]:
     """
@@ -157,35 +221,56 @@ async def make_test(
     - test_type 1: 15문제 (자기소개 1, 콤보셋 9, 롤플레잉 3, 돌발 2) 
     - test_type 2: 랜덤 1문제 (전체 문제 풀에서 랜덤 선택, DB에 저장하지 않음) - 최대 5회
     
-    전달받은 사용자의 배경 정보(background_survey.info)를 기반으로
+    현재 로그인한 사용자의 배경 정보(background_survey.info)를 기반으로
     관심사에 맞는 문제들로 테스트를 구성합니다.
     """
-    if not user_id:
-        raise HTTPException(status_code=400, detail="사용자 ID가 필요합니다")
+    # 현재 인증된 사용자 정보 사용
+    user_id = str(current_user.id)
     
-    try:
-        # ObjectId 변환 검증
-        ObjectId(user_id)
-    except bson_errors.InvalidId:
-        raise HTTPException(status_code=400, detail="유효하지 않은 사용자 ID 형식입니다")
+    # 최신 사용자 정보 DB에서 다시 조회 (캐싱된 정보가 아닌 최신 상태 확인)
+    latest_user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not latest_user:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "사용자를 찾을 수 없습니다"}
+        )
     
-    # 사용자 존재 여부 확인
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    if not user:
-        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+    # 사용자의 테스트 생성 횟수 확인 (최신 DB 정보 사용)
+    limits = latest_user.get("limits", latest_user.get("test_limits", {}))
     
-    # 사용자의 테스트 생성 횟수 확인 (test_limits에서 limits으로 변경된 필드명 확인)
-    limits = user.get("limits", user.get("test_limits", {"test_count": 0, "random_problem": 0, "script_count": 0}))
+    # 로깅 추가
+    logger.info(f"사용자 {user_id}의 현재 제한 정보: {limits}")
     
     # 테스트 타입에 따른 제한 확인
     if test_type == 0 or test_type == 1:  # 7문제 또는 15문제 테스트 (통합 카운트)
-        if limits.get("test_count", 0) >= 3:
-            raise HTTPException(status_code=403, detail="7문제와 15문제 테스트는 합산하여 최대 3회까지만 생성 가능합니다")
-        limit_field = "limits.test_count"
+        test_count = limits.get("test_count", 0)
+        logger.info(f"현재 test_count: {test_count}")
+        if test_count >= 3:
+            # 로깅 추가
+            logger.warning(f"사용자 {user_id}의 test_count({test_count})가 제한(3)을 초과했습니다")
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "7문제와 15문제 테스트는 합산하여 최대 3회까지만 생성 가능합니다"}
+            )
+        
+        # 필드 이름 확인 (사용자 문서 구조에 맞춤)
+        limit_field = "limits.test_count" if "limits" in latest_user else "test_limits.test_count"
     else:  # 랜덤 1문제
-        if limits.get("random_problem", 0) >= 5:
-            raise HTTPException(status_code=403, detail="랜덤 1문제는 최대 5회까지만 생성 가능합니다")
-        limit_field = "limits.random_problem"
+        random_problem_count = limits.get("random_problem", 0)
+        logger.info(f"현재 random_problem_count: {random_problem_count}")
+        if random_problem_count >= 5:
+            # 로깅 추가
+            logger.warning(f"사용자 {user_id}의 random_problem_count({random_problem_count})가 제한(5)을 초과했습니다")
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "랜덤 1문제는 최대 5회까지만 생성 가능합니다"}
+            )
+        
+        # 필드 이름 확인 (사용자 문서 구조에 맞춤)
+        limit_field = "limits.random_problem" if "limits" in latest_user else "test_limits.random_problem"
+
+    # 로깅 추가 - 업데이트 필드
+    logger.info(f"테스트 카운트 업데이트 필드: {limit_field}")
     
     try:
         # 테스트 횟수 증가
@@ -206,7 +291,15 @@ async def make_test(
             # 생성된 테스트 정보 조회
             test_data = await db.tests.find_one({"_id": ObjectId(test_id)})
             if not test_data:
-                raise HTTPException(status_code=404, detail="생성된 테스트를 찾을 수 없습니다")
+                # 테스트 횟수 롤백
+                await db.users.update_one(
+                    {"_id": ObjectId(user_id)},
+                    {"$inc": {limit_field: -1}}
+                )
+                return JSONResponse(
+                    status_code=404,
+                    content={"detail": "생성된 테스트를 찾을 수 없습니다"}
+                )
             
             # ObjectId를 문자열로 변환
             test_data["_id"] = str(test_data["_id"])
@@ -216,10 +309,10 @@ async def make_test(
         
     except bson_errors.InvalidId as e:
         # ObjectId 변환 오류
-        raise HTTPException(status_code=400, detail=f"잘못된 ID 형식: {str(e)}")
-    except HTTPException:
-        # 이미 발생한 HTTPException은 그대로 전달
-        raise
+        return JSONResponse(
+            status_code=400,
+            content={"detail": f"잘못된 ID 형식: {str(e)}"}
+        )
     except Exception as e:
         # 로깅 추가
         logger.error(f"테스트 생성 중 오류 발생: {str(e)}", exc_info=True)
@@ -233,61 +326,13 @@ async def make_test(
         except Exception as rollback_error:
             logger.error(f"카운트 롤백 중 오류: {str(rollback_error)}")
         
-        raise HTTPException(status_code=500, detail=f"테스트 생성 중 오류 발생: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"테스트 생성 중 오류 발생: {str(e)}"}
+        )
 
 
-@router.get("/remaining/{user_id}", response_model=Dict[str, Any])
-async def get_remaining_tests(
-    user_id: str,
-    db: Database = Depends(get_mongodb)
-):
-    """
-    사용자의 남은 테스트 생성 횟수를 조회합니다.
     
-    Args:
-        user_id: 사용자 ID
-        
-    Returns:
-        Dict: 남은 테스트 횟수 정보
-    """
-    if not user_id:
-        raise HTTPException(status_code=400, detail="사용자 ID가 필요합니다")
-    
-    try:
-        # ObjectId 변환 검증
-        user_object_id = ObjectId(user_id)
-    except bson_errors.InvalidId:
-        raise HTTPException(status_code=400, detail="유효하지 않은 사용자 ID 형식입니다")
-    
-    # 사용자 존재 여부 확인
-    user = await db.users.find_one({"_id": user_object_id})
-    if not user:
-        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
-    
-    # 테스트 횟수 제한 정보
-    test_limits = user.get("test_limits", {"test_count": 0, "random_problem": 0})
-    
-    # 남은 횟수 계산
-    remaining_tests = {
-        "test_count": {
-            "used": test_limits.get("test_count", 0),
-            "limit": 3,
-            "remaining": max(0, 3 - test_limits.get("test_count", 0)),
-            "description": "7문제와 15문제 테스트 합산 (최대 3회)"
-        },
-        "random_problem": {
-            "used": test_limits.get("random_problem", 0),
-            "limit": 5,
-            "remaining": max(0, 5 - test_limits.get("random_problem", 0)),
-            "description": "랜덤 1문제 (최대 5회)"
-        }
-    }
-    
-    return {
-        "user_id": user_id,
-        "remaining_tests": remaining_tests
-    }
-
 
 @router.delete("/{test_id}")
 async def delete_test(
@@ -634,33 +679,38 @@ async def record_answer(
         logger.error(f"녹음 제출 중 오류 발생: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"오류가 발생했습니다: {str(e)}")
 
+
 @router.post("/random-problem/evaluate", response_model=RandomProblemEvaluationResponse)
 async def evaluate_random_problem(
-    problem_id: str = Body(..., description="문제 ID"),
-    user_id: str = Body(..., description="사용자 ID"),
+    problem_id: str = Form(..., description="문제 ID"),
     audio_file: UploadFile = File(..., description="녹음된.mp3 파일"),
+    current_user: User = Depends(get_current_user_for_multipart),
     db: Database = Depends(get_mongodb)
 ) -> RandomProblemEvaluationResponse:
     """
     랜덤 단일 문제 평가 API
     
-    사용자의 녹음을 받아 해당 문제에 대한 즉시 피드백을 제공합니다.
+    현재 로그인한 사용자의 녹음을 받아 해당 문제에 대한 즉시 피드백을 제공합니다.
     이 API는 데이터베이스에 결과를 저장하지 않습니다.
     """
     try:
+        # 현재 사용자 ID 사용
+        user_id = str(current_user.id)
+        
         # ObjectId 유효성 검사
-        if not ObjectId.is_valid(problem_id) or not ObjectId.is_valid(user_id):
-            raise HTTPException(status_code=400, detail="유효하지 않은 ID 형식입니다.")
+        if not ObjectId.is_valid(problem_id):
+            return JSONResponse(
+                status_code=400,
+                content={"detail": "유효하지 않은 문제 ID 형식입니다."}
+            )
         
         # 문제 존재 확인
         problem = await db.problems.find_one({"_id": ObjectId(problem_id)})
         if not problem:
-            raise HTTPException(status_code=404, detail="해당 문제를 찾을 수 없습니다.")
-        
-        # 사용자 존재 확인
-        user = await db.users.find_one({"_id": ObjectId(user_id)})
-        if not user:
-            raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+            return JSONResponse(
+                status_code=404,
+                content={"detail": "해당 문제를 찾을 수 없습니다."}
+            )
         
         # 파일 내용 읽기
         audio_content = await audio_file.read()
@@ -669,17 +719,17 @@ async def evaluate_random_problem(
         # 파일 유형 검사
         file_extension = audio_filename.split(".")[-1].lower() if audio_filename else ""
         if file_extension not in ["mp3", "wav", "webm", "m4a"]:
-            raise HTTPException(
+            return JSONResponse(
                 status_code=400, 
-                detail="지원되지 않는 파일 형식입니다. MP3, WAV, WEBM, M4A 형식만 지원합니다."
+                content={"detail": "지원되지 않는 파일 형식입니다. MP3, WAV, WEBM, M4A 형식만 지원합니다."}
             )
         
         # 파일 크기 제한 (10MB)
         max_size = 10 * 1024 * 1024  # 10MB
         if len(audio_content) > max_size:
-            raise HTTPException(
+            return JSONResponse(
                 status_code=400, 
-                detail=f"파일 크기가 너무 큽니다. 최대 10MB까지만 지원합니다. (현재 크기: {len(audio_content)/1024/1024:.2f}MB)"
+                content={"detail": f"파일 크기가 너무 큽니다. 최대 10MB까지만 지원합니다. (현재 크기: {len(audio_content)/1024/1024:.2f}MB)"}
             )
         
         # 문제 정보 가져오기
@@ -699,7 +749,10 @@ async def evaluate_random_problem(
             logger.info(f"경량 음성 변환 완료: {transcribed_text[:50]}... (소요 시간: {processing_time:.2f}초)")
         except Exception as e:
             logger.error(f"경량 음성 변환 중 오류: {str(e)}", exc_info=True)
-            raise HTTPException(status_code=500, detail="음성 변환 중 오류가 발생했습니다. 녹음을 다시 시도해 주세요.")
+            return JSONResponse(
+                status_code=500,
+                content={"detail": "음성 변환 중 오류가 발생했습니다. 녹음을 다시 시도해 주세요."}
+            )
         
         # 스크립트는 저장하지 않음, 단 응답이 너무 짧으면 평가 생략
         if len(transcribed_text.split()) < 5:
@@ -742,13 +795,134 @@ async def evaluate_random_problem(
         logger.info(f"랜덤 문제 평가 완료 - 사용자: {user_id}, 점수: {score}")
         return RandomProblemEvaluationResponse(**response)
         
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"랜덤 문제 평가 중 오류 발생: {str(e)}", exc_info=True)
         # 오류 로깅 (DB에 저장하지 않고 로그만 남김)
         logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"오류가 발생했습니다: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"오류가 발생했습니다: {str(e)}"}
+        )
+
+
+# @router.post("/random-problem/evaluate", response_model=RandomProblemEvaluationResponse)
+# async def evaluate_random_problem(
+#     problem_id: str = Body(..., description="문제 ID"),
+#     user_id: str = Body(..., description="사용자 ID"),
+#     audio_file: UploadFile = File(..., description="녹음된.mp3 파일"),
+#     db: Database = Depends(get_mongodb)
+# ) -> RandomProblemEvaluationResponse:
+#     """
+#     랜덤 단일 문제 평가 API
+    
+#     사용자의 녹음을 받아 해당 문제에 대한 즉시 피드백을 제공합니다.
+#     이 API는 데이터베이스에 결과를 저장하지 않습니다.
+#     """
+#     try:
+#         # ObjectId 유효성 검사
+#         if not ObjectId.is_valid(problem_id) or not ObjectId.is_valid(user_id):
+#             raise HTTPException(status_code=400, detail="유효하지 않은 ID 형식입니다.")
+        
+#         # 문제 존재 확인
+#         problem = await db.problems.find_one({"_id": ObjectId(problem_id)})
+#         if not problem:
+#             raise HTTPException(status_code=404, detail="해당 문제를 찾을 수 없습니다.")
+        
+#         # 사용자 존재 확인
+#         user = await db.users.find_one({"_id": ObjectId(user_id)})
+#         if not user:
+#             raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+        
+#         # 파일 내용 읽기
+#         audio_content = await audio_file.read()
+#         audio_filename = audio_file.filename
+        
+#         # 파일 유형 검사
+#         file_extension = audio_filename.split(".")[-1].lower() if audio_filename else ""
+#         if file_extension not in ["mp3", "wav", "webm", "m4a"]:
+#             raise HTTPException(
+#                 status_code=400, 
+#                 detail="지원되지 않는 파일 형식입니다. MP3, WAV, WEBM, M4A 형식만 지원합니다."
+#             )
+        
+#         # 파일 크기 제한 (10MB)
+#         max_size = 10 * 1024 * 1024  # 10MB
+#         if len(audio_content) > max_size:
+#             raise HTTPException(
+#                 status_code=400, 
+#                 detail=f"파일 크기가 너무 큽니다. 최대 10MB까지만 지원합니다. (현재 크기: {len(audio_content)/1024/1024:.2f}MB)"
+#             )
+        
+#         # 문제 정보 가져오기
+#         problem_category = problem.get("problem_category", "")
+#         topic_category = problem.get("topic_category", "")
+#         problem_content = problem.get("content", "")
+        
+#         # AudioProcessor를 사용하여 오디오 텍스트 변환
+#         try:
+#             start_time = datetime.now()
+#             logger.info(f"사용자 {user_id}의 랜덤 문제 응답 변환 시작 (경량 모델)...")
+            
+#             # 경량 모델과 최적화 설정 사용
+#             transcribed_text = fast_audio_processor.process_audio_fast(audio_content)
+            
+#             processing_time = (datetime.now() - start_time).total_seconds()
+#             logger.info(f"경량 음성 변환 완료: {transcribed_text[:50]}... (소요 시간: {processing_time:.2f}초)")
+#         except Exception as e:
+#             logger.error(f"경량 음성 변환 중 오류: {str(e)}", exc_info=True)
+#             raise HTTPException(status_code=500, detail="음성 변환 중 오류가 발생했습니다. 녹음을 다시 시도해 주세요.")
+        
+#         # 스크립트는 저장하지 않음, 단 응답이 너무 짧으면 평가 생략
+#         if len(transcribed_text.split()) < 5:
+#             evaluation_result = {
+#                 "score": "NL",
+#                 "feedback": {
+#                     "paragraph": "응답이 너무 짧아 평가할 수 없습니다. 최소 한 문장 이상의 응답이 필요합니다.",
+#                     "vocabulary": "응답이 너무 짧아 어휘력을 평가할 수 없습니다.",
+#                     "spoken_amount": "발화량이 매우 부족합니다. 질문에 대해 충분한 길이로 답변해야 합니다."
+#                 }
+#             }
+#         else:
+#             # 매번 새로운 API 키로 평가기 생성
+#             evaluator_instance = ResponseEvaluator()
+            
+#             # LangChain 평가 모델 호출
+#             evaluation_result = await evaluator_instance.evaluate_response(
+#                 user_response=transcribed_text,
+#                 problem_category=problem_category,
+#                 topic_category=topic_category,
+#                 problem=problem_content
+#             )
+        
+#         score = evaluation_result.get("score", "IM2")
+#         feedback = evaluation_result.get("feedback", {})
+        
+#         # 결과 응답 구성
+#         response = {
+#             "problem_id": problem_id,
+#             "user_id": user_id,
+#             "problem_category": problem_category,
+#             "topic_category": topic_category,
+#             "problem_content": problem_content,
+#             "transcribed_text": transcribed_text,
+#             "score": score,
+#             "feedback": feedback,
+#             "evaluated_at": datetime.now().isoformat()
+#         }
+        
+#         logger.info(f"랜덤 문제 평가 완료 - 사용자: {user_id}, 점수: {score}")
+#         return RandomProblemEvaluationResponse(**response)
+        
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"랜덤 문제 평가 중 오류 발생: {str(e)}", exc_info=True)
+#         # 오류 로깅 (DB에 저장하지 않고 로그만 남김)
+#         logger.error(traceback.format_exc())
+#         raise HTTPException(status_code=500, detail=f"오류가 발생했습니다: {str(e)}")
+
+
+
 
 # 모의고사 점수, 피드백 생성 비동기 처리를 위한 상태 확인 엔드포인트 - 개별 문제
 @router.get("/{test_pk}/status/{problem_pk}")
