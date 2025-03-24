@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import ProfilePage from './pages/auth/ProfilePage'; // 경로 수정
 import './App.css';
