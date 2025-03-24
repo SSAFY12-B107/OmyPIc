@@ -176,6 +176,88 @@ export const useUser = () => {
     }
   };
 
+    // 프로필과 서베이 데이터를 함께 저장하는 함수
+    const saveProfileAndSurvey = async (surveyData: any) => {
+    try {
+      setIsSubmitting(true);
+      dispatch(setLoading(true));
+      
+      const accessToken = sessionStorage.getItem('access_token');
+      if (!accessToken) {
+        throw new Error('인증되지 않았습니다');
+      }
+  
+      // 현재 사용자 정보 가져오기
+      const userStr = sessionStorage.getItem('user');
+      if (!userStr) {
+        throw new Error('사용자 정보를 찾을 수 없습니다');
+      }
+      
+      const user = JSON.parse(userStr);
+      
+      // POST /api/users/에 맞는 요청 데이터 구성
+      const requestData = {
+        name: user.name,
+        auth_provider: user.auth_provider,
+        email: user.email || "user@example.com", // 필요시 기본값 제공
+        current_opic_score: profileData.currentGrade,
+        target_opic_score: profileData.wishGrade,
+        target_exam_date: profileData.examDate,
+        background_survey: surveyData
+      };
+      
+      console.log('저장할 통합 데이터:', requestData);
+      
+      // 사용자 생성 API 호출
+      const response = await fetch(`${API_BASE_URL}/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(requestData)
+      });
+      
+      // 응답 처리
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API 오류 응답:', errorText);
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.detail || '데이터 저장에 실패했습니다');
+        } catch (e) {
+          throw new Error('데이터 저장에 실패했습니다: ' + errorText);
+        }
+      }
+      
+      const result = await response.json();
+      
+      // 사용자 정보 업데이트
+      dispatch(setUser({
+        ...user,
+        current_opic_score: profileData.currentGrade,
+        target_opic_score: profileData.wishGrade,
+        target_exam_date: profileData.examDate,
+        is_onboarded: true,
+        background_survey: surveyData
+      }));
+      
+      // 세션 스토리지 업데이트
+      sessionStorage.setItem('user', JSON.stringify(result));
+      sessionStorage.setItem('isOnboarded', 'true');
+      
+      return { success: true, data: result };
+    } catch (error) {
+      console.error('데이터 저장 오류:', error);
+      const errorMsg = error instanceof Error ? error.message : '데이터 저장 중 오류가 발생했습니다';
+      dispatch(setError(errorMsg));
+      return { success: false, error: errorMsg };
+    } finally {
+      setIsSubmitting(false);
+      dispatch(setLoading(false));
+    }
+  };
+
   return {
     user,
     isAuthenticated,
@@ -186,6 +268,7 @@ export const useUser = () => {
     updateProfile,
     updateProfileField,
     saveProfile,
-    submitSurvey
+    submitSurvey,
+    saveProfileAndSurvey
   };
 };
