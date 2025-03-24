@@ -75,11 +75,11 @@ function Home() {
         {/* 레벨 박스 */}
         <div className={`${styles["home-box"]} ${styles["level-box"]}`}>
           <div className={styles["my-level"]}>
-            <p className={styles["level"]}>{userInfo.current_opic_score || '-'}</p>
+            <p className={styles["level"]}>{userInfo?.current_opic_score || '-'}</p>
             <p className={styles["level-title"]}>현재 레벨</p>
           </div>
           <div className={styles["hope-level"]}>
-            <p className={styles["level"]}>{userInfo.target_opic_score || '-'}</p>
+            <p className={styles["level"]}>{userInfo?.target_opic_score || '-'}</p>
             <p className={styles["level-title"]}>희망 레벨</p>
           </div>
         </div>
@@ -115,7 +115,7 @@ function Home() {
         {/* <CharacterChange /> */}
 
         {/* 실력 향상 추이 그래프 */}
-        <LevelChart testResult={userInfo.test} />
+        <LevelChart testResult={userInfo?.test} />
       </div>
 
       {/* 네브바 */}
