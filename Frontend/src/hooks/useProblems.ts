@@ -17,6 +17,11 @@ export interface ProblemDetail {
   };
   user_scripts: any[]; // 필요에 따라 더 구체적인 타입 정의 가능
   test_notes: any[];   // 필요에 따라 더 구체적인 타입 정의 가능
+  test_count: {
+    used: number;
+    limit: number;
+    remaining: number;
+  };
 }
 
 // 문제 목록 조회를 위한 파라미터 인터페이스
