@@ -10,7 +10,8 @@ import LoadingSpinner from "@/components/common/LoadingSpinner";
 import {
   CreateScriptResponse,
   useGetBasicQuestions,
-  useCreateScript
+  CreateScriptRequest,
+  useCreateScript,
 } from "@/hooks/useScripts";
 import { 
   setContent, 
@@ -122,7 +123,7 @@ function ScriptWrite() {
   if (isCustomMode) {
     // 스크립트 생성 요청 보내기
     createScriptMutation.mutate(
-      { problemId, scriptData: scriptRequestData },
+      { problemId, scriptData: scriptRequestData as CreateScriptRequest },
       {
         // 오류 발생 시에만 처리 (성공 핸들러는 필요 없음)
         onError: (error: Error) => {
@@ -140,7 +141,7 @@ function ScriptWrite() {
     // 기본 질문 모드라면 모달 표시
     setShowModal(true);
     createScriptMutation.mutate(
-      { problemId, scriptData: scriptRequestData },
+      { problemId, scriptData: scriptRequestData as CreateScriptRequest },
       {
         onSuccess: (data: CreateScriptResponse) => {
           if (data.content) {

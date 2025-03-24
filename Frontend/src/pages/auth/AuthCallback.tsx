@@ -1,4 +1,4 @@
-// src/pages/auth/AuthCallback.jsx (또는 .tsx)
+// src/pages/auth/AuthCallback.tsx
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
@@ -8,8 +8,8 @@ function AuthCallback() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
-  const [status, setStatus] = useState('처리 중...');
-  const [error, setError] = useState(null);
+  const [status, setStatus] = useState<string>('처리 중...');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function handleAuth() {
@@ -23,8 +23,6 @@ function AuthCallback() {
           setError('인증 코드가 없습니다');
           return;
         }
-
-        // console.log(`code`:code);
         
         setStatus(`코드 확인됨: ${code.substring(0, 10)}...`);
         
@@ -51,16 +49,16 @@ function AuthCallback() {
         // 4. 세션 스토리지에 직접 데이터 저장
         try {
           // 프로퍼티 방식으로 저장
-          sessionStorage.access_token = data.access_token;
+          sessionStorage.setItem('access_token', data.access_token);
           console.log('토큰 저장 시도 완료');
           
           // 저장 확인
-          const savedToken = sessionStorage.access_token;
+          const savedToken = sessionStorage.getItem('access_token');
           console.log('저장된 토큰 확인:', savedToken ? '성공' : '실패');
           
           if (data.user) {
             // 사용자 정보도 저장
-            sessionStorage.isOnboarded = data.user.is_onboarded ? 'true' : 'false';
+            sessionStorage.setItem('isOnboarded', data.user.is_onboarded ? 'true' : 'false');
             console.log('사용자 정보 저장됨');
             
             // Redux 스토어에 사용자 정보 저장
@@ -86,15 +84,16 @@ function AuthCallback() {
           }
         } catch (storageError) {
           console.error('스토리지 저장 오류:', storageError);
-          setStatus(`스토리지 저장 오류: ${storageError.message}`);
+          setStatus(`스토리지 저장 오류: ${storageError instanceof Error ? storageError.message : String(storageError)}`);
           
           // 오류가 있어도 일단 이동은 시도
           setTimeout(() => navigate('/'), 2000);
         }
       } catch (err) {
         console.error('인증 처리 오류:', err);
-        setStatus(`처리 오류: ${err.message}`);
-        setError(err instanceof Error ? err.message : '인증 처리 중 오류가 발생했습니다');
+        const errorMessage = err instanceof Error ? err.message : '인증 처리 중 오류가 발생했습니다';
+        setStatus(`처리 오류: ${errorMessage}`);
+        setError(errorMessage);
         
         setTimeout(() => {
           navigate('/auth/login');
@@ -121,15 +120,13 @@ function AuthCallback() {
         <button
           onClick={() => {
             // 저장된 데이터 직접 확인
-            const token = sessionStorage.access_token;
-            const getToken = sessionStorage.getItem('access_token');
-            const user = sessionStorage.user;
+            const token = sessionStorage.getItem('access_token');
+            const isOnboarded = sessionStorage.getItem('isOnboarded');
             
             alert(`
               세션 스토리지 확인:
-              - 토큰(직접): ${token ? '있음' : '없음'}
-              - 토큰(getItem): ${getToken ? '있음' : '없음'}
-              - 사용자: ${user ? '있음' : '없음'}
+              - 토큰: ${token ? '있음' : '없음'}
+              - 온보딩 상태: ${isOnboarded || '없음'}
             `);
           }}
           className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"

@@ -1,8 +1,8 @@
-import { useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/hooks/useUser";
 import { useSelector } from 'react-redux';
-import { RootState } from "@/store";
+import { RootState } from "@/store/store";
 import styles from "./Survey.module.css";
 import Tip from "@/components/survey/Tip";
 import GeneralSurvey from '@/components/survey/GeneralSurvey';
@@ -10,6 +10,44 @@ import NavigationButton from '@/components/common/NavigationButton';
 import Switch from '@/components/survey/Switch';
 import MultiChoice from '@/components/survey/MultiChoice';
 import surveyData from '@/data/surveyData.json';
+
+// 타입 정의 추가
+interface SurveyQuestion {
+  id: string;
+  question: string;
+  options: Array<{
+    value: string | number;
+    label: string;
+    recommended?: boolean;
+  }>;
+  minSelect?: number;
+}
+
+interface SurveyPage {
+  pageId: number;
+  title?: string;
+  description?: string;
+  tip?: string;
+  type: 'single' | 'multiple';
+  questions: SurveyQuestion[];
+}
+
+interface StepData {
+  type: string;
+  pageId: number;
+  title?: string;
+  tip?: string;
+  description?: string;
+  questions?: SurveyQuestion[];
+}
+
+interface SurveyData {
+  profession: string | number;
+  is_student: boolean;
+  studied_lecture: string | number;
+  living_place: string | number;
+  info: (string | number)[];
+}
 
 const Survey = () => {
     const navigate = useNavigate();
@@ -23,11 +61,10 @@ const Survey = () => {
     const { profileData } = useSelector((state: RootState) => state.auth);
     
     // JSON 데이터에서 페이지 정보 가져오기
-    const pages = surveyData.surveyData.pages;
-    const totalPages = surveyData.surveyData.totalPages;
+    const pages = surveyData.surveyData.pages as SurveyPage[];
     
     // 중간에 있는 "안내 페이지"를 포함한 전체 단계 구성
-    const steps = [
+    const steps: StepData[] = [
         // 0번째 단계 (첫 번째 전환 페이지)
         {
           type: "switching",
@@ -50,6 +87,8 @@ const Survey = () => {
         ...pages.slice(3).map(page => ({
           type: page.type === "single" ? "survey" : "multichoice",
           pageId: page.pageId,
+          title: page.title,
+          description: page.description,
           tip: page.tip,
           questions: page.questions
         }))
@@ -63,11 +102,6 @@ const Survey = () => {
         console.log("현재 선택된 답변:", selectedAnswers);
     }, [currentStep, selectedAnswers]);
     
-    // 특정 페이지 전에 전환 페이지가 필요한지 확인
-    const needsSwitchingPage = (pageId: number) => {
-        // 페이지 4(여가 활동)는 다중 선택이 시작되는 시점이므로 전환 페이지가 필요
-        return pageId === 4;
-    };
     
     const handlePrev = () => {
         if (currentStep > 0) {
@@ -165,7 +199,7 @@ const Survey = () => {
     const handleSubmit = async () => {
       try {
           // 서베이 데이터 구성
-          const surveyData = {
+          const surveyData: SurveyData = {
             profession: selectedAnswers['profession'],
             is_student: selectedAnswers['is_student'] === true || selectedAnswers['is_student'] === 'true',
             studied_lecture: selectedAnswers['studied_lecture'],
@@ -214,7 +248,7 @@ const Survey = () => {
                 // 단일 선택 설문
                 <>  
                     <div className={styles.choice}>
-                        {currentStepData.questions.map((question, index) => (
+                        {currentStepData.questions?.map((question, index) => (
                             <div key={question.id} className={index > 0 ? styles.additionalQuestion : ''}>
                                 <GeneralSurvey 
                                     questionNumber={`${currentStepData.pageId}`}
@@ -256,13 +290,13 @@ const Survey = () => {
                     )}
                 </div>
                 
-                {currentStepData.questions.map(question => (
+                {currentStepData.questions?.map(question => (
                     <MultiChoice 
                         key={question.id}
                         questionNumber={`${currentStepData.pageId}`}
                         questionText={question.question}
                         choices={question.options.map(opt => ({
-                            id: typeof opt.value === 'string' ? opt.value : opt.value,
+                            id: opt.value, // 수정된 부분: 불필요한 조건문 제거
                             text: opt.label,
                             recommended: opt.recommended || false
                         }))}

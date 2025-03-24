@@ -10,7 +10,7 @@ import {
   setError,
   ProfileData
 } from '../store/authSlice';
-import { RootState } from '@/store/store';
+import { RootState } from '../store/store';
 
 // API 기본 URL
 const API_BASE_URL = 'http://localhost:8000/api';

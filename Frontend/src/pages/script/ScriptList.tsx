@@ -111,8 +111,8 @@ function ScriptList() {
             {isFetchingNextPage && <LoadingSpinner />}
 
             {/* 비어있는 요소 - 더 이상 불러올 데이터가 없을 때 */}
-            {!hasNextPage && data?.pages[0]?.length > 0 && (
-              <div style={{ height: '10px' }}></div> // 간격 유지를 위한 빈 요소
+            {!hasNextPage && ((data?.pages[0] as any[])?.length > 0) && (
+              <div style={{ height: '10px' }}></div>
             )}
           </>
         )}
