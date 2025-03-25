@@ -32,7 +32,7 @@ function TestMain() {
     enablePolling: shouldPoll,
     recentTestId,
     onFeedbackReady: (testHistory) => {
-      console.log('피드백이 준비되었습니다:', testHistory.id);
+      // console.log('피드백이 준비되었습니다:', testHistory.id);
       
       // 피드백이 준비되면 상태 업데이트 (UI 갱신용)
       navigate('/tests', { 
@@ -94,7 +94,7 @@ function TestMain() {
         // 응답 데이터를 Redux에 저장
         dispatch(testActions.setCurrentTest(response.data));
 
-        console.log("테스트 데이터가 Redux에 저장됨:", response.data);
+        // console.log("테스트 데이터가 Redux에 저장됨:", response.data);
 
         // 페이지 이동
         navigate("/tests/practice");

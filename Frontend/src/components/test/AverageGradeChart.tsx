@@ -45,7 +45,7 @@ const scoreToNumber = (score: string | null | undefined): number => {
     NL :10 
   };
   const result = scoreMap[score] || 0;
-  console.log(`scoreToNumber 변환: ${score} -> ${result}`);
+  // console.log(`scoreToNumber 변환: ${score} -> ${result}`);
   return result;
 };
 
@@ -142,8 +142,8 @@ const AverageGradeChart: React.FC<AverageGradeChartProps> = ({
     ],
   };
 
-  console.log('average_score 전달받음', averageScore)
-  console.log('chartData',chartData.datasets)
+  // console.log('average_score 전달받음', averageScore)
+  // console.log('chartData',chartData.datasets)
   return (
     <div className={styles.container}>
       <div className={styles.chartContainer}>
