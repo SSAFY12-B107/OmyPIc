@@ -44,6 +44,19 @@
     font-size: 1.4rem;
     font-weight: 700;
   }
+
+  .questionCheck {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    background-color: #EFE6FF;
+    color: #8854d0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+    font-weight: bold;
+  }
   
   /* 다중선택 항목 */
   .choiceList {
