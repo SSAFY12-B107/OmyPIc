@@ -263,6 +263,59 @@ const Survey = () => {
       }
     };
 
+    // 현재 프로그레스 단계 계산
+    const getProgressStep = () => {
+      if (currentStep === 0) {
+        return 0; // 첫 전환 페이지
+      } else if (currentStep >= 1 && currentStep <= 3) {
+        return currentStep; // 단일 선택 설문 (1, 2, 3)
+      } else if (currentStep === 4) {
+        return 3; // 두 번째 전환 페이지는 3단계 유지
+      } else if (currentStep >= 5) {
+        // 다중 선택 설문 (5, 6, 7)를 4, 5, 6, 7에 매핑
+        return currentStep - 1; // 5->4, 6->5, 7->6, 8->7
+      }
+      
+      return 0;
+    };
+
+    // 프로그레스 바 렌더링
+    const renderProgressBar = () => {
+      // 전환 페이지에서는 프로그레스 바를 표시하지 않음
+      if (currentStepData.type === "switching") {
+        return null;
+      }
+
+      const progressStep = getProgressStep();
+
+      return (
+        <div className={styles.progressBarContainer}>
+          <div className={styles.progressBar}>
+            {/* 정확히 7개의 막대 생성 */}
+            {Array.from({ length: 7 }).map((_, index) => {
+              // 명확한 조건으로 클래스 결정
+              let stepClass = styles.progressStep;
+              
+              if (index === progressStep - 1) {
+                // 정확히 현재 단계
+                stepClass = `${styles.progressStep} ${styles.current}`;
+              } else if (index < progressStep - 1) {
+                // 이미 완료된 단계
+                stepClass = `${styles.progressStep} ${styles.active}`;
+              }
+              
+              return (
+                <div 
+                  key={index} 
+                  className={stepClass}
+                />
+              );
+            })}
+          </div>
+        </div>
+      );
+    };
+
     return (
         <div className={styles.surveyContainer}>
             {currentStepData.type === "switching" ? (
@@ -276,6 +329,9 @@ const Survey = () => {
             ) : currentStepData.type === "survey" ? (
                 // 단일 선택 설문
                 <>  
+                    {/* 프로그레스 바 추가 */}
+                    {renderProgressBar()}
+                    
                     <div className={styles.choice}>
                         {currentStepData.questions?.map((question, index) => (
                             <div key={question.id} className={index > 0 ? styles.additionalQuestion : ''}>
@@ -316,6 +372,9 @@ const Survey = () => {
             ) : (
                 // 다중 선택 설문
                 <>
+                {/* 프로그레스 바 추가 */}
+                {renderProgressBar()}
+                
                 {currentStepData.questions?.map(question => (
                     <div key={question.id}>
                         <MultiChoice 
