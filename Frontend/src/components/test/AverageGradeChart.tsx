@@ -147,9 +147,7 @@ const AverageGradeChart: React.FC<AverageGradeChartProps> = ({
   return (
     <div className={styles.container}>
       <div className={styles.chartContainer}>
-        {averageScore?.total_score && (
           <Bar options={options} data={chartData} />
-        )}
       </div>
     </div>
   );
