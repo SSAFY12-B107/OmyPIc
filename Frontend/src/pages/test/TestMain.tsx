@@ -25,7 +25,6 @@ function TestMain() {
   const { 
     data: historyData, 
     isLoading, 
-    isPolling,
     startPolling,
     stopPolling
   } = useUserHistory({
