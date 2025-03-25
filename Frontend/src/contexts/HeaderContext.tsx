@@ -59,16 +59,28 @@ export const HeaderProvider: React.FC<HeaderProviderProps> = ({ children }) => {
     setHideBackButton(shouldHideBackButton);
 
     // 커스텀 백 액션 초기화 및 설정
-    // /scripts/카테고리/문제ID 패턴 확인 (숫자만 아닌 모든 문자열 허용)
-    const scriptsDetailPattern = /^\/scripts\/[^\/]+\/[^\/]+$/;
-    if (scriptsDetailPattern.test(location.pathname)) {
-      // /scripts/카테고리 형태로 이동하는 커스텀 백 액션 설정
-      const pathParts = location.pathname.split('/');
-      const categoryPath = `/scripts/${pathParts[2]}`;
-      setCustomBackAction(() => () => navigate(categoryPath));
-    } else {
-      setCustomBackAction(null);
+    const pathParts = location.pathname.split("/");
+
+  if (pathParts.length === 5 && pathParts[4] === "write") {
+    setCustomBackAction(null);
+  } else if (pathParts[1] === "scripts") {
+    let backPath = "/scripts"; // 기본적으로 /scripts로 이동
+
+    if (pathParts.length === 3) {
+      // /scripts/:category → 뒤로 가면 /scripts
+      backPath = "/scripts";
+    } else if (pathParts.length === 4) {
+      // /scripts/:category/:problemId → 뒤로 가면 /scripts/:category
+      backPath = `/scripts/${pathParts[2]}`;
+    } else if (pathParts.length === 5 && pathParts[4] === "write") {
+      // /scripts/:category/:problemId/write → 뒤로 가면 /scripts/:category/:problemId
+      backPath = `/scripts/${pathParts[2]}/${pathParts[3]}`;
     }
+
+    setCustomBackAction(() => () => navigate(backPath));
+  } else {
+    setCustomBackAction(null);
+  }
 
     // 경로에 따라 기본 타이틀 설정
     let defaultTitle = "";
