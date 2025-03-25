@@ -54,6 +54,7 @@ const Survey = () => {
     const navigate = useNavigate();
     const [currentStep, setCurrentStep] = useState(0);
     const [selectedAnswers, setSelectedAnswers] = useState<Record<string, any>>({});
+    const [errors, setErrors] = useState<Record<string, string>>({});
     
     // 중복 선언 제거: useUser에서 필요한 함수들 가져오기
     const { saveProfileAndSurvey } = useUser();
@@ -120,6 +121,33 @@ const Survey = () => {
 
     const handleNext = () => {
         console.log("다음 버튼 클릭됨, 현재 단계:", currentStep);
+        
+        // 현재 단계가 survey나 multichoice 타입인 경우 검증
+        if (currentStepData.type === "survey" || currentStepData.type === "multichoice") {
+            // 에러 초기화
+            const newErrors: Record<string, string> = {};
+            let hasError = false;
+            
+            // 현재 페이지의 모든 질문에 대해 응답이 있는지 검증
+            currentStepData.questions?.forEach(question => {
+                const answer = selectedAnswers[question.id];
+                
+                // 응답이 없거나 빈 배열인 경우
+                if (answer === undefined || answer === null || 
+                    (Array.isArray(answer) && answer.length === 0)) {
+                    newErrors[question.id] = "응답이 선택되지 않았어요!";
+                    hasError = true;
+                }
+            });
+            
+            // 에러 상태 업데이트
+            setErrors(newErrors);
+            
+            // 에러가 있으면 다음 단계로 진행하지 않음
+            if (hasError) {
+                return;
+            }
+        }
         
         // 현재 단계가 마지막 단계가 아닌 경우
         if (currentStep < steps.length - 1) {
@@ -261,7 +289,11 @@ const Survey = () => {
                                     }))}
                                     selected={getSelectedValue(question.id)}
                                     onSelect={(value) => handleSingleSelect(question.id, value)}
+                                    hasError={!!errors[question.id]}
                                 />
+                                {errors[question.id] && (
+                                    <p className={styles.errorMessage}>{errors[question.id]}</p>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -284,29 +316,26 @@ const Survey = () => {
             ) : (
                 // 다중 선택 설문
                 <>
-                <div className={styles.surveyTitle}>
-                    <h2>{currentStepData.title}</h2>
-                    {currentStepData.description && (
-                        <p className={styles.description}>{currentStepData.description}</p>
-                    )}
-                </div>
-                
                 {currentStepData.questions?.map(question => (
-                    <MultiChoice 
-                        key={question.id}
-                        questionNumber={`${currentStepData.pageId}`}
-                        questionText={question.question}
-                        choices={question.options.map(opt => ({
-                            id: opt.value, // 수정된 부분: 불필요한 조건문 제거
-                            text: opt.label,
-                            recommended: opt.recommended || false
-                        }))}
-                        minSelect={question.minSelect || 1}
-                        selected={getSelectedValue(question.id) || []}
-                        onSelect={(values) => handleMultiSelect(question.id, values)}
-                        totalSelected={getTotalSelectedItems()} // 추가: 총 선택 개수 전달
-                        requiredTotal={12} // 필요한 총 선택 개수
-                    />
+                    <div key={question.id}>
+                        <MultiChoice 
+                            questionNumber={`${currentStepData.pageId}`}
+                            questionText={question.question}
+                            choices={question.options.map(opt => ({
+                                id: opt.value,
+                                text: opt.label,
+                                recommended: opt.recommended || false
+                            }))}
+                            minSelect={question.minSelect || 1}
+                            selected={getSelectedValue(question.id) || []}
+                            onSelect={(values) => handleMultiSelect(question.id, values)}
+                            totalSelected={getTotalSelectedItems()}
+                            requiredTotal={12}
+                        />
+                        {errors[question.id] && (
+                            <p className={styles.errorMessage}>{errors[question.id]}</p>
+                        )}
+                    </div>
                 ))}
                 
                 <div className={styles.content}>
