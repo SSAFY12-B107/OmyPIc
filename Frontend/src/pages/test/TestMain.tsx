@@ -160,9 +160,9 @@ function TestMain() {
                     grade={grade}
                     status={record.overall_feedback_status}
                     scores={{
-                      description: record.test_score?.comboset_score || "-",
-                      roleplay: record.test_score?.roleplaying_score || "-",
-                      impromptu: record.test_score?.unexpected_score || "-",
+                      description: record.test_score?.comboset_score,
+                      roleplay: record.test_score?.roleplaying_score ,
+                      impromptu: record.test_score?.unexpected_score ,
                     }}
                     test_pk={record.id}
                   />

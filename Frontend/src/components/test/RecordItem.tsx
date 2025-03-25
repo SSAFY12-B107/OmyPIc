@@ -6,9 +6,9 @@ interface RecordItemProps {
   grade: string;
   status: string;
   scores: {
-    description: string;
-    roleplay: string;
-    impromptu: string;
+    description: string | undefined | null;
+    roleplay: string | undefined | null;
+    impromptu: string | undefined | null;
   };
   test_pk: string;
 }
@@ -57,15 +57,15 @@ function RecordItem({ date, grade, status, scores, test_pk }: RecordItemProps) {
           <div className={styles.scores}>
             <div className={styles.scoreItem}>
               <span className={styles.scoreLabel}>콤보셋</span>
-              <div className={styles.scoreGrade}>{scores.description}</div>
-            </div>
+              <div className={styles.scoreGrade}>{scores.description || '-'}</div>
+              </div>
             <div className={styles.scoreItem}>
               <span className={styles.scoreLabel}>롤플레잉</span>
-              <div className={styles.scoreGrade}>{scores.roleplay}</div>
+              <div className={styles.scoreGrade}>{scores.roleplay || '-'}</div>
             </div>
             <div className={styles.scoreItem}>
               <span className={styles.scoreLabel}>돌발질문</span>
-              <div className={styles.scoreGrade}>{scores.impromptu}</div>
+              <div className={styles.scoreGrade}>{scores.impromptu || '-'}</div>
             </div>
           </div>
         </>
