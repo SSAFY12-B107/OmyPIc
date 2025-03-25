@@ -35,3 +35,36 @@
     height: auto;
     display: block;
   }
+
+  p {
+    letter-spacing: -1px;
+  }
+
+
+  h1 {
+    letter-spacing: -1px;
+  }
+  
+  h2 {
+    letter-spacing: -1px;
+  }
+  
+  h3 {
+    letter-spacing: -1px;
+  }
+  
+
+  div {
+    letter-spacing: -1px;
+  }
+  
+
+
+  p {
+    letter-spacing: -1px;
+  }
+  
+  span {
+    letter-spacing: -1px;
+  }
+  
