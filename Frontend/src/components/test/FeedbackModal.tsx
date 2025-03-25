@@ -2,7 +2,6 @@ import styles from "./FeedbackModal.module.css";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-
 interface FeedbackModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -12,36 +11,39 @@ interface FeedbackModalProps {
       spoken_amount: string;
       vocabulary: string;
     };
+    score : string;
   } | null;
+  isLoading: boolean;
 }
 
 const FeedbackModal: React.FC<FeedbackModalProps> = ({
   isOpen,
   onClose,
   data,
+  isLoading,
 }) => {
   if (!isOpen) return null;
 
   const [clickType, setClickType] = useState<number>(0);
 
-    // 데이터와 내부 속성의 존재 여부 확인
-    const isDataValid = data && 
-    data.feedback && 
-    data.feedback.paragraph && 
-    data.feedback.spoken_amount && 
+  // 데이터와 내부 속성의 존재 여부 확인
+  const isDataValid =
+    data &&
+    data.feedback &&
+    data.feedback.paragraph &&
+    data.feedback.spoken_amount &&
     data.feedback.vocabulary;
-
 
   const paragraph = data?.feedback?.paragraph;
   const spokenAmount = data?.feedback?.spoken_amount;
   const vocabulary = data?.feedback?.vocabulary;
+  const score = data?.score
 
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const handleBttn = (type: number) => {
     setClickType(type);
   };
-
 
   // 모달 닫고 테스트 페이지로 이동하는 함수
   const handleCloseAndNavigate = () => {
@@ -49,11 +51,10 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
     navigate("/tests"); // 테스트 페이지로 이동
   };
 
-
   return (
     <div className={styles.modalOverlay}>
       <div className={styles.modalContent}>
-        {!isDataValid? (
+        {isLoading || !isDataValid ? (
           <div className={styles.feedbackLoading}>
             <div className={styles.loadingSpinner}></div>
             <p>평가 결과를 불러오는 중입니다...</p>
@@ -62,7 +63,10 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
           <div>
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>피드백이 도착했어요!</h2>
-              <div className={styles.modalCloseButton} onClick={handleCloseAndNavigate}>
+              <div
+                className={styles.modalCloseButton}
+                onClick={handleCloseAndNavigate}
+              >
                 <div className={styles.closeIcon}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                     <path
@@ -78,7 +82,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
             <div className={styles.modalBody}>
               <div className={styles.gradeInfo}>
                 <span className={styles.gradeLabel}>예상등급</span>
-                <span className={styles.gradeValue}>IH</span>
+                <span className={styles.gradeValue}>{score}</span>
               </div>
               <div className={styles.evaluationCard}>
                 <div className={styles.evaluationTags}>
