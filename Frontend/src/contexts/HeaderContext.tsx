@@ -59,8 +59,8 @@ export const HeaderProvider: React.FC<HeaderProviderProps> = ({ children }) => {
     setHideBackButton(shouldHideBackButton);
 
     // 커스텀 백 액션 초기화 및 설정
-    // /scripts/카테고리/넘버 패턴 확인
-    const scriptsDetailPattern = /^\/scripts\/[^\/]+\/\d+$/;
+    // /scripts/카테고리/문제ID 패턴 확인 (숫자만 아닌 모든 문자열 허용)
+    const scriptsDetailPattern = /^\/scripts\/[^\/]+\/[^\/]+$/;
     if (scriptsDetailPattern.test(location.pathname)) {
       // /scripts/카테고리 형태로 이동하는 커스텀 백 액션 설정
       const pathParts = location.pathname.split('/');
