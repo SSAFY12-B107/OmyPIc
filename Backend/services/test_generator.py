@@ -304,6 +304,45 @@ async def generate_full_test(db: Database, test_data: TestModel, user_topics: Li
     for num, prob in sorted(test_data.problem_data.items(), key=lambda x: int(x[0])):
         logger.info(f"문제 {num}: 카테고리 {prob.problem_category}, ID {prob.problem_id}")
 
+
+async def get_intro_problem(db: Database) -> Optional[Dict[str, Any]]:
+    """
+    자기소개 문제를 데이터베이스에서 찾아 반환합니다.
+    
+    Args:
+        db: MongoDB 데이터베이스
+    
+    Returns:
+        Optional[Dict[str, Any]]: 자기소개 문제 데이터 또는 None
+    """
+    try:
+        # 자기소개 문제 조회 조건
+        query = {
+            "problem_category": "자기소개",
+            "high_grade_kit": {"$ne": True}  # 고급 문제 키트에 포함되지 않은 문제
+        }
+        
+        # 문제 조회 (랜덤으로 1개 선택)
+        cursor = db.problems.aggregate([
+            {"$match": query},
+            {"$sample": {"size": 1}}
+        ])
+        
+        # 결과 추출
+        problem = await cursor.to_list(length=1)
+        
+        if problem and len(problem) > 0:
+            logger.info(f"자기소개 문제 찾음: {problem[0].get('_id')}")
+            return problem[0]
+        else:
+            logger.warning("자기소개 문제를 찾지 못했습니다.")
+            return None
+            
+    except Exception as e:
+        logger.error(f"자기소개 문제 조회 중 오류 발생: {str(e)}", exc_info=True)
+        return None
+
+
 async def get_first_combo_problem(
     db: Database, 
     user_topics: List[str], 
