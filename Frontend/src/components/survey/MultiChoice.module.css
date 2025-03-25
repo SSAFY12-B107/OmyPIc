@@ -73,6 +73,7 @@
     border-radius: 1rem;
     cursor: pointer; /* 클릭 가능함을 나타내는 커서 */
     transition: all 0.2s ease; /* 부드러운 전환 효과 */
+    background-color: #fff;
   }
   
   .choiceItem svg {

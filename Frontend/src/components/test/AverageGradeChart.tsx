@@ -29,6 +29,8 @@ interface AverageGradeChartProps {
 
 // 점수 변환 함수 (등급 → 숫자)
 const scoreToNumber = (score: string | null | undefined): number => {
+  
+  console.log('score',score)
   if (!score) return 0;
 
   const scoreMap: { [key: string]: number } = {
@@ -37,9 +39,14 @@ const scoreToNumber = (score: string | null | undefined): number => {
     IM3: 60,
     IM2: 40,
     IM1: 20,
-    IL: 0,
+    IL: 10,
+    NH : 10,
+    NM : 10,
+    NL :10 
   };
-  return scoreMap[score] || 0;
+  const result = scoreMap[score] || 0;
+  console.log(`scoreToNumber 변환: ${score} -> ${result}`);
+  return result;
 };
 
 const AverageGradeChart: React.FC<AverageGradeChartProps> = ({
@@ -62,7 +69,7 @@ const AverageGradeChart: React.FC<AverageGradeChartProps> = ({
               60: "IM3",
               40: "IM2",
               20: "IM1",
-              0: "IL",
+              10: "IL 이하",
             };
             return `등급: ${gradeMap[value] || ""}`;
           },
@@ -78,7 +85,7 @@ const AverageGradeChart: React.FC<AverageGradeChartProps> = ({
           callback: function(tickValue: string | number) {
             const value = Number(tickValue);
             const labelMap: { [key: number]: string } = {
-              0: "IL",
+              10: "IL 이하",
               20: "IM1",
               40: "IM2",
               60: "IM3",
@@ -135,6 +142,8 @@ const AverageGradeChart: React.FC<AverageGradeChartProps> = ({
     ],
   };
 
+  console.log('average_score 전달받음', averageScore)
+  console.log('chartData',chartData.datasets)
   return (
     <div className={styles.container}>
       <div className={styles.chartContainer}>
