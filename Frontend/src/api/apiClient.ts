@@ -1,17 +1,37 @@
-// src/api/apiClient.ts
-import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig} from 'axios';
 
 // 기본 설정
 const BASE_URL = 'http://localhost:8000/api';
 
+// 로그인 페이지로 리다이렉트하는 함수 타입
+type NavigateFunction = () => void;
+
+// 기본 리다이렉트 함수
+let navigateToLogin: NavigateFunction = () => {
+  console.error('Navigation function not set');
+};
+
+// 외부에서 커스텀 네비게이션 함수 설정 가능
+export const setNavigateFunction = (customNavigate: NavigateFunction) => {
+  navigateToLogin = customNavigate;
+};
+
 // Access Token을 세션 스토리지에서 가져오는 함수
 const getAccessToken = (): string | null => {
-  return sessionStorage.getItem('access_token');
+  try {
+    return sessionStorage.getItem('access_token');
+  } catch {
+    return null;
+  }
 };
 
 // Access Token을 세션 스토리지에 저장하는 함수
 const setAccessToken = (token: string): void => {
-  sessionStorage.setItem('access_token', token);
+  try {
+    sessionStorage.setItem('access_token', token);
+  } catch {
+    console.error('Failed to set access token');
+  }
 };
 
 // axios 인스턴스 생성
@@ -70,9 +90,21 @@ apiClient.interceptors.response.use(
       if (errorType === 'token_expired' || 
           (errorDetail && errorDetail.includes('만료된 토큰'))) {
 
-        // 재시도 플래그 설정
-        originalRequest._retry = true;
+      // 로그아웃 처리 로직
+      const handleLogout = () => {
+        try {
+          sessionStorage.removeItem('access_token');
+          sessionStorage.removeItem('isOnboarded');
+        } catch {
+          console.error('Failed to remove tokens from session storage');
+        }
         
+        // 로그인 페이지로 리다이렉트
+        navigateToLogin();
+      };
+
+      // AccessToken 만료 에러인 경우에만 토큰 갱신 시도
+      if (errorType === 'token_expired' && originalRequest) {
         try {
           // 토큰 갱신 요청 - 빈 객체 제거
           const response = await apiClient.post('/auth/refresh-token');
@@ -93,23 +125,13 @@ apiClient.interceptors.response.use(
           return apiClient(originalRequest);
         } catch (refreshError) {
           // 토큰 갱신 실패 - 로그아웃 처리
-          sessionStorage.removeItem('access_token');
-          sessionStorage.removeItem('isOnboarded');
-          
-          // 알림창 표시 후 리다이렉트
-          alert('토큰 갱신에 실패했습니다. 다시 로그인해주세요.');
-          window.location.href = '/auth/login';
+          handleLogout();
           
           return Promise.reject(refreshError);
         }
       } else {
         // 토큰 만료가 아닌 다른 모든 401 에러 - 바로 로그아웃 처리
-        sessionStorage.removeItem('access_token');
-        sessionStorage.removeItem('isOnboarded');
-        
-        // 알림창 표시 후 리다이렉트
-        alert('인증에 문제가 발생했습니다. 다시 로그인해주세요.');
-        window.location.href = '/auth/login';
+        handleLogout();
       }
     }
     
