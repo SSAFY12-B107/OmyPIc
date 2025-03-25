@@ -29,5 +29,8 @@
       "@/*": ["src/*"] // '@'를 'src' 폴더로 매핑
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "files": [
+    "src/data/surveyData.json"  // 특정 파일 명시적 추가
+  ]
 }
