@@ -31,7 +31,7 @@ function TestMain() {
   } = useUserHistory({
     enablePolling: shouldPoll,
     recentTestId,
-    onFeedbackReady: (testHistory) => {
+    onFeedbackReady: () => {
       // console.log('피드백이 준비되었습니다:', testHistory.id);
       
       // 피드백이 준비되면 상태 업데이트 (UI 갱신용)
@@ -62,8 +62,8 @@ function TestMain() {
   const randomRemaining = randomCounts?.remaining;
   const randomLimit = randomCounts?.limit;
 
-  console.log("testRemaining", testRemaining);
-  console.log("randomRemaining", randomRemaining);
+  // console.log("testRemaining", testRemaining);
+  // console.log("randomRemaining", randomRemaining);
 
   // 시험 생성 로딩
   const [loadingTestType, setLoadingTestType] = useState<number | null>(null);
@@ -94,8 +94,7 @@ function TestMain() {
         // 응답 데이터를 Redux에 저장
         dispatch(testActions.setCurrentTest(response.data));
 
-        // console.log("테스트 데이터가 Redux에 저장됨:", response.data);
-
+        console.log('테스트 생성완료!')
         // 페이지 이동
         navigate("/tests/practice");
       } catch (error) {
@@ -115,14 +114,9 @@ function TestMain() {
     }
   };
 
+  console.log('history', historyData)
   return (
     <div className={styles.container}>
-      {/* 피드백 처리 중 상태 표시 */}
-      {isPolling && (
-        <div className={styles.feedbackProcessingAlert}>
-          <p>피드백 생성 중... 잠시만 기다려주세요.</p>
-        </div>
-      )}
 
       {/* 테스트 배포 : 3회 응시 횟수 제한 추가 필요 */}
       <main className={styles.main}>
@@ -188,9 +182,9 @@ function TestMain() {
               })}
             </div>
           ) : (
-            !historyData && (
+            !isLoading && (
               <div className={styles.noData}>
-                내 기록을 한눈에 볼 수 있어요!
+                내 기록을 한눈에 볼 수 있어요 🤗
               </div>
             )
           )}

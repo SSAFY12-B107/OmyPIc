@@ -30,7 +30,7 @@ interface AverageGradeChartProps {
 // 점수 변환 함수 (등급 → 숫자)
 const scoreToNumber = (score: string | null | undefined): number => {
   
-  console.log('score',score)
+  // console.log('score',score)
   if (!score) return 0;
 
   const scoreMap: { [key: string]: number } = {
@@ -147,7 +147,7 @@ const AverageGradeChart: React.FC<AverageGradeChartProps> = ({
   return (
     <div className={styles.container}>
       <div className={styles.chartContainer}>
-        {!averageScore ? (
+        {!averageScore?.total_score ? (
           <div className={styles.emptyData}>첫 시험에 도전해보세요!🐧🐟</div>
         ) : (
           <Bar options={options} data={chartData} />

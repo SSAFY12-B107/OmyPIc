@@ -45,7 +45,7 @@ function OveralFeedback({ testFeedback }: OveralFeedbackProps) {
   if (!testFeedback) {
     return (
       <div className={styles.noFeedback}>
-        종합 피드백이 아직 제공되지 않았습니다.
+        피드백을 불러오고 있어요! 
       </div>
     );
   }

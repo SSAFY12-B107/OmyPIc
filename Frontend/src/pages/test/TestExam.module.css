@@ -141,6 +141,10 @@
 
 .recordBtn {
   margin-bottom: 2rem;
+  padding: 1rem 1rem;
+  background-color: #e9dcff;
+  border-radius: 10px;
+  
 }
 
 .nextButton {

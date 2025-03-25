@@ -9,7 +9,7 @@ interface RecordItemProps {
   isHighlighted?: boolean;
 }
 
-function RecordItem({ record, date, isHighlighted = false }: RecordItemProps) {
+function RecordItem({ record, date }: RecordItemProps) {
   const navigate = useNavigate();
 
   // 상세 페이지로 이동
@@ -25,40 +25,34 @@ function RecordItem({ record, date, isHighlighted = false }: RecordItemProps) {
     impromptu: record.test_score?.unexpected_score,
   };
 
-  const isLoaded = scores.impromptu && scores.description && scores.roleplay 
-
-  // 하이라이트 클래스 추가
-  const containerClassName = isHighlighted
-    ? `${styles.container} ${styles.highlighted}`
-    : styles.container;
+  const isLoaded = scores.impromptu && scores.description && scores.roleplay;
 
   return (
-    <div className={containerClassName}>
-      {/* 새 결과 배지 (하이라이트된 경우만 표시) */}
-      {isHighlighted && <span className={styles.newBadge}>새 결과</span>}
-
-      <div className={styles.header}>
-        <span className={styles.date}>{date}</span>
-        <div className={styles.checkIcon} onClick={goToDetailHandler}>
-          <div className={styles.circle}></div>
-          <svg
-            className={styles.svg}
-            width="48"
-            height="48"
-            viewBox="0 0 48 48"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M18 24H30M30 24L25 19M30 24L25 29"
-              stroke="#845ADF"
-              strokeWidth="2"
-            />
-          </svg>
-        </div>
-      </div>
-
-      {isLoaded? (
+    <div className={styles.container}>
+      {isLoaded ? (
         <>
+          <div className={styles.header}>
+            <span className={styles.date}>{date}</span>
+            <button
+              className={styles.checkIcon}
+              onClick={goToDetailHandler}
+            >
+              <div className={styles.circle}></div>
+              <svg
+                className={styles.svg}
+                width="48"
+                height="48"
+                viewBox="0 0 48 48"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M18 24H30M30 24L25 19M30 24L25 29"
+                  stroke="#845ADF"
+                  strokeWidth="2"
+                />
+              </svg>
+            </button>
+          </div>
           <div className={styles.divider}></div>
           <div className={styles.gradeInfo}>
             <span className={styles.gradeLabel}>예상등급</span>
@@ -81,7 +75,7 @@ function RecordItem({ record, date, isHighlighted = false }: RecordItemProps) {
           </div>
         </>
       ) : (
-        <div>평가 중..🐧</div>
+        <div className={styles.noData}>평가 중..🐧</div>
       )}
     </div>
   );
