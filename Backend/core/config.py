@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     PROJECT_DESCRIPTION: str = "단기 오픽 성적 취득 서비스"
     PROJECT_VERSION: str = "0.1.0"
     
+    # 환경 설정
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    IS_DEVELOPMENT: bool = ENVIRONMENT == "development"
+    
     # SECURITY
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "default_secret_key_for_dev")  # 액세스 토큰용 시크릿 키
     REFRESH_TOKEN_SECRET_KEY: str = os.getenv("REFRESH_TOKEN_SECRET_KEY", "default_refresh_key_for_dev")  # 리프레시 토큰용 시크릿 키
@@ -16,9 +20,11 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7     # 리프레시 토큰 만료 시간(일)
     
     # COOKIE SETTINGS
-    COOKIE_SECURE: bool = False  # 프로덕션 환경에서는 True로 설정
+    COOKIE_SECURE: bool = not IS_DEVELOPMENT  # 개발환경에서는 False, 운영환경에서는 True
     COOKIE_HTTPONLY: bool = True
     COOKIE_SAMESITE: str = "lax"  # 프로덕션 환경에서는 "strict"로 고려
+    COOKIE_DOMAIN_DEV: str = os.getenv("COOKIE_DOMAIN_DEV", "localhost")
+    COOKIE_DOMAIN_PROD: str = os.getenv("COOKIE_DOMAIN_PROD", "omypic.store")
     
     # DATABASE
     MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
@@ -58,6 +64,10 @@ class Settings(BaseSettings):
     def groq_api_keys(self) -> List[str]:
         return [i.strip() for i in self.GROQ_API_KEYS.split(",") if i.strip()]
 
+    @property
+    def cookie_domain(self) -> str:
+        """현재 환경에 맞는 쿠키 도메인을 반환합니다."""
+        return self.COOKIE_DOMAIN_DEV if self.IS_DEVELOPMENT else self.COOKIE_DOMAIN_PROD
     
     class Config:
         env_file = ".env"
