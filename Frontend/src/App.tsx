@@ -37,7 +37,7 @@ function App() {
               {/* Test 관련 라우트 */}
               <Route path="/tests" element={<TestMain />} />
               <Route path="/tests/practice" element={<TestExam />} />
-              <Route path="/tests/feedback/:practiceId/:problemId" element={<FeedBack />} />
+              <Route path="/tests/feedback/:test_pk" element={<FeedBack />} />
 
               {/* Script 관련 라우트 */}
               <Route path="/scripts" element={<ScriptMain />} />
