@@ -4,7 +4,6 @@ import apiClient from "../api/apiClient";
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { clearUser } from '../store/authSlice';
-// import { useAuth } from '../contexts/AuthContext';
 
 interface BackgroundSurvey {
   profession: number;
@@ -46,7 +45,6 @@ export const useLogout = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  // const { setIsAuthenticated, setIsOnboarded } = useAuth();
 
   return useMutation({
     mutationFn: async () => {
@@ -63,11 +61,7 @@ export const useLogout = () => {
       // 3. TanStack Query 캐시 초기화
       queryClient.clear();
       
-      // 4. 인증 상태 업데이트
-      // setIsAuthenticated(false);
-      // setIsOnboarded(false);
-      
-      // 5. 로그인 페이지로 리다이렉트
+      // 4. 로그인 페이지로 리다이렉트
       navigate('/auth/login');
     },
     onError: (error) => {
@@ -77,7 +71,6 @@ export const useLogout = () => {
       sessionStorage.removeItem('access_token');
       dispatch(clearUser());
       queryClient.clear();
-      // setIsAuthenticated(false);
       navigate('/auth/login');
     }
   });

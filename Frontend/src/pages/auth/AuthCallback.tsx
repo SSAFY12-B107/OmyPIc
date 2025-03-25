@@ -26,16 +26,41 @@ function AuthCallback() {
         
         setStatus(`코드 확인됨: ${code.substring(0, 10)}...`);
         
-        // 2. 백엔드 API 호출하여 토큰 교환
+        // 2. 백엔드 API 호출하여 토큰 교환 - 요청 방식 수정
         setStatus('토큰 교환 API 호출 중...');
+        
+        // 요청 데이터 상세 로깅
+        console.log('인증 코드 전송:', { code });
+        
         const response = await fetch('http://localhost:8000/api/auth/exchange-token', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code })
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          credentials: 'include', // 쿠키 포함
+          body: JSON.stringify({ 
+            code,
+            redirect_uri: window.location.origin + '/auth/callback' // 리다이렉트 URI 추가
+          })
         });
         
+        // 응답 상태 로깅
+        console.log('API 응답 상태:', response.status, response.statusText);
+        
         if (!response.ok) {
-          const errorText = await response.text();
+          let errorText;
+          try {
+            // JSON 형태로 오류 응답 파싱 시도
+            const errorData = await response.json();
+            errorText = JSON.stringify(errorData);
+            console.error('API 오류 상세 (JSON):', errorData);
+          } catch (e) {
+            // 일반 텍스트로 파싱
+            errorText = await response.text();
+            console.error('API 오류 상세 (텍스트):', errorText);
+          }
+          
           setStatus(`API 오류: ${response.status}`);
           setError(`API 오류: ${errorText}`);
           return;
@@ -59,7 +84,7 @@ function AuthCallback() {
           if (data.user) {
             // 사용자 정보도 저장
             sessionStorage.setItem('isOnboarded', data.user.is_onboarded ? 'true' : 'false');
-            console.log('사용자 정보 저장됨');
+            console.log('사용자 정보 저장됨:', data.user);
             
             // Redux 스토어에 사용자 정보 저장
             dispatch(setUser(data.user));
@@ -69,12 +94,16 @@ function AuthCallback() {
             // 페이지 이동 전 저장 완료를 위한 지연
             setTimeout(() => {
               if (!data.user.is_onboarded) {
+                // 온보딩이 필요한 경우
                 if (data.user.current_opic_score && data.user.target_opic_score && data.user.target_exam_date) {
+                  // 이미 프로필 정보가 있으면 설문 페이지로
                   navigate('/auth/survey');
                 } else {
+                  // 프로필 정보가 없으면 프로필 페이지로
                   navigate('/auth/profile');
                 }
               } else {
+                // 온보딩이 완료된 경우 홈으로
                 navigate('/');
               }
             }, 1000);
@@ -117,22 +146,31 @@ function AuthCallback() {
           </div>
         )}
         
-        <button
-          onClick={() => {
-            // 저장된 데이터 직접 확인
-            const token = sessionStorage.getItem('access_token');
-            const isOnboarded = sessionStorage.getItem('isOnboarded');
-            
-            alert(`
-              세션 스토리지 확인:
-              - 토큰: ${token ? '있음' : '없음'}
-              - 온보딩 상태: ${isOnboarded || '없음'}
-            `);
-          }}
-          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
-        >
-          저장 상태 확인
-        </button>
+        <div className="flex flex-col space-y-4">
+          <button
+            onClick={() => {
+              // 저장된 데이터 직접 확인
+              const token = sessionStorage.getItem('access_token');
+              const isOnboarded = sessionStorage.getItem('isOnboarded');
+              
+              alert(`
+                세션 스토리지 확인:
+                - 토큰: ${token ? '있음' : '없음'}
+                - 온보딩 상태: ${isOnboarded || '없음'}
+              `);
+            }}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            저장 상태 확인
+          </button>
+          
+          <button
+            onClick={() => navigate('/auth/login')}
+            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+          >
+            로그인 페이지로 이동
+          </button>
+        </div>
       </div>
     </div>
   );

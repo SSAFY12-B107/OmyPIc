@@ -256,6 +256,7 @@ const Survey = () => {
           
           if (result.success) {
             // 제출 성공 시 메인 페이지로 이동
+            sessionStorage.setItem('isOnboarded', 'true');
             navigate('/');
           }
       } catch (error) {
