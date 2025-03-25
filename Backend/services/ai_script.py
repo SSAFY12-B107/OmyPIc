@@ -13,6 +13,7 @@ logger = logging.getLogger("script_generator")
 
 try:
     from langchain_groq import ChatGroq
+    from langchain_google_genai import ChatGoogleGenerativeAI
     from langchain.chains import LLMChain
     from langchain.prompts import ChatPromptTemplate
     from langchain.prompts.chat import SystemMessagePromptTemplate, HumanMessagePromptTemplate
@@ -56,7 +57,7 @@ question_types = {
         ]
     },
     "roleplaying": {
-        "type": "롤플레잉",
+        "type": "롤플레이",
         "questions": [
             "이 상황에서 가장 먼저 확인해야 할 중요한 정보는 무엇인가요? 세 가지 이상 작성해주세요.",
             "상대방이 협조적이지 않거나 원하는 답을 주지 않을 경우, 어떻게 설득하거나 요청할 수 있을까요? 이 상황에서 선택할 수 있는 대안은 무엇이 있나요? 상대방이 거절할 경우, 어떤 추가 해결책을 제시할 수 있나요?",
@@ -81,7 +82,7 @@ def get_question_type_key(category: str) -> str:
         "과거 경험": "past_experience",
         "루틴": "routine",
         "비교": "comparison",
-        "롤플레잉": "roleplaying"
+        "롤플레이": "roleplaying"
     }
     
     return category_mapping.get(category)
@@ -111,7 +112,7 @@ def get_fallback_category(problem_pk: str) -> str:
     elif first_char in "9a":
         return "비교"
     else:
-        return "롤플레잉"
+        return "롤플레이"
 
 # MongoDB에서 문제 카테고리를 가져오는 함수
 async def get_problem_category(problem_pk: str) -> str:
@@ -259,11 +260,13 @@ async def generate_follow_up_questions(problem_pk: str, answers: Dict[str, str])
             
         question_type_data = question_types[type_key]
         
-        # LLM 모델 설정 (Groq LLM 사용)
-        llm = ChatGroq(
+        # Groq 대신 Gemini-2.0 Flash 모델 사용
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        
+        llm = ChatGoogleGenerativeAI(
             temperature=0.3,
-            model_name="llama-3.3-70b-versatile",  # Groq에서 제공하는 Llama 모델
-            api_key=get_next_groq_key()  # Groq API 키
+            model="gemini-2.0-flash",  # Gemini-2.0 Flash 모델 사용
+            google_api_key=get_next_gemini_key()  # Gemini API 키
         )
         
         # 질문 유형별 맞춤 프롬프트 템플릿
@@ -380,7 +383,7 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
         
         # LLM 모델 설정 (Groq LLM 사용)
         llm = ChatGroq(
-            temperature=0.3,  # 창의성을 위해 약간 높임
+            temperature=0.3,
             model_name="llama-3.3-70b-versatile",  # Groq에서 제공하는 Llama 모델
             api_key=get_next_groq_key()  # Groq API 키
         )
@@ -490,17 +493,21 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
         
         Follow these requirements exactly:
         1. Generate a 1-1.5 minute spoken script (7-9 sentences total).
-        2. Use conversational language with natural discourse markers (well, you know, actually, anyway, etc.).
+        2. Use diverse and natural conversation starters and discourse markers. Choose from:
+           - Thoughtful starts: "Let me think...", "Hmm...", "Oh, that's interesting..."
+           - Personal engagement: "Actually...", "To be honest...", "I'd say..."
+           - Natural reactions: "Oh!", "Ah!", "You see..."
+           - Casual transitions: "Well...", "You know...", "I mean..."
         3. Include a mix of simple and complex sentences.
         4. Use appropriate transitions between ideas.
         5. Include personal opinions, feelings, or reflections.
         6. Maintain coherent paragraph-level discourse.
         7. Avoid overly formal language - this should sound natural when spoken.
-        8. Include 1-2 hesitations or self-corrections to sound natural (like "um", "I mean", etc.).
+        8. Include 2-3 natural hesitations or self-corrections throughout the response (like "um", "uh", "I mean", "what I'm trying to say is", etc.).
         9. Make sure to fully incorporate the user's actual answers into the script.
         10. Create a script that directly addresses the original problem and questions.
         
-        The final output should ONLY be the English script - do not include any explanations, introductions, or annotations.
+        Important: Vary your conversation starters and fillers throughout the script. Don't overuse any single expression.
         """
         
         human_template = """
