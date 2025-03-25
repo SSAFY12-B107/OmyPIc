@@ -16,10 +16,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Prometheus 메트릭 설정 (API 요청 시간 측정)
-# REQUEST_TIME = Summary("request_processing_seconds", "Time spent processing request")
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("앱 시작함.")
@@ -59,24 +55,18 @@ app.add_middleware(
 )
 
 
-# 요청 시간 로깅 + Prometheus 메트릭 수집 미들웨어 추가
+# 요청 시간 로깅
 @app.middleware("http")
 async def log_request_time(request: Request, call_next):
     start_time = time.time()
     response = await call_next(request)
     process_time = time.time() - start_time
     
-    # Prometheus 메트릭 기록
-    # REQUEST_TIME.observe(process_time)
-    
     # 로깅
     logger.info(f"URL: {request.url.path}, Time taken: {process_time:.4f} seconds")
     
     return response
 
-
-# Prometheus 메트릭 엔드포인트 추가 (/metrics)
-# app.mount("/metrics", make_asgi_app())
 
 # 라우터 등록
 app.include_router(auth.router, prefix="/api/auth", tags=["인증"])
