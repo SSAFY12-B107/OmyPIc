@@ -11,6 +11,17 @@ function AuthCallback() {
   const [status, setStatus] = useState<string>('처리 중...');
   const [error, setError] = useState<string | null>(null);
 
+  // 스피너 스타일 정의 - 컴포넌트 안에서 정의
+  const spinnerStyle = {
+    width: '40px',
+    height: '40px',
+    border: '3px solid rgba(94, 94, 94, 0.3)',
+    borderRadius: '50%',
+    borderTopColor: 'rgba(94, 94, 94, 0.8)',
+    animation: 'spin 1s ease-in-out infinite',
+    margin: '0 auto'
+  };
+
   useEffect(() => {
     async function handleAuth() {
       try {
@@ -134,44 +145,20 @@ function AuthCallback() {
   }, [location, navigate, dispatch]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
-      <div className="text-center">
-        <h2 className="text-xl font-semibold mb-4">로그인 처리 중</h2>
-        <p className="mb-4">{status}</p>
-        
-        {error && (
-          <div className="text-red-500 mb-4">
-            <p>오류: {error}</p>
-            <p className="text-sm mt-2">잠시 후 로그인 페이지로 이동합니다...</p>
-          </div>
-        )}
-        
-        <div className="flex flex-col space-y-4">
-          <button
-            onClick={() => {
-              // 저장된 데이터 직접 확인
-              const token = sessionStorage.getItem('access_token');
-              const isOnboarded = sessionStorage.getItem('isOnboarded');
-              
-              alert(`
-                세션 스토리지 확인:
-                - 토큰: ${token ? '있음' : '없음'}
-                - 온보딩 상태: ${isOnboarded || '없음'}
-              `);
-            }}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            저장 상태 확인
-          </button>
-          
-          <button
-            onClick={() => navigate('/auth/login')}
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-          >
-            로그인 페이지로 이동
-          </button>
-        </div>
-      </div>
+    <div className="flex items-center justify-center min-h-screen">
+      {/* 애니메이션 keyframes 추가 */}
+      <style>
+        {`
+          @keyframes spin {
+            to {
+              transform: rotate(360deg);
+            }
+          }
+        `}
+      </style>
+      
+      {/* 항상 스피너만 표시 */}
+      <div style={spinnerStyle}></div>
     </div>
   );
 }
