@@ -166,6 +166,7 @@ function ProfilePage() {
           <option value="IM2">IM2</option>
           <option value="IM1">IM1</option>
           <option value="IL">IL</option>
+          <option value="-">현재 등급 없음</option>
         </select>
         {errors.currentGrade && <p className={styles.errorText}>{errors.currentGrade}</p>}
       </div>
