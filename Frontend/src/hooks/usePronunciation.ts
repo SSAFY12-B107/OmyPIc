@@ -18,5 +18,9 @@ export const usePronunciationAudio = (scriptId: number) => {
       return response.data;
     },
     enabled: !!scriptId, // scriptId가 존재할 때만 쿼리 활성화
+    staleTime: 1000 * 60 * 10, // 10분 동안 데이터를 "신선한" 상태로 유지
+    gcTime: 1000 * 60 * 60, // 1시간 동안 캐시 유지 (이전 cacheTime)
+    refetchOnWindowFocus: false, // 창 포커스 시 재요청 방지
+    refetchOnMount: false, // 컴포넌트 마운트 시 재요청 방지
   });
 };

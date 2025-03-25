@@ -19,7 +19,6 @@ function ScriptBox({ userScript }: ScriptBoxProps) {
   const {
     data: audioData,
     isLoading,
-    refetch,
   } = usePronunciationAudio(activeScriptId as number);
 
   // 발음 듣기 요청 핸들러
@@ -116,7 +115,7 @@ function ScriptBox({ userScript }: ScriptBoxProps) {
             <div key={`script-${script._id}`} className={styles["content-item"]}>
               <p>{script.content}</p>
               {/* 각 스크립트마다 발음 듣기 버튼 추가 */}
-              <div 
+              <button 
                 className={styles["listen-btn"]} 
                 onClick={() => handleRequestAudio(script._id)}
               >
@@ -155,7 +154,7 @@ function ScriptBox({ userScript }: ScriptBoxProps) {
                   </svg>
                 )}
                 <span>{isPlaying && activeScriptId === script._id ? "일시정지" : "발음 듣기"}</span>
-              </div>
+              </button>
             </div>
           ))
         ) : (
