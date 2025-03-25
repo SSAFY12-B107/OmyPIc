@@ -327,6 +327,7 @@ async def exchange_token(
         httponly=settings.COOKIE_HTTPONLY, 
         secure=settings.COOKIE_SECURE,
         samesite=settings.COOKIE_SAMESITE,
+        domain=settings.cookie_domain,  # 추가: cookie_domain 설정
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60  # 일 -> 초 변환
     )
     
@@ -390,7 +391,8 @@ async def logout(
         key="refresh_token",
         httponly=settings.COOKIE_HTTPONLY,
         secure=settings.COOKIE_SECURE,
-        samesite=settings.COOKIE_SAMESITE
+        samesite=settings.COOKIE_SAMESITE,
+        domain=settings.cookie_domain  # 추가: cookie_domain 설정
     )
     
     return response
