@@ -57,11 +57,7 @@ export const useGetProblemDetail = (problem_id: string) => {
   return useQuery<ProblemDetail>({
     queryKey: ["problem", problem_id],
     queryFn: async () => {
-      const response = await apiClient.get<ProblemDetail>(`/problems/detail/${problem_id}`, {
-        params: {
-          user_id: '67da4792ad60cfdcd742b119'
-        }
-    });
+      const response = await apiClient.get<ProblemDetail>(`/problems/detail/${problem_id}`);
       return response.data;
     }
   })

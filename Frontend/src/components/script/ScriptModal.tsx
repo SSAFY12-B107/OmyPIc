@@ -94,7 +94,6 @@ function ScriptModal({
         {isGeneratingCustom ? (
           <div className={styles.loadingWrapper}>
             <LoadingSpinner />
-            <p className={styles.loadingText}>꼬리 질문 생성 중...</p>
           </div>
         ) : (
           <img 

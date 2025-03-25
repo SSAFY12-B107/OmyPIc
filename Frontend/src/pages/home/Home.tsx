@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import styles from "./Home.module.css";
 // import CharacterChange from "@/components/home/CharacterChange";
 import LevelChart from "@/components/home/LevelChart";
@@ -9,12 +11,20 @@ import LoadingSpinner from "@/components/common/LoadingSpinner";
 function Home() {
   // 사용자 정보 가져오기
   const { data: userInfo, isLoading: userInfoIsLoading, error } = useGetUserInfo();
+  const [testDateIso, setTestDateIso] = useState("");
 
   // 로그아웃 로직
   const { mutate: logout } = useLogout();
+  console.log(userInfo)
 
-  // 시험일 계산 - API에서 받아온 데이터로 교체
-  const testDateIso = userInfo?.target_exam_date || "2025-03-19T15:20:11.275000";
+  // 데이터가 로딩되면 상태 업데이트
+  useEffect(() => {
+    if (userInfo?.target_exam_date) {
+      setTestDateIso(userInfo.target_exam_date);
+    }
+  }, [userInfo]);
+
+  // 시험일 계산
   const { formattedDate, dday } = useTestDate(testDateIso);
 
   // 로딩 상태 처리
@@ -24,7 +34,7 @@ function Home() {
 
   // 에러 상태 처리
   if (error) {
-    return <div className={styles["error"]}>사용자 정보를 불러오는데 실패했습니다.</div>;
+    return <Navigate to="/" replace />;
   }
 
   return (
