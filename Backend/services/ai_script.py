@@ -493,17 +493,21 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
         
         Follow these requirements exactly:
         1. Generate a 1-1.5 minute spoken script (7-9 sentences total).
-        2. Use conversational language with natural discourse markers (well, you know, actually, anyway, etc.).
+        2. Use diverse and natural conversation starters and discourse markers. Choose from:
+           - Thoughtful starts: "Let me think...", "Hmm...", "Oh, that's interesting..."
+           - Personal engagement: "Actually...", "To be honest...", "I'd say..."
+           - Natural reactions: "Oh!", "Ah!", "You see..."
+           - Casual transitions: "Well...", "You know...", "I mean..."
         3. Include a mix of simple and complex sentences.
         4. Use appropriate transitions between ideas.
         5. Include personal opinions, feelings, or reflections.
         6. Maintain coherent paragraph-level discourse.
         7. Avoid overly formal language - this should sound natural when spoken.
-        8. Include 1-2 hesitations or self-corrections to sound natural (like "um", "I mean", etc.).
+        8. Include 2-3 natural hesitations or self-corrections throughout the response (like "um", "uh", "I mean", "what I'm trying to say is", etc.).
         9. Make sure to fully incorporate the user's actual answers into the script.
         10. Create a script that directly addresses the original problem and questions.
         
-        The final output should ONLY be the English script - do not include any explanations, introductions, or annotations.
+        Important: Vary your conversation starters and fillers throughout the script. Don't overuse any single expression.
         """
         
         human_template = """
