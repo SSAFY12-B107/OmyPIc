@@ -7,7 +7,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from datetime import datetime
 
-import jwt  # PyJWT 라이브러리
+import jwt
 from models.user import User
 from typing import Dict, Any
 from services import auth as auth_service
@@ -95,7 +95,6 @@ async def get_current_user(
             },
         )
     except jwt.InvalidTokenError:
-        # 이 부분은 PyJWT에서는 올바른 예외입니다
         logger.error("JWT 토큰 검증 실패")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -106,7 +105,6 @@ async def get_current_user(
             },
         )
     except HTTPException:
-        # 이미 생성된 HTTPException은 그대로 전달
         raise
     except Exception as e:
         logger.error(f"인증 과정에서 예상치 못한 오류: {str(e)}")
