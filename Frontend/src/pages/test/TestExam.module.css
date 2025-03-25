@@ -141,9 +141,10 @@
 
 .recordBtn {
   margin-bottom: 2rem;
-  padding: 1rem 1rem;
+  padding: 0.5rem 1rem;
   background-color: #e9dcff;
   border-radius: 10px;
+
   
 }
 
@@ -166,82 +167,6 @@
   
 }
 
-
-/* TestExam.module.css에 추가할 헤더 스타일 */
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.2rem 1.6rem;
-  background-color: #fff;
-  border-bottom: 1px solid #eee;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.headerTitle {
-  font-size: 1.8rem;
-  font-weight: 600;
-  color: #333;
-  margin: 0;
-  text-align: center;
-  flex: 1;
-}
-
-.backButton {
-  display: flex;
-  align-items: center;
-  padding: 0.8rem 12px;
-  background: none;
-  border: none;
-  color: #555;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.2s;
-}
-
-.backButton:hover {
-  background-color: #f5f5f5;
-  color: #333;
-}
-
-.backIcon {
-  font-size: 18px;
-  margin-right: 4px;
-}
-
-.backText {
-  display: inline-block;
-}
-
-.headerSpacer {
-  width: 70px; /* backButton과 비슷한 너비로 설정하여 제목을 중앙에 유지 */
-}
-
-/* 모바일 환경에서는 아이콘만 표시 */
-@media (max-width: 480px) {
-  .backText {
-    display: none;
-  }
-  
-  .headerSpacer {
-    width: 40px;
-  }
-  
-  .backButton {
-    padding: 8px;
-  }
-  
-  .backIcon {
-    font-size: 20px;
-    margin-right: 0;
-  }
-}
 
 /* 기존 모달 스타일과 함께 사용 */
 .modalOverlay {

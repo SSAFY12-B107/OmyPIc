@@ -11,6 +11,8 @@ import apiClient from "@/api/apiClient";
 import FeedbackModal from "@/components/test/FeedbackModal";
 
 function TestExam() {
+
+  console.log('이동완료(?)')
   // 컴포넌트 최상단에 문제 mp3 캐시 객체 선언
   const audioCache = useRef<Record<string, HTMLAudioElement>>({}).current;
 
