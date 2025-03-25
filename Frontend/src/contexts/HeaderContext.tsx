@@ -7,7 +7,7 @@ import React, {
   useMemo,
 } from "react";
 
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 // 헤더가 필요없는 경로 목록
 const NO_HEADER_PATHS = ["/", "/auth/login"];
@@ -41,6 +41,7 @@ export const HeaderProvider: React.FC<HeaderProviderProps> = ({ children }) => {
   const [testEndAction, setTestEndAction] = useState<(() => void) | null>(null); // 테스트 관련 상태
 
   const location = useLocation();
+  const navigate = useNavigate();
 
   // 경로가 변경될 때 자동으로 헤더 상태 초기화
   useEffect(() => {
@@ -57,8 +58,17 @@ export const HeaderProvider: React.FC<HeaderProviderProps> = ({ children }) => {
     );
     setHideBackButton(shouldHideBackButton);
 
-    // 커스텀 백 액션 초기화
-    setCustomBackAction(null);
+    // 커스텀 백 액션 초기화 및 설정
+    // /scripts/카테고리/넘버 패턴 확인
+    const scriptsDetailPattern = /^\/scripts\/[^\/]+\/\d+$/;
+    if (scriptsDetailPattern.test(location.pathname)) {
+      // /scripts/카테고리 형태로 이동하는 커스텀 백 액션 설정
+      const pathParts = location.pathname.split('/');
+      const categoryPath = `/scripts/${pathParts[2]}`;
+      setCustomBackAction(() => () => navigate(categoryPath));
+    } else {
+      setCustomBackAction(null);
+    }
 
     // 경로에 따라 기본 타이틀 설정
     let defaultTitle = "";
@@ -78,7 +88,7 @@ export const HeaderProvider: React.FC<HeaderProviderProps> = ({ children }) => {
     }
 
     setTitle(defaultTitle);
-  }, [location.pathname]);
+  }, [location.pathname, navigate]);
 
   // contextValue를 useMemo로 감싸기
   const contextValue = useMemo(
