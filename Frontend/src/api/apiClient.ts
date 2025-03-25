@@ -49,7 +49,6 @@ interface RetryConfig extends InternalAxiosRequestConfig {
 // 응답 인터셉터 설정 수정
 apiClient.interceptors.response.use(
   (response) => {
-    console.log('응답 잘 감!!')
     return response;
   },
   async (error: AxiosError) => {
@@ -57,8 +56,6 @@ apiClient.interceptors.response.use(
       console.log('!error.config', !error.config)
       return Promise.reject(error);
     }
-
-    console.log('error났다', error)
     
     const originalRequest = error.config as RetryConfig;
     
@@ -68,17 +65,11 @@ apiClient.interceptors.response.use(
       const errorType = error.response?.headers['x-error-type'];
       const errorData = error.response?.data as { detail?: string }; 
       const errorDetail = errorData?.detail;
-      console.log('401에러 발생', error)
-      console.log('errorType', errorType)
-      console.log('errorDetail', errorDetail)
-      console.log('header', error.response?.headers)
-      
       
       // 토큰 만료 관련 오류인 경우에만 토큰 갱신 시도
       if (errorType === 'token_expired' || 
           (errorDetail && errorDetail.includes('만료된 토큰'))) {
-            console.log('토큰 만료 관련 오류')
-            console.log('엑세스 토큰', sessionStorage.getItem('access_token'))
+
         // 재시도 플래그 설정
         originalRequest._retry = true;
         

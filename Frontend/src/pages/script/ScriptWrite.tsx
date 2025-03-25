@@ -133,7 +133,7 @@ function ScriptWrite() {
       );
       
       // API 응답을 기다리지 않고 즉시 상세 페이지로 이동
-      navigate(detailPagePath, { replace: true });
+      navigate(detailPagePath);
       dispatch(clearScriptState());
       return;
     }

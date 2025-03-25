@@ -18,13 +18,6 @@ export function useTestDate(isoString: string): TestDateResult {
   
   // 자정마다 D-day 업데이트
   useEffect(() => {
-    const updateDday = () => {
-      setDday(calculateDday(isoString));
-    };
-    
-    // 최초 1회 실행
-    updateDday();
-    
     // 다음 자정에 업데이트할 타이머 설정
     const now = new Date();
     const tomorrow = new Date(now);
@@ -32,7 +25,9 @@ export function useTestDate(isoString: string): TestDateResult {
     tomorrow.setHours(0, 0, 0, 0);
     
     const timeUntilMidnight = tomorrow.getTime() - now.getTime();
-    const timerId = setTimeout(updateDday, timeUntilMidnight);
+    const timerId = setTimeout(() => {
+      setDday(calculateDday(isoString));
+    }, timeUntilMidnight);
     
     return () => clearTimeout(timerId);
   }, [isoString]);
@@ -44,7 +39,7 @@ export function useTestDate(isoString: string): TestDateResult {
 }
 
 /**
- * ISO 8601 형식 날짜 문자열을 "YYYY년 M월 D일(요일) HH:MM" 형식으로 변환
+ * ISO 8601 형식 날짜 문자열을 "YYYY년 M월 D일(요일)" 형식으로 변환
  */
 function formatTestDate(isoString: string): string {
   const date = new Date(isoString);
@@ -58,11 +53,7 @@ function formatTestDate(isoString: string): string {
   const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
   const weekday = weekdays[date.getDay()];
   
-  // 시간 (24시간 형식)
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  
-  return `${year}년 ${month}월 ${day}일(${weekday}) ${hours}:${minutes}`;
+  return `${year}년 ${month}월 ${day}일(${weekday})`;
 }
 
 /**
