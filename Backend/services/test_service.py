@@ -10,7 +10,7 @@ from bson import ObjectId
 import random
 
 from models.test import TestModel, ProblemDetail
-from services.audio_processor import AudioProcessor
+from services.audio_processor import AudioProcessor, FastAudioProcessor
 from services.evaluator import ResponseEvaluator
 from services.test_generator import generate_short_test, generate_full_test
 
@@ -18,8 +18,8 @@ from services.test_generator import generate_short_test, generate_full_test
 logger = logging.getLogger(__name__)
 
 # 두 가지 전역 인스턴스 생성
-standard_audio_processor = AudioProcessor(model_name="small")  # 7문제, 15문제용
-fast_audio_processor = AudioProcessor(model_name="tiny")  # 랜덤 단일 문제용
+standard_audio_processor = AudioProcessor(model_name="whisper-large-v3", language="en")  # 정확성 우선
+fast_audio_processor = FastAudioProcessor(model_name="whisper-large-v3", language="en")  # 속도 우선
 
 evaluator = ResponseEvaluator()
 
