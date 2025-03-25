@@ -557,43 +557,4 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
         logger.error(f"{error_msg}\n{traceback.format_exc()}")
         return f"Script generation failed: {str(e)}"
 
-# 메인 함수 - 직접 실행 테스트용
-async def main():
-    """
-    모듈 테스트용 메인 함수
-    """
-    test_problem_pk = "639f45d21a8c87e123456789"
-    test_answers = {
-        "basic_answers": {
-            "answer1": "테스트 답변 1입니다.",
-            "answer2": "테스트 답변 2입니다.",
-            "answer3": "테스트 답변 3입니다."
-        },
-        "custom_answers": {
-            "answer1": "커스텀 답변 1입니다.",
-            "answer2": "",
-            "answer3": ""
-        }
-    }
-    
-    try:
-        # 꼬리질문 테스트
-        questions = {
-            "question1": test_answers["basic_answers"]["answer1"],
-            "question2": test_answers["basic_answers"]["answer2"],
-            "question3": test_answers["basic_answers"]["answer3"]
-        }
-        
-        follow_up = await generate_follow_up_questions(test_problem_pk, questions)
-        print("생성된 꼬리질문:")
-        for q in follow_up:
-            print(f"- {q}")
-            
-        # OPIc 스크립트 테스트
-        script = await generate_opic_script(test_problem_pk, test_answers)
-        print("\n생성된 OPIc 스크립트:")
-        print(script)
-        
-    except Exception as e:
-        print(f"테스트 중 오류 발생: {str(e)}")
-        traceback.print_exc()
+

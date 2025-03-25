@@ -139,25 +139,35 @@ async def get_current_user_profile(
     return UserDetailResponse.model_validate(user_dict)
 
 
-@router.put("/me", status_code=status.HTTP_200_OK, response_model=UserResponse)
+@router.put("/", response_model=UserResponse, status_code=status.HTTP_200_OK)
 async def update_user_info(
-    user_data: UserUpdateSchema = Body(..., description="업데이트할 사용자 정보"),
+    user_data: UserUpdateSchema = Body(..., description="업데이트할 사용자 정보"), 
     current_user: User = Depends(get_current_user),
     db = Depends(get_mongodb)
 ):
     """
-    현재 로그인한 사용자 정보 수정 API
+    현재 로그인한 사용자 정보를 업데이트합니다 (PUT 메서드 사용).
     """
+    print(f"PUT /api/users/ 호출됨 - 사용자 정보 업데이트 요청: {user_data}")
+    
     # 현재 인증된 사용자 ID 사용
     user_id = str(current_user.id)
-    user_object_id = ObjectId(user_id)
+    try:
+        user_object_id = ObjectId(user_id)
+    except Exception as e:
+        print(f"ObjectId 변환 오류: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="유효하지 않은 사용자 ID 형식입니다."
+        )
     
-    # 사용자 존재 여부 확인 (중복 조회이지만 데이터 일관성을 위해 유지)
+    # 사용자 존재 여부 확인
     existing_user = await db.users.find_one({"_id": user_object_id})
     if not existing_user:
-        return JSONResponse(
+        print(f"사용자를 찾을 수 없음: {user_id}")
+        raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            content={"detail": f"ID {user_id}인 사용자를 찾을 수 없습니다."}
+            detail=f"ID {user_id}인 사용자를 찾을 수 없습니다."
         )
     
     # 업데이트할 데이터 준비
@@ -196,16 +206,23 @@ async def update_user_info(
     
     try:
         # 사용자 정보 업데이트
+        print(f"사용자 정보 업데이트 시도: {update_data}")
         result = await db.users.update_one(
             {"_id": user_object_id},
             {"$set": update_data}
         )
         
-        if result.modified_count == 0 and not result.matched_count:
-            return JSONResponse(
-                status_code=status.HTTP_404_NOT_FOUND,
-                content={"detail": "사용자를 찾을 수 없습니다."}
-            )
+        if result.modified_count == 0:
+            if result.matched_count > 0:
+                print("사용자 정보가 이미 최신 상태입니다.")
+            else:
+                print(f"사용자를 찾을 수 없음: {user_id}")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="사용자를 찾을 수 없습니다."
+                )
+        else:
+            print(f"사용자 정보 업데이트 성공: {result.modified_count}개 수정됨")
         
         # 업데이트된 사용자 정보 조회
         updated_user = await db.users.find_one({"_id": user_object_id})
@@ -219,9 +236,9 @@ async def update_user_info(
         
     except Exception as e:
         logger.error(f"사용자 정보 수정 중 오류 발생: {str(e)}", exc_info=True)
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"detail": f"사용자 정보 수정 중 오류가 발생했습니다: {str(e)}"}
+            detail=f"사용자 정보 수정 중 오류가 발생했습니다: {str(e)}"
         )
 
 

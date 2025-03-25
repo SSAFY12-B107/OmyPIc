@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     COOKIE_SECURE: bool = not IS_DEVELOPMENT  # 개발환경에서는 False, 운영환경에서는 True
     COOKIE_HTTPONLY: bool = True
     COOKIE_SAMESITE: str = "lax"  # 프로덕션 환경에서는 "strict"로 고려
-    COOKIE_DOMAIN_DEV: str = os.getenv("COOKIE_DOMAIN_DEV", "localhost")
+    COOKIE_DOMAIN_DEV: str = os.getenv("COOKIE_DOMAIN_DEV", "localhost:5173")
     COOKIE_DOMAIN_PROD: str = os.getenv("COOKIE_DOMAIN_PROD", "omypic.store")
     
     # DATABASE
