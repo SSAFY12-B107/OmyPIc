@@ -25,9 +25,9 @@ from services.test_service import create_test, process_audio_background, get_ran
 # 로깅 설정
 logger = logging.getLogger(__name__)
 
-# 두 가지 전역 인스턴스 생성
-standard_audio_processor = AudioProcessor(model_name="small")  # 7문제, 15문제용
-fast_audio_processor = FastAudioProcessor(model_name="tiny")  # 랜덤 단일 문제용
+# 두 가지 전역 인스턴스 생성 (Groq 기반)
+standard_audio_processor = AudioProcessor(model_name="whisper-large-v3", language="en")  # 7문제, 15문제용
+fast_audio_processor = FastAudioProcessor(model_name="whisper-large-v3", language="en")  # 랜덤 단일 문제용
 
 evaluator = ResponseEvaluator()
 
@@ -45,22 +45,31 @@ async def get_test_history(
         # 현재 사용자 정보 사용
         user_pk = str(current_user.id)
         
-        # 사용자의 테스트 생성 횟수 정보 가져오기
-        test_limits = current_user.test_limits if hasattr(current_user, 'test_limits') else {"test_count": 0, "random_problem": 0}
+        # 디버깅을 위한 로깅 추가
+        logger.info(f"사용자 정보: {current_user}")
+        logger.info(f"사용자 limits 필드: {getattr(current_user, 'limits', None)}")
         
-        # 남은 횟수 계산
+        # 사용자의 테스트 생성 횟수 정보 가져오기 (limits 필드 사용)
+        limits = getattr(current_user, 'limits', {"test_count": 0, "random_problem": 0, "script_count": 0})
+        
+        # 남은 횟수 계산 (테스트와 랜덤 문제 모두 limits 필드에서 가져옴)
         test_counts = {
             "test_count": {
-                "used": test_limits.get("test_count", 0),
+                "used": limits.get("test_count", 0),
                 "limit": 3,
-                "remaining": max(0, 3 - test_limits.get("test_count", 0))
+                "remaining": max(0, 3 - limits.get("test_count", 0))
             },
             "random_problem": {
-                "used": test_limits.get("random_problem", 0),
+                "used": limits.get("random_problem", 0),
                 "limit": 5,
-                "remaining": max(0, 5 - test_limits.get("random_problem", 0))
+                "remaining": max(0, 5 - limits.get("random_problem", 0))
+            },
+            # script_count 추가 (요청된 경우)
+            "script_count": {
+                "used": limits.get("script_count", 0),
+                "limit": 5,
+                "remaining": max(0, 5 - limits.get("script_count", 0))
             }
-            # script_count 필드 제거함
         }
 
         # 사용자의 테스트 내역 조회
@@ -79,7 +88,7 @@ async def get_test_history(
             })
 
         # 응답 생성
-        average_score = current_user.average_score if hasattr(current_user, 'average_score') else None
+        average_score = getattr(current_user, 'average_score', None)
         
         response = {
             "average_score": average_score,
@@ -87,6 +96,9 @@ async def get_test_history(
             "test_counts": test_counts
         }
 
+        # 최종 응답 로깅
+        logger.info(f"테스트 히스토리 응답: {response}")
+        
         return response
     except Exception as e:
         logger.error(f"테스트 히스토리 조회 중 오류 발생: {str(e)}", exc_info=True)
@@ -235,11 +247,15 @@ async def make_test(
             content={"detail": "사용자를 찾을 수 없습니다"}
         )
     
-    # 사용자의 테스트 생성 횟수 확인 (최신 DB 정보 사용)
-    limits = latest_user.get("limits", latest_user.get("test_limits", {}))
+    # User.from_mongo 메서드를 사용하여 일관된 필드 접근
+    user_obj = User.from_mongo(latest_user)
     
-    # 로깅 추가
-    logger.info(f"사용자 {user_id}의 현재 제한 정보: {limits}")
+    # 로깅 추가 - 데이터 구조 확인
+    logger.info(f"DB에서 가져온 사용자 정보: {latest_user}")
+    logger.info(f"변환된 사용자 객체의 limits 필드: {user_obj.limits}")
+    
+    # User 객체의 limits 필드 사용
+    limits = user_obj.limits
     
     # 테스트 타입에 따른 제한 확인
     if test_type == 0 or test_type == 1:  # 7문제 또는 15문제 테스트 (통합 카운트)
@@ -253,8 +269,8 @@ async def make_test(
                 content={"detail": "7문제와 15문제 테스트는 합산하여 최대 3회까지만 생성 가능합니다"}
             )
         
-        # 필드 이름 확인 (사용자 문서 구조에 맞춤)
-        limit_field = "limits.test_count" if "limits" in latest_user else "test_limits.test_count"
+        # 무조건 limits 필드 사용
+        limit_field = "limits.test_count"
     else:  # 랜덤 1문제
         random_problem_count = limits.get("random_problem", 0)
         logger.info(f"현재 random_problem_count: {random_problem_count}")
@@ -266,18 +282,25 @@ async def make_test(
                 content={"detail": "랜덤 1문제는 최대 5회까지만 생성 가능합니다"}
             )
         
-        # 필드 이름 확인 (사용자 문서 구조에 맞춤)
-        limit_field = "limits.random_problem" if "limits" in latest_user else "test_limits.random_problem"
+        # 무조건 limits 필드 사용
+        limit_field = "limits.random_problem"
 
     # 로깅 추가 - 업데이트 필드
     logger.info(f"테스트 카운트 업데이트 필드: {limit_field}")
     
     try:
-        # 테스트 횟수 증가
-        await db.users.update_one(
+        # 테스트 횟수 증가 - 무조건 limits 필드 사용
+        update_result = await db.users.update_one(
             {"_id": ObjectId(user_id)},
             {"$inc": {limit_field: 1}}
         )
+        
+        # 업데이트 확인 로깅
+        logger.info(f"사용자 {user_id} 업데이트 결과: {update_result.modified_count}개 수정됨")
+        
+        # 업데이트 후 사용자 데이터 확인을 위한 재조회
+        updated_user = await db.users.find_one({"_id": ObjectId(user_id)})
+        logger.info(f"업데이트 후 사용자 데이터: {updated_user}")
 
         # 랜덤 단일 문제 요청인 경우 (test_type == 2)
         if test_type == 2:
@@ -803,125 +826,6 @@ async def evaluate_random_problem(
             status_code=500,
             content={"detail": f"오류가 발생했습니다: {str(e)}"}
         )
-
-
-# @router.post("/random-problem/evaluate", response_model=RandomProblemEvaluationResponse)
-# async def evaluate_random_problem(
-#     problem_id: str = Body(..., description="문제 ID"),
-#     user_id: str = Body(..., description="사용자 ID"),
-#     audio_file: UploadFile = File(..., description="녹음된.mp3 파일"),
-#     db: Database = Depends(get_mongodb)
-# ) -> RandomProblemEvaluationResponse:
-#     """
-#     랜덤 단일 문제 평가 API
-    
-#     사용자의 녹음을 받아 해당 문제에 대한 즉시 피드백을 제공합니다.
-#     이 API는 데이터베이스에 결과를 저장하지 않습니다.
-#     """
-#     try:
-#         # ObjectId 유효성 검사
-#         if not ObjectId.is_valid(problem_id) or not ObjectId.is_valid(user_id):
-#             raise HTTPException(status_code=400, detail="유효하지 않은 ID 형식입니다.")
-        
-#         # 문제 존재 확인
-#         problem = await db.problems.find_one({"_id": ObjectId(problem_id)})
-#         if not problem:
-#             raise HTTPException(status_code=404, detail="해당 문제를 찾을 수 없습니다.")
-        
-#         # 사용자 존재 확인
-#         user = await db.users.find_one({"_id": ObjectId(user_id)})
-#         if not user:
-#             raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
-        
-#         # 파일 내용 읽기
-#         audio_content = await audio_file.read()
-#         audio_filename = audio_file.filename
-        
-#         # 파일 유형 검사
-#         file_extension = audio_filename.split(".")[-1].lower() if audio_filename else ""
-#         if file_extension not in ["mp3", "wav", "webm", "m4a"]:
-#             raise HTTPException(
-#                 status_code=400, 
-#                 detail="지원되지 않는 파일 형식입니다. MP3, WAV, WEBM, M4A 형식만 지원합니다."
-#             )
-        
-#         # 파일 크기 제한 (10MB)
-#         max_size = 10 * 1024 * 1024  # 10MB
-#         if len(audio_content) > max_size:
-#             raise HTTPException(
-#                 status_code=400, 
-#                 detail=f"파일 크기가 너무 큽니다. 최대 10MB까지만 지원합니다. (현재 크기: {len(audio_content)/1024/1024:.2f}MB)"
-#             )
-        
-#         # 문제 정보 가져오기
-#         problem_category = problem.get("problem_category", "")
-#         topic_category = problem.get("topic_category", "")
-#         problem_content = problem.get("content", "")
-        
-#         # AudioProcessor를 사용하여 오디오 텍스트 변환
-#         try:
-#             start_time = datetime.now()
-#             logger.info(f"사용자 {user_id}의 랜덤 문제 응답 변환 시작 (경량 모델)...")
-            
-#             # 경량 모델과 최적화 설정 사용
-#             transcribed_text = fast_audio_processor.process_audio_fast(audio_content)
-            
-#             processing_time = (datetime.now() - start_time).total_seconds()
-#             logger.info(f"경량 음성 변환 완료: {transcribed_text[:50]}... (소요 시간: {processing_time:.2f}초)")
-#         except Exception as e:
-#             logger.error(f"경량 음성 변환 중 오류: {str(e)}", exc_info=True)
-#             raise HTTPException(status_code=500, detail="음성 변환 중 오류가 발생했습니다. 녹음을 다시 시도해 주세요.")
-        
-#         # 스크립트는 저장하지 않음, 단 응답이 너무 짧으면 평가 생략
-#         if len(transcribed_text.split()) < 5:
-#             evaluation_result = {
-#                 "score": "NL",
-#                 "feedback": {
-#                     "paragraph": "응답이 너무 짧아 평가할 수 없습니다. 최소 한 문장 이상의 응답이 필요합니다.",
-#                     "vocabulary": "응답이 너무 짧아 어휘력을 평가할 수 없습니다.",
-#                     "spoken_amount": "발화량이 매우 부족합니다. 질문에 대해 충분한 길이로 답변해야 합니다."
-#                 }
-#             }
-#         else:
-#             # 매번 새로운 API 키로 평가기 생성
-#             evaluator_instance = ResponseEvaluator()
-            
-#             # LangChain 평가 모델 호출
-#             evaluation_result = await evaluator_instance.evaluate_response(
-#                 user_response=transcribed_text,
-#                 problem_category=problem_category,
-#                 topic_category=topic_category,
-#                 problem=problem_content
-#             )
-        
-#         score = evaluation_result.get("score", "IM2")
-#         feedback = evaluation_result.get("feedback", {})
-        
-#         # 결과 응답 구성
-#         response = {
-#             "problem_id": problem_id,
-#             "user_id": user_id,
-#             "problem_category": problem_category,
-#             "topic_category": topic_category,
-#             "problem_content": problem_content,
-#             "transcribed_text": transcribed_text,
-#             "score": score,
-#             "feedback": feedback,
-#             "evaluated_at": datetime.now().isoformat()
-#         }
-        
-#         logger.info(f"랜덤 문제 평가 완료 - 사용자: {user_id}, 점수: {score}")
-#         return RandomProblemEvaluationResponse(**response)
-        
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         logger.error(f"랜덤 문제 평가 중 오류 발생: {str(e)}", exc_info=True)
-#         # 오류 로깅 (DB에 저장하지 않고 로그만 남김)
-#         logger.error(traceback.format_exc())
-#         raise HTTPException(status_code=500, detail=f"오류가 발생했습니다: {str(e)}")
-
-
 
 
 # 모의고사 점수, 피드백 생성 비동기 처리를 위한 상태 확인 엔드포인트 - 개별 문제

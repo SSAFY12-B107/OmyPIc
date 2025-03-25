@@ -321,20 +321,28 @@ async def exchange_token(
     )
     
     # 리프레시 토큰을 쿠키에 설정
-    response.set_cookie(
-        key="refresh_token",
-        value=temp_code_doc["refresh_token"],
-        httponly=settings.COOKIE_HTTPONLY, 
-        secure=settings.COOKIE_SECURE,
-        samesite=settings.COOKIE_SAMESITE,
-        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60  # 일 -> 초 변환
-    )
+    cookie_params = {
+        "key": "refresh_token",
+        "value": temp_code_doc["refresh_token"],
+        "httponly": settings.COOKIE_HTTPONLY, 
+        "secure": settings.COOKIE_SECURE,
+        "samesite": settings.COOKIE_SAMESITE,
+        "max_age": settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # 일 -> 초 변환
+        "path": "/"
+    }
+
+    # 프로덕션 환경에서만 도메인 설정
+    if not settings.IS_DEVELOPMENT and settings.cookie_domain:
+        cookie_params["domain"] = settings.cookie_domain
+
+    response.set_cookie(**cookie_params)
     
     return response
 
+
 @router.post("/logout")
 async def logout(
-    refresh_token: Optional[str] = Cookie(None, alias="refresh_token"),
+    request: Request,
     db = Depends(get_mongodb)
 ):
     """
@@ -354,7 +362,9 @@ async def logout(
         JSONResponse: 로그아웃 성공 메시지 및 쿠키 삭제
     """
     response = JSONResponse(content={"message": "로그아웃 성공"})
-    
+    # 쿠키에서 리프레시 토큰 가져오기
+    refresh_token = request.cookies.get("refresh_token")
+
     # 리프레시 토큰이 있는 경우, 블랙리스트에 추가
     if refresh_token:
         # 토큰 만료 시간 계산 (JWT 디코딩 필요)
@@ -362,8 +372,8 @@ async def logout(
             # PyJWT로 토큰 디코딩
             payload = jwt.decode(
                 refresh_token, 
-                settings.SECRET_KEY, 
-                algorithms=[settings.ALGORITHM]
+                settings.REFRESH_TOKEN_SECRET_KEY, 
+                algorithms=[settings.JWT_ALGORITHM]
             )
             
             # 토큰 만료 시간 (exp 클레임)
@@ -385,13 +395,21 @@ async def logout(
             # 토큰 디코딩 실패시도 진행 (이미 만료된 토큰일 수 있음)
             pass
     
-    # 리프레시 토큰 쿠키 삭제
-    response.delete_cookie(
-        key="refresh_token",
-        httponly=settings.COOKIE_HTTPONLY,
-        secure=settings.COOKIE_SECURE,
-        samesite=settings.COOKIE_SAMESITE
-    )
+    # 쿠키 설정/삭제 코드 내에서
+    cookie_params = {
+        "key": "refresh_token",
+        "httponly": settings.COOKIE_HTTPONLY,
+        "secure": settings.COOKIE_SECURE,
+        "samesite": settings.COOKIE_SAMESITE,
+        "path": '/'
+    }
+
+    # domain이 None이 아닌 경우에만 추가
+    if settings.cookie_domain is not None:
+        cookie_params["domain"] = settings.cookie_domain
+
+    # 쿠키 삭제
+    response.delete_cookie(**cookie_params)
     
     return response
 
@@ -525,112 +543,224 @@ async def refresh_token_endpoint(
             detail="서버 오류가 발생했습니다"
         )
 
-
-
-
-
-
-# @router.post("/refresh-token")
-# async def refresh_token(
-#     refresh_token: Optional[str] = Cookie(None, alias="refresh_token"),
-#     db = Depends(get_mongodb)
-# ):
-#     """
-#     리프레시 토큰을 사용하여 새 액세스 토큰을 발급합니다.
+@router.get("/naver/login")
+async def login_naver():
+    """
+    네이버 OAuth 로그인 초기화 엔드포인트
     
-#     쿠키에서 리프레시 토큰을 가져와 검증한 후, 유효한 경우 새 액세스 토큰을 발급합니다.
+    이 엔드포인트는 클라이언트를 네이버 로그인 페이지로 리다이렉트합니다.
+    CSRF 공격 방지를 위해 서명된 state 파라미터를 생성하고 사용합니다.
     
-#     Args:
-#         refresh_token (str, optional): 쿠키에 저장된 리프레시 토큰
-#         db: MongoDB 데이터베이스 인스턴스
-        
-#     Returns:
-#         JSONResponse: 새 액세스 토큰과 사용자 정보를 포함한 응답
-        
-#     Raises:
-#         HTTPException: 리프레시 토큰이 없거나 유효하지 않은 경우, 또는 블랙리스트에 있는 경우
-#     """
-#     # 리프레시 토큰 필수 확인
-#     if not refresh_token:
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="리프레시 토큰이 필요합니다",
-#             headers={"WWW-Authenticate": "Bearer"},
-#         )
+    Returns:
+        RedirectResponse: 네이버 OAuth 인증 페이지로의 리다이렉트
+    """
+    # CSRF 방지를 위한 서명된 state 파라미터 생성
+    state = create_csrf_token()
     
-#     # 토큰 블랙리스트 확인
-#     is_blacklisted = await is_token_blacklisted(refresh_token, db)
-#     if is_blacklisted:
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="로그아웃된 토큰입니다",
-#             headers={"WWW-Authenticate": "Bearer"},
-#         )
+    # 네이버 OAuth 인증 URL 생성
+    auth_url = "https://nid.naver.com/oauth2.0/authorize"
     
-#     try:
-#         # PyJWT를 사용한 토큰 검증
-#         payload = jwt.decode(
-#             refresh_token,
-#             settings.JWT_SECRET_KEY,
-#             algorithms=[settings.JWT_ALGORITHM]
-#         )
+    # 요청 파라미터 구성
+    params = {
+        "client_id": settings.NAVER_CLIENT_ID,
+        "redirect_uri": settings.NAVER_REDIRECT_URI,
+        "response_type": "code",
+        "state": state
+    }
+    
+    # 쿼리 파라미터를 URL에 추가
+    query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+    authorization_url = f"{auth_url}?{query_string}"
+    
+    # 네이버 로그인 페이지로 리다이렉트
+    return RedirectResponse(authorization_url)
+
+@router.get("/naver/callback")
+async def naver_callback(
+    request: Request, 
+    code: str, 
+    state: Optional[str] = None,
+    db = Depends(get_mongodb)
+):
+    """
+    네이버 OAuth 콜백 처리 엔드포인트
+    
+    네이버 인증 서버가 인증 코드와 state 파라미터를 포함하여 리다이렉트한 요청을 처리합니다.
+    임시 코드를 생성하여 프론트엔드로 리다이렉트합니다.
+    
+    Args:
+        request (Request): FastAPI 요청 객체
+        code (str): 네이버에서 제공한 인증 코드
+        state (str, optional): CSRF 방지를 위한 state 파라미터
+        db: MongoDB 데이터베이스 인스턴스
         
-#         # 사용자 ID 추출
-#         user_id = payload.get("sub")
-#         if user_id is None:
-#             raise HTTPException(
-#                 status_code=status.HTTP_401_UNAUTHORIZED,
-#                 detail="유효하지 않은 토큰입니다",
-#                 headers={"WWW-Authenticate": "Bearer"},
-#             )
+    Returns:
+        RedirectResponse: 임시 코드를 포함하여 프론트엔드로 리다이렉트
         
-#         # MongoDB에서 사용자 정보 조회
-#         user = await db.users.find_one({"_id": ObjectId(user_id)})
-#         if not user:
-#             raise HTTPException(
-#                 status_code=status.HTTP_404_NOT_FOUND,
-#                 detail="사용자를 찾을 수 없습니다"
-#             )
+    Raises:
+        HTTPException: 인증 실패 시 오류 발생
+    """
+    # 1. state 파라미터 검증 (CSRF 방지)
+    if not state:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="State 파라미터가 누락되었습니다"
+        )
+    
+    try:
+        verify_csrf_token(state)
+    except HTTPException as e:
+        # CSRF 토큰 검증 실패
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="유효하지 않은 state 파라미터입니다"
+        )
+    
+    # 2. 인증 코드를 사용하여 액세스 토큰 요청
+    token_url = "https://nid.naver.com/oauth2.0/token"
+    token_data = {
+        "client_id": settings.NAVER_CLIENT_ID,
+        "client_secret": settings.NAVER_CLIENT_SECRET,
+        "code": code,
+        "state": state,
+        "grant_type": "authorization_code"
+    }
+    
+    async with httpx.AsyncClient() as client:
+        # 토큰 요청
+        token_response = await client.post(token_url, params=token_data)
         
-#         # 새 액세스 토큰 생성
-#         token_payload = {
-#             "sub": str(user["_id"]),
-#             "name": user.get("name"),
-#             "auth_provider": user.get("auth_provider")
-#         }
+        # 응답 확인
+        if token_response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"네이버 토큰 요청 실패: {token_response.text}"
+            )
         
-#         new_access_token = create_access_token(token_payload)
+        # 토큰 데이터 파싱
+        token_info = token_response.json()
+        access_token = token_info.get("access_token")
         
-#         # 사용자 정보 반환 (필요한 필드만)
-#         user_data = {
-#             "id": str(user["_id"]),
-#             "name": user.get("name"),
-#             "auth_provider": user.get("auth_provider"),
-#             "current_opic_score": user.get("current_opic_score"),
-#             "target_opic_score": user.get("target_opic_score"),
-#             "target_exam_date": user.get("target_exam_date"),
-#             "is_onboarded": user.get("is_onboarded", False),
-#             "background_survey": user.get("background_survey"),
-#             "average_score": user.get("average_score"),
-#             "test_limits": user.get("test_limits")
-#         }
+        if not access_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="액세스 토큰을 받지 못했습니다"
+            )
         
-#         return JSONResponse(content={
-#             "access_token": new_access_token,
-#             "user": user_data
-#         })
+        # 3. 액세스 토큰으로 사용자 정보 요청
+        userinfo_url = "https://openapi.naver.com/v1/nid/me"
+        headers = {"Authorization": f"Bearer {access_token}"}
         
-#     except jwt.ExpiredSignatureError:
-#         # PyJWT의 만료 예외 처리
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="만료된 토큰입니다",
-#             headers={"WWW-Authenticate": "Bearer"},
-#         )
-#     except jwt.PyJWTError:
-#         # PyJWT의 일반 예외 처리
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="유효하지 않은 토큰입니다",
-#             headers={"WWW-Authenticate": "Bearer"},
-#         )
+        userinfo_response = await client.get(userinfo_url, headers=headers)
+        
+        if userinfo_response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"사용자 정보 요청 실패: {userinfo_response.text}"
+            )
+        
+        # 사용자 정보 파싱
+        user_info_response = userinfo_response.json()
+        
+        # 네이버는 응답이 response 객체 안에 있음
+        if 'response' not in user_info_response:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="네이버 사용자 정보 형식이 올바르지 않습니다"
+            )
+            
+        user_info = user_info_response['response']
+        
+        # 4. 사용자 정보 검증 및 DB 처리
+        naver_id = user_info.get("id")  # 네이버의 고유 사용자 ID
+        email = user_info.get("email", "")
+        name = user_info.get("name", "")
+        
+        # 기존 사용자 확인 (네이버 ID로 검색)
+        existing_user = await db.users.find_one({
+            "auth_provider": "naver",
+            "provider_id": naver_id
+        })
+        
+        current_time = datetime.now()
+        
+        if existing_user:
+            # 기존 사용자면 로그인 시간 업데이트
+            user_id = existing_user["_id"]
+            await db.users.update_one(
+                {"_id": user_id},
+                {"$set": {
+                    "last_login_at": current_time
+                }}
+            )
+            user = existing_user
+        else:
+            # 새 사용자 생성 - 유저 모델 구조에 맞게 저장
+            new_user = {
+                "name": name,
+                "email": email,
+                "auth_provider": "naver",
+                "provider_id": naver_id,
+                "current_opic_score": None,
+                "target_opic_score": None,
+                "target_exam_date": None,
+                "is_onboarded": False,
+                "created_at": current_time,
+                "background_survey": {
+                    "profession": None,
+                    "is_student": None,
+                    "studied_lecture": None,
+                    "living_place": None,
+                    "info": []
+                },
+                "limits": {
+                    "test_count": 0,
+                    "random_problem": 0,
+                    "script_count": 0
+                }
+            }
+            
+            result = await db.users.insert_one(new_user)
+            user_id = result.inserted_id
+            # 새 사용자 정보 조회
+            user = await db.users.find_one({"_id": user_id})
+        
+        # ObjectId를 문자열로 변환
+        user_id_str = str(user["_id"])
+        
+        # 5. JWT 토큰 생성
+        token_payload = {
+            "sub": user_id_str,
+            "name": user.get("name"),
+            "auth_provider": "naver"
+        }
+        
+        # JWT 토큰 생성
+        access_token = create_access_token(token_payload)
+        refresh_token = create_refresh_token({"sub": user_id_str})
+        
+        # 프론트엔드에 전달할 사용자 정보
+        user_data = dict(user)
+        user_data["_id"] = user_id_str  # ObjectId를 문자열로 변환
+        
+        # 6. 임시 코드 생성 (랜덤 문자열)
+        temp_code = secrets.token_urlsafe(32)
+        
+        # 7. 임시 코드와 JWT 토큰을 MongoDB에 저장 (15분 만료)
+        expiry = datetime.now(timezone.utc) + timedelta(minutes=15)
+        
+        # MongoDB 인덱스 생성 (최초 한번만 필요)
+        await db.temp_codes.create_index("expires_at", expireAfterSeconds=0)
+        
+        # MongoDB에 임시 코드와 토큰 저장
+        await db.temp_codes.insert_one({
+            "code": temp_code,
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "user": user_data,
+            "expires_at": expiry
+        })
+        
+        # 8. 프론트엔드로 리다이렉트 (임시 코드 전달)
+        frontend_callback_url = f"{settings.FRONTEND_URL}/callback/?code={temp_code}"
+        return RedirectResponse(url=frontend_callback_url)

@@ -45,7 +45,7 @@ class User(BaseModel):
                 mongo_doc["_id"] = str(mongo_doc["_id"])
                 
             # test_limits 필드가 있으면 limits로 이동
-            if "test_limits" in mongo_doc:
+            if "test_limits" in mongo_doc and "limits" not in mongo_doc:
                 mongo_doc["limits"] = mongo_doc.pop("test_limits")
                 
             # limits 필드가 없는 경우 기본값 추가

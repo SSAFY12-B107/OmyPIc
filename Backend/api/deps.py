@@ -7,7 +7,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from datetime import datetime
 
-from jose import JWTError, jwt
+import jwt
 from models.user import User
 from typing import Dict, Any
 from services import auth as auth_service
@@ -34,7 +34,7 @@ async def get_current_user(
         payload = jwt.decode(
             credentials.credentials, 
             settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM]
+            algorithms=settings.JWT_ALGORITHM
         )
         
         logger.info(f"JWT 페이로드: {payload}")
@@ -95,7 +95,6 @@ async def get_current_user(
             },
         )
     except jwt.InvalidTokenError:
-        # 기타 JWT 검증 실패
         logger.error("JWT 토큰 검증 실패")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -106,7 +105,6 @@ async def get_current_user(
             },
         )
     except HTTPException:
-        # 이미 생성된 HTTPException은 그대로 전달
         raise
     except Exception as e:
         logger.error(f"인증 과정에서 예상치 못한 오류: {str(e)}")
@@ -135,7 +133,7 @@ async def get_current_user_for_multipart(
                 
                 # 토큰 검증
                 payload = jwt.decode(
-                    token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+                    token, settings.JWT_SECRET_KEY, algorithms=settings.JWT_ALGORITHM
                 )
                 user_id = payload.get("sub")
                 
@@ -151,7 +149,7 @@ async def get_current_user_for_multipart(
             except ValueError:
                 # Authorization 헤더가 "Bearer 토큰" 형식이 아닌 경우
                 raise HTTPException(status_code=401, detail="잘못된 인증 형식입니다")
-            except jwt.JWTError:
+            except jwt.InvalidTokenError:
                 # 토큰 검증 실패
                 raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다")
         
