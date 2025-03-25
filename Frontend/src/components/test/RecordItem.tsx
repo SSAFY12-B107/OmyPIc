@@ -6,7 +6,6 @@ import { TestHistory } from "@/hooks/useHistory";
 interface RecordItemProps {
   record: TestHistory; // record 객체 전체를 props로 받음
   date: string;
-  isHighlighted?: boolean;
 }
 
 function RecordItem({ record, date }: RecordItemProps) {
