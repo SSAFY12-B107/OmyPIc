@@ -56,7 +56,7 @@ question_types = {
         ]
     },
     "roleplaying": {
-        "type": "롤플레잉",
+        "type": "롤플레이",
         "questions": [
             "이 상황에서 가장 먼저 확인해야 할 중요한 정보는 무엇인가요? 세 가지 이상 작성해주세요.",
             "상대방이 협조적이지 않거나 원하는 답을 주지 않을 경우, 어떻게 설득하거나 요청할 수 있을까요? 이 상황에서 선택할 수 있는 대안은 무엇이 있나요? 상대방이 거절할 경우, 어떤 추가 해결책을 제시할 수 있나요?",
@@ -81,7 +81,7 @@ def get_question_type_key(category: str) -> str:
         "과거 경험": "past_experience",
         "루틴": "routine",
         "비교": "comparison",
-        "롤플레잉": "roleplaying"
+        "롤플레이": "roleplaying"
     }
     
     return category_mapping.get(category)
@@ -111,7 +111,7 @@ def get_fallback_category(problem_pk: str) -> str:
     elif first_char in "9a":
         return "비교"
     else:
-        return "롤플레잉"
+        return "롤플레이"
 
 # MongoDB에서 문제 카테고리를 가져오는 함수
 async def get_problem_category(problem_pk: str) -> str:
