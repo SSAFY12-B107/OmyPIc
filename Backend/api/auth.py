@@ -321,21 +321,28 @@ async def exchange_token(
     )
     
     # 리프레시 토큰을 쿠키에 설정
-    response.set_cookie(
-        key="refresh_token",
-        value=temp_code_doc["refresh_token"],
-        httponly=settings.COOKIE_HTTPONLY, 
-        secure=settings.COOKIE_SECURE,
-        samesite=settings.COOKIE_SAMESITE,
-        domain=settings.cookie_domain,  # 추가: cookie_domain 설정
-        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60  # 일 -> 초 변환
-    )
+    cookie_params = {
+        "key": "refresh_token",
+        "value": temp_code_doc["refresh_token"],
+        "httponly": settings.COOKIE_HTTPONLY, 
+        "secure": settings.COOKIE_SECURE,
+        "samesite": settings.COOKIE_SAMESITE,
+        "max_age": settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # 일 -> 초 변환
+        "path": "/"
+    }
+
+    # 프로덕션 환경에서만 도메인 설정
+    if not settings.IS_DEVELOPMENT and settings.cookie_domain:
+        cookie_params["domain"] = settings.cookie_domain
+
+    response.set_cookie(**cookie_params)
     
     return response
 
+
 @router.post("/logout")
 async def logout(
-    refresh_token: Optional[str] = Cookie(None, alias="refresh_token"),
+    request: Request,
     db = Depends(get_mongodb)
 ):
     """
@@ -355,7 +362,9 @@ async def logout(
         JSONResponse: 로그아웃 성공 메시지 및 쿠키 삭제
     """
     response = JSONResponse(content={"message": "로그아웃 성공"})
-    
+    # 쿠키에서 리프레시 토큰 가져오기
+    refresh_token = request.cookies.get("refresh_token")
+
     # 리프레시 토큰이 있는 경우, 블랙리스트에 추가
     if refresh_token:
         # 토큰 만료 시간 계산 (JWT 디코딩 필요)
@@ -363,8 +372,8 @@ async def logout(
             # PyJWT로 토큰 디코딩
             payload = jwt.decode(
                 refresh_token, 
-                settings.SECRET_KEY, 
-                algorithms=[settings.ALGORITHM]
+                settings.REFRESH_TOKEN_SECRET_KEY, 
+                algorithms=[settings.JWT_ALGORITHM]
             )
             
             # 토큰 만료 시간 (exp 클레임)
@@ -386,14 +395,21 @@ async def logout(
             # 토큰 디코딩 실패시도 진행 (이미 만료된 토큰일 수 있음)
             pass
     
-    # 리프레시 토큰 쿠키 삭제
-    response.delete_cookie(
-        key="refresh_token",
-        httponly=settings.COOKIE_HTTPONLY,
-        secure=settings.COOKIE_SECURE,
-        samesite=settings.COOKIE_SAMESITE,
-        domain=settings.cookie_domain  # 추가: cookie_domain 설정
-    )
+    # 쿠키 설정/삭제 코드 내에서
+    cookie_params = {
+        "key": "refresh_token",
+        "httponly": settings.COOKIE_HTTPONLY,
+        "secure": settings.COOKIE_SECURE,
+        "samesite": settings.COOKIE_SAMESITE,
+        "path": '/'
+    }
+
+    # domain이 None이 아닌 경우에만 추가
+    if settings.cookie_domain is not None:
+        cookie_params["domain"] = settings.cookie_domain
+
+    # 쿠키 삭제
+    response.delete_cookie(**cookie_params)
     
     return response
 
