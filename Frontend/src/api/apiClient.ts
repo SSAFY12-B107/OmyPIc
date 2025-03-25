@@ -138,6 +138,6 @@ apiClient.interceptors.response.use(
     // 다른 모든 에러
     return Promise.reject(error);
   }
-);
+});
 
 export default apiClient;
