@@ -1,38 +1,38 @@
-# AWS SDK - 아마존 웹 서비스 API 사용
+# AWS SDK - Amazon Web Services API usage
 boto3==1.37.19
 botocore==1.37.19
 
-# FastAPI 웹 프레임워크 및 관련 패키지
+# FastAPI web framework and related packages
 fastapi==0.115.12
 starlette==0.46.1
 uvicorn==0.34.0
 httpx==0.28.1
 
-# LangChain - AI/LLM 통합 프레임워크
+# LangChain - AI/LLM integration framework
 langchain==0.3.21
 langchain_core==0.3.48
 langchain_google_genai==2.1.1
 langchain_groq==0.3.1
 
-# 데이터베이스 및 데이터 관리
+# Database and data management
 motor==3.7.0
 pymongo==4.11.3
 PyJWT==2.10.1
 
-# 데이터 처리 및 검증
+# Data processing and validation
 numpy==2.2.4
 pandas==2.2.3
 pydantic==2.10.6
 pydantic_core==2.27.2
 pydantic_settings==2.8.1
 
-# 오디오 처리
+# Audio processing
 gtts==2.5.4
 pydub==0.25.1
 
-# 모니터링
+# Monitoring
 prometheus_client==0.21.1
 
-# 유틸리티
-python-multipart==0.0.7  # 파일 업로드 처리
-email-validator==2.1.0   # 이메일 검증
+# Utilities
+python-multipart==0.0.7  # For handling file uploads
+email-validator==2.1.0   # For email validation
