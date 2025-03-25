@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 interface RecordItemProps {
   date: string;
-  grade: string;
+  grade: string | null | undefined;
   status: string;
   scores: {
     description: string | undefined | null;
@@ -19,6 +19,8 @@ function RecordItem({ date, grade, status, scores, test_pk }: RecordItemProps) {
   const goToDetailHandler = () => {
     navigate(`feedback/${test_pk}`);
   };
+    // 평가가 완료되지 않았거나 점수가 없는 경우 로딩 표시
+    const isEvaluating = status === "미평가" 
 
   return (
     <div className={styles.container}>
@@ -41,7 +43,7 @@ function RecordItem({ date, grade, status, scores, test_pk }: RecordItemProps) {
         </div>
       </div>
 
-      {status === "미평가" ? (
+      {isEvaluating ? (
         <div className={styles.loadingContainer}>
           <div className={styles.loadingSpinner}></div>
           <p className={styles.loadingText}>평가 진행 중...</p>
@@ -57,15 +59,15 @@ function RecordItem({ date, grade, status, scores, test_pk }: RecordItemProps) {
           <div className={styles.scores}>
             <div className={styles.scoreItem}>
               <span className={styles.scoreLabel}>콤보셋</span>
-              <div className={styles.scoreGrade}>{scores.description || '-'}</div>
+              <div className={styles.scoreGrade}>{scores.description}</div>
               </div>
             <div className={styles.scoreItem}>
               <span className={styles.scoreLabel}>롤플레잉</span>
-              <div className={styles.scoreGrade}>{scores.roleplay || '-'}</div>
+              <div className={styles.scoreGrade}>{scores.roleplay}</div>
             </div>
             <div className={styles.scoreItem}>
               <span className={styles.scoreLabel}>돌발질문</span>
-              <div className={styles.scoreGrade}>{scores.impromptu || '-'}</div>
+              <div className={styles.scoreGrade}>{scores.impromptu}</div>
             </div>
           </div>
         </>
