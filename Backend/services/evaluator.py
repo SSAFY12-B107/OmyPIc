@@ -169,14 +169,30 @@ class ResponseEvaluator:
         """
         API 키 순환을 적용한 LLM 인스턴스 반환
         """
-        # 매 호출마다 새로운 API 키 사용
-        api_key = get_next_groq_key()
+        # Groq 모델 사용
+        # api_key = get_next_groq_key()
         
-        return ChatGroq(
-            model=self.model_name,
+        # return ChatGroq(
+        #     model=self.model_name,
+        #     temperature=0.3,
+        #     api_key=api_key
+        # )
+
+        api_key = get_next_gemini_key()
+    
+        if not api_key:
+            logger.error("유효한 Gemini API 키를 찾을 수 없습니다.")
+            raise ValueError("Gemini API 키가 설정되지 않았습니다.")
+        
+        logger.info(f"Gemini LLM 초기화 중 - 모델: gemini-1.5-pro")
+        
+        return ChatGoogleGenerativeAI(
+            model="gemini-1.5-pro",
             temperature=0.3,
-            api_key=api_key
+            google_api_key=api_key,
+            convert_system_message_to_human=True
         )
+
     
     async def evaluate_response(
         self, 
