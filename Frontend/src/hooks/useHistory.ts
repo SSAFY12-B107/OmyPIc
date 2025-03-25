@@ -43,7 +43,6 @@ export interface UserHistoryResponse {
 }
 
 
-
 // 사용자 히스토리 조회 함수
 const fetchUserHistory = async (): Promise<UserHistoryResponse> => {
     try {
@@ -65,7 +64,7 @@ const fetchUserHistory = async (): Promise<UserHistoryResponse> => {
     return useQuery({
       queryKey: ['userHistory'],
       queryFn: () => fetchUserHistory(),
-
+      
 
     });
   };

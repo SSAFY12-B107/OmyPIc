@@ -34,7 +34,6 @@ function TestMain() {
   // 시험 생성 로딩
   const [loadingTestType, setLoadingTestType] = useState<number | null>(null);
 
-
   const navigate = useNavigate();
 
   // 생성 버튼 핸들링-axios 요청
@@ -58,9 +57,7 @@ function TestMain() {
       try {
         // 로딩 상태 시작
         setLoadingTestType(test_type);
-        const response = await apiClient.post(
-          `/tests/${test_type}`,
-        );
+        const response = await apiClient.post(`/tests/${test_type}`);
 
         // 응답 데이터를 Redux에 저장
         dispatch(testActions.setCurrentTest(response.data));
@@ -72,8 +69,7 @@ function TestMain() {
       } catch (error) {
         console.error("테스트 생성 오류:", error);
         // 에러 처리 로직
-      }
-      finally {
+      } finally {
         // 로딩 상태 종료
         setLoadingTestType(null);
       }
@@ -94,6 +90,8 @@ function TestMain() {
     }
   }, [historyData, isLoading]);
 
+  console.log(historyData)
+
   return (
     <div className={styles.container}>
       {/* 테스트 배포 : 3회 응시 횟수 제한 추가 필요 */}
@@ -109,7 +107,7 @@ function TestMain() {
               title="한 문제 맛보기"
               description="빠르게 현재 레벨 파악하기"
               isLoading={loadingTestType === 2}
-              />
+            />
             <span className={styles.countLimit}>
               오늘의 응시권 {testRemaining}/{testLimit}회🐟
             </span>
@@ -119,13 +117,13 @@ function TestMain() {
               title="속성 모의고사"
               description="바쁜 사람들을 위한 스몰 테스트"
               isLoading={loadingTestType === 0}
-              />
+            />
             <TestTypeButton
               onClick={() => handleCreateTest(1)}
               title="실전 모의고사"
               description="실제 시험처럼 연습하기"
               isLoading={loadingTestType === 1}
-              />
+            />
           </div>
         </section>
 
@@ -142,35 +140,30 @@ function TestMain() {
           <h2>모의고사 기록</h2>
           {isLoading ? (
             <div>로딩 중...</div>
-          ) : !isLoading ? (
+          ) : historyData && historyData.test_history?.length > 0 ? (
+            // TestMain.tsx의 변경된 부분
             <div className={styles.records}>
-              {historyData?.test_history.map((record) => {
+              {historyData.test_history.map((record) => {
                 const testDate = new Date(record.test_date);
                 const formattedDate = `${testDate.getFullYear()}년 ${
                   testDate.getMonth() + 1
                 }월 ${testDate.getDate()}일`;
 
-                // 점수 정보가 없을 경우 기본값 설정
-                const grade = record?.test_score?.total_score;
-
                 return (
                   <RecordItem
                     key={record.id}
                     date={formattedDate}
-                    grade={grade}
-                    status={record.overall_feedback_status}
-                    scores={{
-                      description: record.test_score?.comboset_score,
-                      roleplay: record.test_score?.roleplaying_score,
-                      impromptu: record.test_score?.unexpected_score,
-                    }}
                     test_pk={record.id}
                   />
                 );
               })}
             </div>
-          ) : !historyData && (
-            <div className={styles.noData}>내 기록을 한눈에 볼 수 있어요!</div>
+          ) : (
+            !historyData && (
+              <div className={styles.noData}>
+                내 기록을 한눈에 볼 수 있어요!
+              </div>
+            )
           )}
         </section>
       </main>

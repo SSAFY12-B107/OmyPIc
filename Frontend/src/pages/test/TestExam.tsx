@@ -9,8 +9,11 @@ import { useTestEndAction } from "@/contexts/HeaderContext";
 import MicRecorder from "mic-recorder-to-mp3-fixed";
 import apiClient from "@/api/apiClient";
 import FeedbackModal from "@/components/test/FeedbackModal";
+import { useQueryClient } from "@tanstack/react-query";
 
 function TestExam() {
+  const queryClient = useQueryClient();
+
   // 컴포넌트 최상단에 문제 mp3 캐시 객체 선언
   const audioCache = useRef<Record<string, HTMLAudioElement>>({}).current;
 
@@ -23,6 +26,7 @@ function TestExam() {
 
   console.log("전체 Redux 상태:", state);
   console.log("전체 currentTest 상태:", currentTest);
+  console.log("audioCache입니다", audioCache);
 
   // 테스트 타입에 따른 최대 문제 수 설정
   const maxValue =
@@ -52,7 +56,6 @@ function TestExam() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [randomEvaluationLoading, setRandomEvaluationLoading] =
     useState<boolean>(false);
-
 
   const onClose = () => {
     setIsOpen(!isOpen);
@@ -102,7 +105,7 @@ function TestExam() {
       // test_type이 1 또는 0일 때 기존 방식으로 처리
       for (
         let i = currentProblem;
-        i < Math.min(currentProblem + 3, maxValue);
+        i < Math.min(currentProblem + 3, maxValue + 1);
         i++
       ) {
         const problemData = currentTest.problem_data[i];
@@ -189,7 +192,7 @@ function TestExam() {
 
     if (isPlaying) {
       audio.pause();
-      console.log('pause')
+      console.log("pause");
       return;
     }
 
@@ -256,7 +259,7 @@ function TestExam() {
 
     try {
       const isLastProblem = currentProblem === maxValue;
-      let random = 0;
+      let random = 1;
       const formData = new FormData();
       formData.append("audio_file", recordedFile);
 
@@ -289,8 +292,7 @@ function TestExam() {
       }
       // 기존 로직 (일반 문제)
       else {
-        random = 1;
-
+        random = 0;
 
         // 현재 문제 ID 가져오기
         const currentProblemId =
@@ -302,6 +304,7 @@ function TestExam() {
         }
 
         formData.append("is_last_problem", String(isLastProblem));
+        console.log("마지막 문제 제출했습니다", isLastProblem);
 
         response = await apiClient.post(
           `/tests/${currentTest._id}/record/${currentProblemId}`,
@@ -312,14 +315,14 @@ function TestExam() {
 
       if (response?.data) {
         // 모의고사 문제일 때 고려
-        if (isLastProblem && random === 1) {
+        if (isLastProblem && random === 0) {
+          // 마지막 문제 제출 시 히스토리 쿼리 무효화 후 navigate
+          queryClient.invalidateQueries({ queryKey: ['userHistory'] });
           navigate("/tests");
-        }
-        else if (!isLastProblem && random === 1) {
+        } else if (!isLastProblem && random === 0) {
           confirm("녹음 전달에 성공했어요! 다음 문제를 풀어볼까요?");
           setCurrentProblem((prev) => prev + 1);
         }
-
       }
     } catch (error) {
       console.error("녹음 제출 오류:", error);
@@ -329,7 +332,7 @@ function TestExam() {
         setRandomEvaluationLoading(false);
       }
       setIsSubmitting(false);
-    }; 
+    }
   };
 
   // 버튼 텍스트 및 아이콘 결정
@@ -425,7 +428,6 @@ function TestExam() {
         disabled={!recordedFile || isSubmitting} // 녹음 파일이 없거나 제출 중일 때 비활성화
       >
         {isSubmitting ? "제출 중...🐧" : "다음"}
-
       </button>
     </div>
   );
