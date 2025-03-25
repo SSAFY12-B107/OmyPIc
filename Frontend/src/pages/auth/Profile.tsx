@@ -211,8 +211,8 @@ function ProfilePage() {
               위 개인정보 수집 및 이용에 동의합니다.
             </label>
           </div>
-          {errors.agreeToTerms && <p className={styles.errorText}>{errors.agreeToTerms}</p>}
         </div>
+        {errors.agreeToTerms && <p className={styles.errorText}>{errors.agreeToTerms}</p>}
       </div>
 
       {/* 이전, 다음 버튼 */}

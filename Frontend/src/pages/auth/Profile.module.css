@@ -127,6 +127,13 @@
   color: #515151;
 }
 
+.errorText {
+  font-size: 1.4rem;
+  color: #FF7979;
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
 .button-group {
   display: flex;
   justify-content: center;
