@@ -9,11 +9,8 @@ import { useTestEndAction } from "@/contexts/HeaderContext";
 import MicRecorder from "mic-recorder-to-mp3-fixed";
 import apiClient from "@/api/apiClient";
 import FeedbackModal from "@/components/test/FeedbackModal";
-import { useQueryClient } from "@tanstack/react-query";
 
 function TestExam() {
-  const queryClient = useQueryClient();
-
   // 컴포넌트 최상단에 문제 mp3 캐시 객체 선언
   const audioCache = useRef<Record<string, HTMLAudioElement>>({}).current;
 
@@ -316,9 +313,13 @@ function TestExam() {
       if (response?.data) {
         // 모의고사 문제일 때 고려
         if (isLastProblem && random === 0) {
-          // 마지막 문제 제출 시 히스토리 쿼리 무효화 후 navigate
-          queryClient.invalidateQueries({ queryKey: ['userHistory'] });
-          navigate("/tests");
+          // 메인 페이지로 이동하면서 폴링 시작을 위한 상태 전달
+          navigate("/tests", {
+            state: {
+              recentTestId: currentTest._id,
+              feedbackReady: false, // 아직 피드백이 준비되지 않았음
+            },
+          });
         } else if (!isLastProblem && random === 0) {
           confirm("녹음 전달에 성공했어요! 다음 문제를 풀어볼까요?");
           setCurrentProblem((prev) => prev + 1);

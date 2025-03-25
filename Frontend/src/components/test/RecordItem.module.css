@@ -109,3 +109,35 @@
 
 
 
+/* 하이라이트된 항목 스타일 */
+.highlighted {
+  border: 2px solid #845ADF !important; /* 기존 보더 스타일을 오버라이드 */
+  box-shadow: 0 0 12px rgba(132, 90, 223, 0.6);
+  animation: fadeInPulse 1.5s ease infinite alternate;
+  position: relative; /* 새 결과 배지 위치 지정을 위해 */
+}
+
+/* 새 결과 배지 스타일 */
+.newBadge {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background-color: #C09EFF;
+  color: white;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: bold;
+  z-index: 2;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 애니메이션 정의 */
+@keyframes fadeInPulse {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.02);
+  }
+}
