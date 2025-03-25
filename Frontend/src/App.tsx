@@ -1,6 +1,11 @@
 import "./App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HeaderProvider } from "./contexts/HeaderContext";
+import {
+  PrivateRoute,
+  PublicRoute,
+  OnboardingRoute,
+} from "./routes/ProtectedRoutes";
 
 import Header from "./components/common/Header";
 import Home from "./pages/home/Home";
@@ -20,35 +25,44 @@ import AuthCallback from "./pages/auth/AuthCallback";
 function App() {
   return (
     <BrowserRouter>
-    <HeaderProvider>
-      {/* 헤더는 한 번만 선언하고, 모든 설정은 Context를 통해 관리됨 */}
-      <Header />
-      
-      <Routes>
-        <Route path="/" element={<Home />} />
+      <HeaderProvider>
+        {/* 헤더는 한 번만 선언하고, 모든 설정은 Context를 통해 관리됨 */}
+        <Header />
+        
+        <Routes>
+           {/* 로그인, 온보딩 완료된 사용자만 접근 가능 */}
+           <Route element={<PrivateRoute />}>
+              <Route path="/" element={<Home />} />
 
-        {/* Auth 관련 라우트 */}
-        <Route path="/auth/login" element={<Login />} />
-        <Route path="/auth/survey" element={<Survey />} />
-        <Route path="/auth/profile" element={<Profile />} />
-        <Route path="/callback" element={<AuthCallback />} />
+              {/* Test 관련 라우트 */}
+              <Route path="/tests" element={<TestMain />} />
+              <Route path="/tests/practice" element={<TestExam />} />
+              <Route path="/tests/feedback/:practiceId/:problemId" element={<FeedBack />} />
 
-        {/* Test 관련 라우트 */}
-        <Route path="/tests" element={<TestMain />} />
-        <Route path="/tests/practice" element={<TestExam />} />
-        <Route path="/tests/feedback/:practiceId/:problemId" element={<FeedBack />} />
+              {/* Script 관련 라우트 */}
+              <Route path="/scripts" element={<ScriptMain />} />
+              <Route path="/scripts/:category" element={<ScriptList />} />
+              <Route path="/scripts/:category/:problemId" element={<ScriptDetail />} />
+              <Route path="/scripts/:category/:problemId/write" element={<ScriptWrite />} />
+            </Route>
 
-        {/* Script 관련 라우트 */}
-        <Route path="/scripts" element={<ScriptMain />} />
-        <Route path="/scripts/:category" element={<ScriptList />} />
-        <Route path="/scripts/:category/:problemId" element={<ScriptDetail />} />
-        <Route path="/scripts/:category/:problemId/write" element={<ScriptWrite />} />
+            {/* 로그인되지 않은 사용자만 접근 가능 */}
+            <Route element={<PublicRoute />}>
+              <Route path="/auth/login" element={<Login />} />
+              <Route path="/callback" element={<AuthCallback />} />
+            </Route>
 
-        {/* 404 페이지 */}
-        <Route path="*" element={<div>페이지를 찾을 수 없습니다.</div>} />
-      </Routes>
-    </HeaderProvider>
-  </BrowserRouter>
+            {/* 온보딩 페이지들 - 로그인했지만 온보딩 미완료 사용자만 접근 가능 */}
+            <Route element={<OnboardingRoute />}>
+              <Route path="/auth/profile" element={<Profile />} />
+              <Route path="/auth/survey" element={<Survey />} />
+            </Route>
+
+          {/* 404 페이지 */}
+          <Route path="*" element={<div>페이지를 찾을 수 없습니다.</div>} />
+        </Routes>
+      </HeaderProvider>
+    </BrowserRouter>
   );
 }
 
