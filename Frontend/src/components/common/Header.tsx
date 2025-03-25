@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import styles from "./Header.module.css";
+import styles from "@/components/common/Header.module.css";
 import { useHeader } from "@/contexts/HeaderContext";
 
 // 뒤로가기 시 경고가 필요한 경로 목록

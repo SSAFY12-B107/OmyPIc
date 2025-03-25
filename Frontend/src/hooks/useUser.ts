@@ -14,6 +14,12 @@ import { RootState } from '../store/store';
 // API 기본 URL
 const API_BASE_URL = 'http://localhost:8000/api';
 
+// 에러 응답 타입 정의
+interface ErrorResponse {
+  detail?: string;
+  [key: string]: any;
+}
+
 export const useUser = () => {
   const dispatch = useDispatch();
   const { user, isAuthenticated, profileData } = useSelector((state: RootState) => state.auth);
@@ -110,7 +116,7 @@ export const useUser = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json() as ErrorResponse;
         console.error('API 오류 응답:', errorData);
         throw new Error(errorData.detail || '프로필 저장에 실패했습니다');
       }
@@ -161,7 +167,7 @@ export const useUser = () => {
         body: JSON.stringify(profileWithSurvey),
       });
   
-      const result = await response.json();
+      const result = await response.json() as ErrorResponse;
   
       if (!response.ok) {
         console.error("❌ 서버 응답 오류:", JSON.stringify(result, null, 2));
@@ -227,7 +233,7 @@ export const useUser = () => {
         body: JSON.stringify(requestData),
       });
   
-      const result = await response.json();
+      const result = await response.json() as ErrorResponse;
   
       if (!response.ok) {
         console.error("❌ 서버 응답 오류:", JSON.stringify(result, null, 2));
