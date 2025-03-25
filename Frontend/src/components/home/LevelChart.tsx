@@ -117,7 +117,7 @@ function LevelChart({ testResult }: LevelChartProps) {
     },
     scales: {
       y: {
-        min: 0.5,
+        min: -0.5,
         max: levels.length - 1,
         ticks: {
           callback: function(value) {
