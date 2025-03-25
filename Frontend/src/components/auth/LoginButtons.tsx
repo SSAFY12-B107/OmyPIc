@@ -69,12 +69,12 @@ function LoginButtons() {
 
   return (
     <div className={styles.loginBtnGroup}>
-      <img
+      {/* <img
         src={naverLogin}
         alt="naver-login-btn"
         onClick={handleNaverLogin}
         style={{ cursor: "pointer" }}
-      />
+      /> */}
       <img
         src={googleLogin}
         alt="google-login-btn"
