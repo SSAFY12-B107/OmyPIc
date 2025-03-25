@@ -9,6 +9,8 @@ const WARNING_PATHS = ["/tests/practice"];
 // 스크립트 작성 페이지에 대한 경고 패턴
 const SCRIPT_WRITE_PATTERN = /^\/scripts\/[^\/]+\/[^\/]+\/write$/;
 
+console.log('SCRIPT_WRITE_PATTERN', SCRIPT_WRITE_PATTERN.test(location.pathname))
+
 const Header: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -27,6 +29,8 @@ const Header: React.FC = () => {
   const needsWarning =
     WARNING_PATHS.some((path) => location.pathname.includes(path)) ||
     SCRIPT_WRITE_PATTERN.test(location.pathname);
+
+    console.log('needsWarning', needsWarning)
 
   // 뒤로가기 처리 함수
   const handleBack = () => {

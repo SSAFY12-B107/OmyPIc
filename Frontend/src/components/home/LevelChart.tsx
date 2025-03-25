@@ -39,7 +39,9 @@ interface LevelChartProps {
 
 function LevelChart({ testResult }: LevelChartProps) {
     // 레벨 정의
-    const levels = ['IL', 'IM1', 'IM2', 'IM3', 'IH', 'AL', ''];
+    const levels = ['IL이하', 'IM1', 'IM2', 'IM3', 'IH', 'AL', ''];
+    // 유효한 레벨 정의 (NH이하보다 높은 레벨들)
+    const validLevels = ['IM1', 'IM2', 'IM3', 'IH', 'AL'];
   
     // 테스트 데이터 가공
     const formatLabels = () => {
@@ -69,7 +71,13 @@ function LevelChart({ testResult }: LevelChartProps) {
       if (!testResult || !testResult.test_score) return [];
       
       return testResult.test_score.map(score => {
-        if (!score) return 0;
+        if (!score) return 0; // null이면 'IM이하'로 간주
+        
+        // 'IL', 'IM1', 'IM2', 'IM3', 'IH', 'AL' 중 하나인지 확인
+        if (!validLevels.includes(score)) {
+          return 0; // 유효한 레벨이 아니면 'IM이하'(인덱스 0)로 간주
+        }
+        
         const levelIndex = levels.indexOf(score);
         return levelIndex >= 0 ? levelIndex : 0;
       });
@@ -94,6 +102,7 @@ function LevelChart({ testResult }: LevelChartProps) {
   // 차트 옵션
   const options: LevelChartOptions = {
     responsive: true,
+    aspectRatio: 1.8,
     plugins: {
       legend: {
         display: false, // 기본 범례 숨김
@@ -108,7 +117,7 @@ function LevelChart({ testResult }: LevelChartProps) {
     },
     scales: {
       y: {
-        min: 0,
+        min: -0.5,
         max: levels.length - 1,
         ticks: {
           callback: function(value) {
@@ -126,11 +135,7 @@ function LevelChart({ testResult }: LevelChartProps) {
         grid: {
           display: false,
         },
-        offset: true,  // 이 설정이 각 데이터 포인트를 tickmark 사이에 배치
-      // 첫 번째 데이터 포인트가 y축에서 떨어지도록 왼쪽 패딩 추가
-      // afterFit: function(scaleInstance) {
-      //   scaleInstance.paddingLeft = 1;  // y축에서 10px 떨어지게 설정
-      // }
+        offset: true  // 이 설정이 각 데이터 포인트를 tickmark 사이에 배치
       }
     }
   };

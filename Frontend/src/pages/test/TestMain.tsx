@@ -3,7 +3,7 @@ import TestTypeButton from "@/components/test/TestTypeButton";
 import AverageGradeChart from "@/components/test/AverageGradeChart";
 import RecordItem from "@/components/test/RecordItem";
 import apiClient from "@/api/apiClient";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { testActions } from "@/store/testSlice";
 import { useEffect, useState } from "react";
@@ -11,11 +11,44 @@ import { useUserHistory } from "@/hooks/useHistory";
 import Navbar from "@/components/common/Navbar";
 
 function TestMain() {
-  // 히스토리 데이터 가져오기
-  const { data: historyData, isLoading } = useUserHistory();
-
-  // 비동기 액션 연결
+  const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
+
+  // location.state에서 최근 테스트 정보 확인
+  const { recentTestId, feedbackReady } = location.state || {};
+  
+  // 폴링 활성화 여부 결정
+  const shouldPoll = recentTestId && !feedbackReady;
+
+  // 히스토리 데이터 가져오기 (폴링 기능 통합)
+  const { 
+    data: historyData, 
+    isLoading, 
+    startPolling,
+    stopPolling
+  } = useUserHistory({
+    enablePolling: shouldPoll,
+    recentTestId,
+    onFeedbackReady: () => {
+      // console.log('피드백이 준비되었습니다:', testHistory.id);
+      
+      // 피드백이 준비되면 상태 업데이트 (UI 갱신용)
+      navigate('/tests', { 
+        state: { recentTestId, feedbackReady: true }, 
+        replace: true 
+      });
+    }
+  });
+  
+  // 폴링 상태 관리
+  useEffect(() => {
+    if (shouldPoll) {
+      startPolling();
+    } else {
+      stopPolling();
+    }
+  }, [shouldPoll, startPolling, stopPolling]);
 
   // 테스트 배포 : 문제 생성 모의고사 3회, 랜덤 단일문제 5회
   // 모의고사 횟수, 단일 랜덤문제 횟수
@@ -28,13 +61,11 @@ function TestMain() {
   const randomRemaining = randomCounts?.remaining;
   const randomLimit = randomCounts?.limit;
 
-  console.log("testRemaining", testRemaining);
-  console.log("randomRemaining", randomRemaining);
+  // console.log("testRemaining", testRemaining);
+  // console.log("randomRemaining", randomRemaining);
 
   // 시험 생성 로딩
   const [loadingTestType, setLoadingTestType] = useState<number | null>(null);
-
-  const navigate = useNavigate();
 
   // 생성 버튼 핸들링-axios 요청
   const handleCreateTest = async (test_type: number) => {
@@ -62,8 +93,7 @@ function TestMain() {
         // 응답 데이터를 Redux에 저장
         dispatch(testActions.setCurrentTest(response.data));
 
-        console.log("테스트 데이터가 Redux에 저장됨:", response.data);
-
+        console.log('테스트 생성완료!')
         // 페이지 이동
         navigate("/tests/practice");
       } catch (error) {
@@ -83,17 +113,10 @@ function TestMain() {
     }
   };
 
-  // historyData를 사용하여 컴포넌트 렌더링 업데이트
-  useEffect(() => {
-    if (historyData) {
-      console.log("히스토리 데이터 로드됨:", historyData);
-    }
-  }, [historyData, isLoading]);
-
-  console.log(historyData)
-
+  console.log('history', historyData)
   return (
     <div className={styles.container}>
+
       {/* 테스트 배포 : 3회 응시 횟수 제한 추가 필요 */}
       <main className={styles.main}>
         <section className={styles.section1}>
@@ -141,7 +164,6 @@ function TestMain() {
           {isLoading ? (
             <div>로딩 중...</div>
           ) : historyData && historyData.test_history?.length > 0 ? (
-            // TestMain.tsx의 변경된 부분
             <div className={styles.records}>
               {historyData.test_history.map((record) => {
                 const testDate = new Date(record.test_date);
@@ -153,15 +175,15 @@ function TestMain() {
                   <RecordItem
                     key={record.id}
                     date={formattedDate}
-                    test_pk={record.id}
+                    record ={record}
                   />
                 );
               })}
             </div>
           ) : (
-            !historyData && (
+            !isLoading && (
               <div className={styles.noData}>
-                내 기록을 한눈에 볼 수 있어요!
+                내 기록을 한눈에 볼 수 있어요 🤗
               </div>
             )
           )}

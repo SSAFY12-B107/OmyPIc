@@ -1,10 +1,12 @@
 
 .feedbackCard {
-    width: 32rem;
     background-color: white;
     border-radius: 10px;
     padding: 1.6rem;
     box-shadow: 1px 1px 6px rgba(0, 0, 0, 0.07);
+    word-break: break-all;
+
+
   }
   
   .feedbackHeader {
@@ -41,7 +43,7 @@
     padding: 0 0.4rem;
   }
 
-  .chartContainer {
+  /* .chartContainer {
     margin-top: 20px;
     padding: 15px;
     background-color: #f9f9f9;
@@ -62,4 +64,4 @@
     margin: 0 auto;
     max-width: 500px;
   }
-  
+   */

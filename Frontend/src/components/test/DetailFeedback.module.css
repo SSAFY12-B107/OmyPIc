@@ -1,7 +1,6 @@
 .container {
-  width: 36rem;
   min-height: 80rem;
-  background-color: #F9F9F9;
+  background-color: #f9f9f9;
   padding: 2rem;
 }
 
@@ -40,18 +39,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #EFE6FF;
+  background-color: #efe6ff;
   border: 0.08rem solid rgba(87, 63, 132, 0.2);
 }
 
 .activeStep {
-  background-color: #8A63D2;
+  background-color: #8a63d2;
   border: none;
 }
 
 .stepText {
   font-size: 1.4rem;
-  color: #8E8E8E;
+  color: #8e8e8e;
 }
 
 .activeStep .stepText {
@@ -59,7 +58,7 @@
 }
 
 .gradeCard {
-  width: 32rem;
+  /* width: 32rem; */
   height: 4.7rem;
   background-color: white;
   border-radius: 1rem;
@@ -70,14 +69,13 @@
   box-shadow: 0.1rem 0.1rem 0.6rem rgba(0, 0, 0, 0.07);
   margin-bottom: 1.6rem;
 }
-.gradeTitle{
+.gradeTitle {
   font-weight: 700;
   font-size: 1.6rem;
 }
 
-.gradeBadge{
+.gradeBadge {
   font-size: 1.6rem;
-
 }
 .iconWrapper {
   display: flex;
@@ -89,7 +87,7 @@
   width: 3rem;
   height: 3rem;
   border-radius: 50%;
-  background-color: #EFE6FF;
+  background-color: #efe6ff;
   opacity: 0.5;
   display: flex;
   align-items: center;
@@ -97,15 +95,15 @@
 }
 
 .gradeBadge {
-  background-color: #E6D9FF;
-  color: #8A63D2;
+  background-color: #e6d9ff;
+  color: #8a63d2;
   padding: 0.4rem 1.5rem;
   border-radius: 1.5rem;
   font-weight: bold;
 }
 
 .feedbackCard {
-  width: 32rem;
+  /* width: 32rem; */
   background-color: white;
   border-radius: 1rem;
   padding: 1.6rem;
@@ -121,31 +119,30 @@
 
 .questionText {
   color: #565656;
-  margin: 1.4rem 1.6rem;
+  margin: 1.4rem 0rem;
   font-size: 1.4rem;
 }
 
 .answerText {
   color: #565656;
-  margin: 1.4rem 1.6rem;
+  /* margin: 1.4rem 1.6rem; */
   font-size: 1.4rem;
-  padding: 2rem 2rem;
+  padding: 1.5rem 1rem;
 }
 
 .answerBox {
-  background-color: #F8F4FF;
+  background-color: #f8f4ff;
   border-radius: 1rem;
   margin-top: 1rem;
 }
 
 .evaluationCard {
-  width: 32rem;
+  /* width: 32rem; */
   background-color: white;
   border-radius: 1rem;
   padding: 1.6rem;
   box-shadow: 0.1rem 0.1rem 0.6rem rgba(0, 0, 0, 0.07);
 }
-
 
 .evaluationTags {
   margin: 1.5rem 0rem;
@@ -155,26 +152,27 @@
   gap: 1rem;
   margin-top: 1rem;
   display: flex;
-  justify-content: center;
+  /* justify-content: center; */
 }
 
 .tag {
-  background-color: #F2F0F7;
+  width: calc((100% - 2rem) / 3);
+  text-align: center;
+  background-color: #f2f0f7;
   color: #565656;
-  padding: 0.8rem 2rem;
+  padding: 0.5rem 0.5rem;
   border-radius: 1rem;
   font-size: 1.4rem;
   display: inline-block;
-
 }
 
 .activeTag {
-  background-color: #E6D9FF;
+  background-color: #e6d9ff;
 }
 
 .feedbackText {
   color: #565656;
   font-size: 1.4rem;
   line-height: 1.5;
-  margin: 1.5rem 0 0;
+
 }
