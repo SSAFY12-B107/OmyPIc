@@ -120,23 +120,23 @@ function ScriptWrite() {
     if (!problemId) return;
     
     // 이미 커스텀 질문 모드라면 즉시 페이지 이동
-  if (isCustomMode) {
-    // 스크립트 생성 요청 보내기
-    createScriptMutation.mutate(
-      { problemId, scriptData: scriptRequestData as CreateScriptRequest },
-      {
-        // 오류 발생 시에만 처리 (성공 핸들러는 필요 없음)
-        onError: (error: Error) => {
-          console.error("스크립트 생성 중 오류가 발생했습니다.", error);
+    if (isCustomMode) {
+      // 스크립트 생성 요청 보내기
+      createScriptMutation.mutate(
+        { problemId, scriptData: scriptRequestData as CreateScriptRequest },
+        {
+          // 오류 발생 시에만 처리 (성공 핸들러는 필요 없음)
+          onError: (error: Error) => {
+            console.error("스크립트 생성 중 오류가 발생했습니다.", error);
+          }
         }
-      }
-    );
-    
-    // API 응답을 기다리지 않고 즉시 상세 페이지로 이동
-    navigate(detailPagePath);
-    dispatch(clearScriptState());
-    return;
-  }
+      );
+      
+      // API 응답을 기다리지 않고 즉시 상세 페이지로 이동
+      navigate(detailPagePath, { replace: true });
+      dispatch(clearScriptState());
+      return;
+    }
 
     // 기본 질문 모드라면 모달 표시
     setShowModal(true);
@@ -155,6 +155,14 @@ function ScriptWrite() {
       }
     );
   }, [isCustomMode, problemId, navigate, detailPagePath, createScriptMutation, scriptRequestData, dispatch]);
+
+  // 컴포넌트가 언마운트될 때 스크립트 상태 초기화
+  useEffect(() => {
+    // 컴포넌트가 언마운트될 때 실행될 cleanup 함수
+    return () => {
+      dispatch(clearScriptState());
+    };
+  }, []); // 빈 의존성 배열: 컴포넌트 마운트 시 한 번만 등록
 
   // 로딩 스피너 표시 조건
   if (isQuestionsLoading && questions.length === 0) {

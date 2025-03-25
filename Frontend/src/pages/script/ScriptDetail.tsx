@@ -112,7 +112,7 @@ function ScriptDetail({}: Props) {
       </div>
 
       <div className={styles.countLimit}>
-        오늘의 생성권 {problemDetail.script_limit.remaining}/{problemDetail.script_limit.limit}회🐧
+        오늘의 생성권: {problemDetail.script_limit.remaining}회 남음 (총 {problemDetail.script_limit.limit}회)🐧
       </div>
       
       <button 
