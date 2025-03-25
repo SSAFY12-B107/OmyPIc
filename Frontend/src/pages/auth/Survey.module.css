@@ -27,6 +27,18 @@
   margin-top: 0.5rem; /* 추가 질문 사이의 간격 */
 }
 
+.errorMessage {
+  color: #FF6B6B;
+  font-size: 16px;
+  font-weight: 500;
+  margin-top: 8px;
+  margin-bottom: 12px;
+  padding-left: 20px;
+  position: center;
+  text-align: center;
+}
+
+
 .button-group {
   display: flex;
   justify-content: center;
