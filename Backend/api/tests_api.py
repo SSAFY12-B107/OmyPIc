@@ -106,70 +106,6 @@ async def get_test_history(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"테스트 히스토리 조회 중 오류 발생: {str(e)}"
         )
-
-
-@router.get("/remaining", response_model=Dict[str, Any])
-async def get_remaining_tests(
-    current_user: User = Depends(get_current_user),
-    db: Database = Depends(get_mongodb)
-):
-    """
-    현재 로그인한 사용자의 남은 테스트 생성 횟수를 조회합니다.
-    
-    Returns:
-        Dict: 남은 테스트 횟수 정보
-    """
-    try:
-        # 현재 사용자 정보 사용
-        user_id = str(current_user.id)
-        
-        # 최신 사용자 정보 DB에서 다시 조회
-        latest_user = await db.users.find_one({"_id": ObjectId(user_id)})
-        if not latest_user:
-            return JSONResponse(
-                status_code=404,
-                content={"detail": "사용자를 찾을 수 없습니다"}
-            )
-        
-        # 테스트 횟수 제한 정보 (limits 또는 test_limits 필드에서 조회)
-        limits = latest_user.get("limits", latest_user.get("test_limits", {"test_count": 0, "random_problem": 0}))
-        
-        # 남은 횟수 계산
-        remaining_tests = {
-            "test_count": {
-                "used": limits.get("test_count", 0),
-                "limit": 3,
-                "remaining": max(0, 3 - limits.get("test_count", 0)),
-                "description": "7문제와 15문제 테스트 합산 (최대 3회)"
-            },
-            "random_problem": {
-                "used": limits.get("random_problem", 0),
-                "limit": 5,
-                "remaining": max(0, 5 - limits.get("random_problem", 0)),
-                "description": "랜덤 1문제 (최대 5회)"
-            }
-        }
-        
-        # script_count가 limits에 있으면 포함
-        if "script_count" in limits:
-            remaining_tests["script_count"] = {
-                "used": limits.get("script_count", 0),
-                "limit": 5,
-                "remaining": max(0, 5 - limits.get("script_count", 0)),
-                "description": "스크립트 생성 (최대 5회)"
-            }
-        
-        return {
-            "user_id": user_id,
-            "remaining_tests": remaining_tests
-        }
-        
-    except Exception as e:
-        logger.error(f"테스트 횟수 조회 중 오류 발생: {str(e)}", exc_info=True)
-        return JSONResponse(
-            status_code=500,
-            content={"detail": f"테스트 횟수 조회 중 오류 발생: {str(e)}"}
-        )
     
 
 @router.get("/{test_pk}", response_model=TestDetailResponse)
@@ -465,51 +401,6 @@ async def get_problem_audio(
     
     except Exception as e:
         logger.error(f"오디오 생성 중 오류 발생: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error generating audio: {str(e)}")
-
-
-@router.get("/{problem_pk}/audio/download")
-async def download_problem_audio(
-    problem_pk: str = Path(..., description="문제 ID"),
-    db: Database = Depends(get_mongodb)
-) -> Response:
-    """
-    문제 ID로 오디오 파일을 직접 다운로드/재생할 수 있는 엔드포인트
-    
-    Args:
-        problem_pk (str): 문제 ID
-        db (AsyncIOMotorDatabase): MongoDB 데이터베이스 연결
-    
-    Returns:
-        Response: MP3 오디오 파일 스트림
-    """
-    try:
-        # MongoDB에서 문제 조회
-        problem = await db.problems.find_one({"_id": ObjectId(problem_pk)})
-        
-        if not problem:
-            raise HTTPException(status_code=404, detail="Problem not found")
-        
-        # 문제 내용 추출
-        problem_content = problem.get('content', '')
-        
-        if not problem_content:
-            raise HTTPException(status_code=400, detail="No content available for TTS")
-        
-        # 임시 오디오 파일 생성
-        tts = gTTS(text=problem_content, lang='en')
-        temp_audio_path = f"./temp_audio_{problem_pk}.mp3"
-        tts.save(temp_audio_path)
-        
-        # 파일 스트리밍 응답
-        return FileResponse(
-            path=temp_audio_path, 
-            media_type="audio/mp3", 
-            filename=f"problem_{problem_pk}_audio.mp3"
-        )
-    
-    except Exception as e:
-        logger.error(f"오디오 다운로드 중 오류 발생: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating audio: {str(e)}")
 
 
