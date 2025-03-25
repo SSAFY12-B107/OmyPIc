@@ -45,22 +45,31 @@ async def get_test_history(
         # 현재 사용자 정보 사용
         user_pk = str(current_user.id)
         
-        # 사용자의 테스트 생성 횟수 정보 가져오기
-        test_limits = current_user.test_limits if hasattr(current_user, 'test_limits') else {"test_count": 0, "random_problem": 0}
+        # 디버깅을 위한 로깅 추가
+        logger.info(f"사용자 정보: {current_user}")
+        logger.info(f"사용자 limits 필드: {getattr(current_user, 'limits', None)}")
         
-        # 남은 횟수 계산
+        # 사용자의 테스트 생성 횟수 정보 가져오기 (limits 필드 사용)
+        limits = getattr(current_user, 'limits', {"test_count": 0, "random_problem": 0, "script_count": 0})
+        
+        # 남은 횟수 계산 (테스트와 랜덤 문제 모두 limits 필드에서 가져옴)
         test_counts = {
             "test_count": {
-                "used": test_limits.get("test_count", 0),
+                "used": limits.get("test_count", 0),
                 "limit": 3,
-                "remaining": max(0, 3 - test_limits.get("test_count", 0))
+                "remaining": max(0, 3 - limits.get("test_count", 0))
             },
             "random_problem": {
-                "used": test_limits.get("random_problem", 0),
+                "used": limits.get("random_problem", 0),
                 "limit": 5,
-                "remaining": max(0, 5 - test_limits.get("random_problem", 0))
+                "remaining": max(0, 5 - limits.get("random_problem", 0))
+            },
+            # script_count 추가 (요청된 경우)
+            "script_count": {
+                "used": limits.get("script_count", 0),
+                "limit": 5,
+                "remaining": max(0, 5 - limits.get("script_count", 0))
             }
-            # script_count 필드 제거함
         }
 
         # 사용자의 테스트 내역 조회
@@ -79,7 +88,7 @@ async def get_test_history(
             })
 
         # 응답 생성
-        average_score = current_user.average_score if hasattr(current_user, 'average_score') else None
+        average_score = getattr(current_user, 'average_score', None)
         
         response = {
             "average_score": average_score,
@@ -87,6 +96,9 @@ async def get_test_history(
             "test_counts": test_counts
         }
 
+        # 최종 응답 로깅
+        logger.info(f"테스트 히스토리 응답: {response}")
+        
         return response
     except Exception as e:
         logger.error(f"테스트 히스토리 조회 중 오류 발생: {str(e)}", exc_info=True)
