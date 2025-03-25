@@ -36,3 +36,9 @@ prometheus_client==0.21.1
 # Utilities
 python-multipart==0.0.7  # For handling file uploads
 email-validator==2.1.0   # For email validation
+
+# locust
+locust==2.33.2
+
+# scheduler
+APScheduler==3.11.0
