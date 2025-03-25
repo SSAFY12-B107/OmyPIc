@@ -13,6 +13,7 @@ logger = logging.getLogger("script_generator")
 
 try:
     from langchain_groq import ChatGroq
+    from langchain_google_genai import ChatGoogleGenerativeAI
     from langchain.chains import LLMChain
     from langchain.prompts import ChatPromptTemplate
     from langchain.prompts.chat import SystemMessagePromptTemplate, HumanMessagePromptTemplate
@@ -259,11 +260,13 @@ async def generate_follow_up_questions(problem_pk: str, answers: Dict[str, str])
             
         question_type_data = question_types[type_key]
         
-        # LLM 모델 설정 (Groq LLM 사용)
-        llm = ChatGroq(
+        # Groq 대신 Gemini-2.0 Flash 모델 사용
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        
+        llm = ChatGoogleGenerativeAI(
             temperature=0.3,
-            model_name="llama-3.3-70b-versatile",  # Groq에서 제공하는 Llama 모델
-            api_key=get_next_groq_key()  # Groq API 키
+            model="gemini-2.0-flash",  # Gemini-2.0 Flash 모델 사용
+            google_api_key=get_next_gemini_key()  # Gemini API 키
         )
         
         # 질문 유형별 맞춤 프롬프트 템플릿
@@ -380,7 +383,7 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
         
         # LLM 모델 설정 (Groq LLM 사용)
         llm = ChatGroq(
-            temperature=0.3,  # 창의성을 위해 약간 높임
+            temperature=0.3,
             model_name="llama-3.3-70b-versatile",  # Groq에서 제공하는 Llama 모델
             api_key=get_next_groq_key()  # Groq API 키
         )
