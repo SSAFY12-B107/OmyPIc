@@ -2,9 +2,13 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-# 필요한 시스템 패키지 설치 (Git 포함)
+# 필요한 시스템 패키지 설치 (Git, ffmpeg, Python 개발 패키지, ALSA 포함)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends git && \
+    apt-get install -y --no-install-recommends \
+    git \
+    ffmpeg \
+    python3-dev \
+    libasound2-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
