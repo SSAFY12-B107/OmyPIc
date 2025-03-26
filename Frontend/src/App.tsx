@@ -1,21 +1,68 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import ProfilePage from './pages/auth/ProfilePage'; // 경로 수정
-import './App.css';
+import "./App.css";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HeaderProvider } from "./contexts/HeaderContext";
+import {
+  PrivateRoute,
+  PublicRoute,
+  OnboardingRoute,
+} from "./routes/ProtectedRoutes";
+
+import Header from "./components/common/Header";
+import Home from "./pages/home/Home";
+import Login from "./pages/auth/Login";
+import Survey from "./pages/auth/Survey";
+import Profile from "./pages/auth/Profile";
+import TestMain from "./pages/test/TestMain";
+import TestExam from "./pages/test/TestExam";
+import FeedBack from "./pages/test/FeedBack";
+import ScriptMain from "./pages/script/ScriptMain";
+import ScriptList from "./pages/script/ScriptList";
+import ScriptDetail from "./pages/script/ScriptDetail";
+import ScriptWrite from "./pages/script/ScriptWrite";
+import AuthCallback from "./pages/auth/AuthCallback";
+
 
 function App() {
   return (
-    <div className="app">
-      <BrowserRouter>
+    <BrowserRouter>
+      <HeaderProvider>
+        {/* 헤더는 한 번만 선언하고, 모든 설정은 Context를 통해 관리됨 */}
+        <Header />
+        
         <Routes>
-          <Route path="/profile" element={<ProfilePage />} />
-          {/* 필요한 다른 경로들을 여기에 추가하세요 */}
-          <Route path="/" element={<div className="home-container">
-            <h1>어플리케이션에 오신 것을 환영합니다</h1>
-            <a href="/profile" className="nav-link">프로필 페이지로 이동</a>
-          </div>} />
+           {/* 로그인, 온보딩 완료된 사용자만 접근 가능 */}
+           <Route element={<PrivateRoute />}>
+              <Route path="/" element={<Home />} />
+
+              {/* Test 관련 라우트 */}
+              <Route path="/tests" element={<TestMain />} />
+              <Route path="/tests/practice" element={<TestExam />} />
+              <Route path="/tests/feedback/:test_pk" element={<FeedBack />} />
+
+              {/* Script 관련 라우트 */}
+              <Route path="/scripts" element={<ScriptMain />} />
+              <Route path="/scripts/:category" element={<ScriptList />} />
+              <Route path="/scripts/:category/:problemId" element={<ScriptDetail />} />
+              <Route path="/scripts/:category/:problemId/write" element={<ScriptWrite />} />
+            </Route>
+
+            {/* 로그인되지 않은 사용자만 접근 가능 */}
+            <Route element={<PublicRoute />}>
+              <Route path="/auth/login" element={<Login />} />
+              <Route path="/callback" element={<AuthCallback />} />
+            </Route>
+
+            {/* 온보딩 페이지들 - 로그인했지만 온보딩 미완료 사용자만 접근 가능 */}
+            <Route element={<OnboardingRoute />}>
+              <Route path="/auth/profile" element={<Profile />} />
+              <Route path="/auth/survey" element={<Survey />} />
+            </Route>
+
+          {/* 404 페이지 */}
+          <Route path="*" element={<div>페이지를 찾을 수 없습니다.</div>} />
         </Routes>
-      </BrowserRouter>
-    </div>
+      </HeaderProvider>
+    </BrowserRouter>
   );
 }
 

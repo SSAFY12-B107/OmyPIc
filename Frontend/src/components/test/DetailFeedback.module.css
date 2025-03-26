@@ -1,0 +1,178 @@
+.container {
+  min-height: 80rem;
+  background-color: #f9f9f9;
+  padding: 2rem;
+}
+
+.header {
+  height: 7rem;
+  background-color: white;
+  display: flex;
+  align-items: center;
+  padding: 0 2rem;
+  margin: -2rem -2rem 0;
+}
+
+.logo {
+  width: 5.5rem;
+  height: 6.3rem;
+}
+
+.title {
+  color: #333333;
+  font-size: 1.6rem;
+  margin-left: 5.4rem;
+  font-weight: 700;
+}
+
+.stepsContainer {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 2.4rem 0;
+}
+
+.stepCircle {
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #efe6ff;
+  border: 0.08rem solid rgba(87, 63, 132, 0.2);
+}
+
+.activeStep {
+  background-color: #8a63d2;
+  border: none;
+}
+
+.stepText {
+  font-size: 1.4rem;
+  color: #8e8e8e;
+}
+
+.activeStep .stepText {
+  color: white;
+}
+
+.gradeCard {
+  /* width: 32rem; */
+  height: 4.7rem;
+  background-color: white;
+  border-radius: 1rem;
+  padding: 0 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0.1rem 0.1rem 0.6rem rgba(0, 0, 0, 0.07);
+  margin-bottom: 1.6rem;
+}
+.gradeTitle {
+  font-weight: 700;
+  font-size: 1.6rem;
+}
+
+.gradeBadge {
+  font-size: 1.6rem;
+}
+.iconWrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.circleIcon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background-color: #efe6ff;
+  opacity: 0.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gradeBadge {
+  background-color: #e6d9ff;
+  color: #8a63d2;
+  padding: 0.4rem 1.5rem;
+  border-radius: 1.5rem;
+  font-weight: bold;
+}
+
+.feedbackCard {
+  /* width: 32rem; */
+  background-color: white;
+  border-radius: 1rem;
+  padding: 1.6rem;
+  box-shadow: 0.1rem 0.1rem 0.6rem rgba(0, 0, 0, 0.07);
+  margin-bottom: 1.6rem;
+}
+
+.sectionTitle {
+  color: #565656;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.questionText {
+  color: #565656;
+  margin: 1.4rem 0rem;
+  font-size: 1.4rem;
+}
+
+.answerText {
+  color: #565656;
+  /* margin: 1.4rem 1.6rem; */
+  font-size: 1.4rem;
+  padding: 1.5rem 1rem;
+}
+
+.answerBox {
+  background-color: #f8f4ff;
+  border-radius: 1rem;
+  margin-top: 1rem;
+}
+
+.evaluationCard {
+  /* width: 32rem; */
+  background-color: white;
+  border-radius: 1rem;
+  padding: 1.6rem;
+  box-shadow: 0.1rem 0.1rem 0.6rem rgba(0, 0, 0, 0.07);
+}
+
+.evaluationTags {
+  margin: 1.5rem 0rem;
+}
+
+.tagGroup {
+  gap: 1rem;
+  margin-top: 1rem;
+  display: flex;
+  /* justify-content: center; */
+}
+
+.tag {
+  width: calc((100% - 2rem) / 3);
+  text-align: center;
+  background-color: #f2f0f7;
+  color: #565656;
+  padding: 0.5rem 0.5rem;
+  border-radius: 1rem;
+  font-size: 1.4rem;
+  display: inline-block;
+}
+
+.activeTag {
+  background-color: #e6d9ff;
+}
+
+.feedbackText {
+  color: #565656;
+  font-size: 1.4rem;
+  line-height: 1.5;
+
+}

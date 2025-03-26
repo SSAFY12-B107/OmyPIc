@@ -1,0 +1,142 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background-color: white;
+  border-radius: 1rem;
+  width: 28rem;
+  overflow-y: auto;
+  padding: 1.5rem;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.07);
+  position: relative;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modalTitle {
+  color: #565656;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.modalCloseButton {
+  width: 3rem;
+  height: 3rem;
+  background-color: rgba(239, 230, 255, 0.5);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.modalCloseButton:hover {
+  background-color: rgba(239, 230, 255, 0.7);
+}
+
+.closeIcon {
+  width: 2.4rem;
+  height: 2.4rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modalBody {
+  padding: 1rem 0;
+}
+
+.gradeInfo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.gradeLabel {
+  color: #5E5E5E;
+  opacity: 0.7;
+  font-size: 1.4rem;
+}
+
+.gradeValue {
+  color: #8A63D2;
+  font-size: 1.6rem;
+  font-weight: bold;
+} 
+
+.evaluationCard {
+  margin-top: 2rem;
+}
+
+.evaluationTags {
+  margin: 1.5rem 0rem;
+}
+
+.tagGroup {
+  gap: 0.5rem;
+  margin-top: 1rem;
+  display: flex;
+}
+
+.tag {
+  background-color: #F2F0F7;
+  color: #565656;
+  padding: 0.8rem 1.5rem;
+  border-radius: 1rem;
+  font-size: 1.4rem;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.activeTag {
+  background-color: #E6D9FF;
+}
+
+.feedbackText {
+  color: #565656;
+  font-size: 1.4rem;
+  line-height: 1.5;
+}
+
+/* FeedbackModal.module.css에 추가 필요한 스타일 */
+.feedbackLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  text-align: center;
+  font-size: 1.2rem;
+  height:100%
+}
+
+.loadingSpinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #9466E9;
+  border-radius: 50%;
+  width: 4rem;
+  height: 4rem;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+

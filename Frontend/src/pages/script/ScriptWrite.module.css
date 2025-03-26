@@ -1,0 +1,88 @@
+.scriptWriteContainer {
+  margin: 0 2rem;
+  padding-top: 2rem;
+}
+
+/* 프로그래스 바 */
+.progressBox {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  width: 50%;
+  margin: 3rem auto;
+}
+
+.progressBar {
+  height: 5px;
+  flex: 1;
+  background-color: #D9D9D9; /* 회색 - 기본 상태 */
+  border-radius: 3px;
+  transition: background-color 0.3s ease;
+}
+
+.progressBar.active {
+  background-color: #6026CC; /* 보라색 - 활성화 상태 */
+}
+
+/* ai 채팅 */
+.chatBox {
+  padding: 2.5rem 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 1px 1px 6px 0 rgba(0, 0, 0, 0.07);
+  background-color: #F6F2FF;
+}
+
+.chatTxtBox {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.myBox {
+  margin-top: 2rem;
+}
+
+.chat {
+  width: 85%;
+  padding: 1rem;
+  border-radius: 1rem;
+  font-size: 1.4rem;
+  box-shadow: 1px 1px 6px 0 rgba(0, 0, 0, 0.07);
+  background-color: #fff;
+}
+
+textarea.chat {
+  height: 10rem;
+  border: none;
+  resize: none;
+  outline: none;
+  font-family: "Noto Sans KR", sans-serif;
+  color: #565656;
+}
+
+.imgBox {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.imgBox img {
+  width: 4rem;
+  height: 4rem;
+  object-fit: contain;
+}
+
+.imgBox p {
+  font-size: 1.2rem;
+  color: #8B8B8B;
+}
+
+/* 이전 다음 버튼 그룹 */
+.navigationContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  margin-top: 3rem;
+}

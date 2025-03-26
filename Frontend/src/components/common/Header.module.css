@@ -1,0 +1,120 @@
+.header {
+    width: 100%;
+    background-color: white;
+    z-index: 100;
+  }
+  
+  /* 안전 영역 - 노치, 상태 표시줄 등을 고려 */
+  .safeArea {
+    padding-top: env(safe-area-inset-top, 2rem);
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
+  }
+  
+  .headerContent {
+    position: relative;
+    height: 5.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 1.6rem;
+    margin-bottom: 2rem;
+  }
+  
+  .backButton {
+    position: absolute;
+    top: 50%;
+    left: 2rem;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #F9F6FF;
+    border: none;
+    padding: 0.8rem;
+    cursor: pointer;
+    color: #8B5DFF;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+  }
+  
+  .backButton:hover {
+    background-color: rgba(139, 93, 255, 0.1);
+  }
+  
+  .title {
+    flex: 1;
+    text-align: center;
+    margin: 0;
+    font-size: 1.6rem; /* 10px 기준 16px */
+    font-weight: 600;
+    color: #525252;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 0.8rem;
+  }
+  
+  /* 모달 스타일 */
+  .modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  
+  .modal {
+    background-color: white;
+    border-radius: 1.2rem;
+    padding: 2.4rem;
+    width: 80%;
+    max-width: 32rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .modal h3 {
+    margin-top: 0;
+    margin-bottom: 1.2rem;
+    font-size: 1.8rem;
+    text-align: center;
+  }
+  
+  .modal p {
+    margin-bottom: 2.4rem;
+    font-size: 1.4rem;
+    text-align: center;
+    color: #666;
+  }
+  
+  .modalButtons {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.2rem;
+  }
+  
+  .cancelButton, .confirmButton {
+    flex: 1;
+    padding: 1.2rem;
+    border-radius: 0.8rem;
+    cursor: pointer;
+    border: none;
+    font-size: 1.4rem; /* 10px 기준 14px */
+  }
+  
+  .confirmButton {
+    background-color: #E4E4E4;
+    color: #565656;
+    font-weight: 400; /* regular */
+  }
+  
+  .cancelButton {
+    background-color: #9466E9;
+    color: #fff;
+    font-weight: 700; /* bold */
+  }
