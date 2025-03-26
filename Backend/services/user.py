@@ -1,143 +1,165 @@
+# Backend/services/user.py
 from typing import List, Optional, Dict, Any
-from db.mongodb import get_collection
-from models.user import User
-from datetime import date, datetime
+from db.mongodb import get_mongodb
 from bson import ObjectId
-
-# 사용자 컬렉션 가져오기
-async def get_users_collection():
-    return await get_collection("users")
+from datetime import date, datetime
 
 async def create_user(
     name: str,
-    auth_provider: str = "local",
+    auth_provider: str = "google",
+    email: Optional[str] = None,
+    provider_id: Optional[str] = None,
+    profile_image: Optional[str] = None,
     current_opic_score: Optional[str] = None,
     target_opic_score: Optional[str] = None,
-    target_exam_date: Optional[date] = None,
-    background_survey: Optional[Dict] = None
+    target_exam_date: Optional[datetime] = None,
+    is_onboarded: bool = False
 ) -> Dict:
-    """새 사용자를 생성합니다."""
-    users_collection = await get_users_collection()
+    """
+    새 사용자 생성
     
-    # 백그라운드 서베이 데이터 처리
-    bg_survey = {}
-    if background_survey:
-        bg_survey = background_survey
+    Google 콜백 로직과 일관성을 유지하기 위해 수정됨
+    """
+    # MongoDB 데이터베이스 객체 가져오기
+    db = await get_mongodb()
     
-    # date 객체를 datetime 객체로 변환 (MongoDB 호환성을 위해)
-    converted_target_exam_date = None
-    if target_exam_date:
-        converted_target_exam_date = datetime.combine(target_exam_date, datetime.min.time())
+    # 현재 시간
+    current_time = datetime.now()
+    
+    # 백그라운드 서베이 초기 설정
+    background_survey = {
+        "profession": 0,
+        "is_student": False,
+        "studied_lecture": 0,
+        "living_place": 0,
+        "info": []
+    }
+    
+    # 평균 점수 초기화
+    average_score = {
+        "comboset_score": None,
+        "roleplaying_score": None, 
+        "total_score": None,
+        "unexpected_score": None
+    }
+    
+    # 테스트 제한 설정
+    limits = {
+        "script_count": 0,
+        "test_count": 0,        # 기본 테스트 횟수
+        "random_problem": 0     # 기본 랜덤 문제 수
+    }
     
     # 사용자 문서 생성
-    user_doc = User.create_user_document(
-        name=name,
-        auth_provider=auth_provider,
-        current_opic_score=current_opic_score,
-        target_opic_score=target_opic_score,
-        target_exam_date=converted_target_exam_date,  # 변환된 datetime 사용
-        profession=bg_survey.get("profession"),
-        is_student=bg_survey.get("is_student"),
-        studied_lecture=bg_survey.get("studied_lecture"),
-        living_place=bg_survey.get("living_place"),
-        info=bg_survey.get("info")
-    )
+    user_doc = {
+        "name": name,
+        "auth_provider": auth_provider,
+        "email": email,
+        "provider_id": provider_id,
+        "profile_image": profile_image,
+        "current_opic_score": current_opic_score,
+        "target_opic_score": target_opic_score,
+        "target_exam_date": target_exam_date,
+        "is_onboarded": is_onboarded,
+        "created_at": current_time,
+        "updated_at": current_time,
+        "background_survey": background_survey,
+        "average_score": average_score,
+        "limits": limits
+    }
     
     # MongoDB에 사용자 추가
-    result = await users_collection.insert_one(user_doc)
+    result = await db.users.insert_one(user_doc)
     
-    # 생성된 사용자 정보 반환
-    user = await users_collection.find_one({"_id": result.inserted_id})
-    user["_id"] = str(user["_id"])  # ObjectId를 문자열로 변환
+    # 삽입된 ID로 전체 문서 검색
+    user = await db.users.find_one({"_id": result.inserted_id})
+    
+    # ObjectId를 문자열로 명시적 변환
+    if user and "_id" in user:
+        user["_id"] = str(user["_id"])
+    
     return user
 
-async def get_user_by_id(id: str) -> Optional[Dict]:
-    """ID로 사용자를 조회합니다."""
-    users_collection = await get_users_collection()
-    try:
-        object_id = ObjectId(id)
-        user = await users_collection.find_one({"_id": object_id})
-        if user:
-            user["_id"] = str(user["_id"])  # ObjectId를 문자열로 변환
-        return user
-    except:
-        return None
 
 async def get_user_by_email(email: str) -> Optional[Dict]:
-    """이메일로 사용자를 조회합니다."""
-    users_collection = await get_users_collection()
-    user = await users_collection.find_one({"background_survey.email": email})
-    if user:
+    """
+    이메일로 사용자 조회
+    """
+    db = await get_mongodb()
+    users_collection = db.users
+    
+    user = await users_collection.find_one({"email": email})
+    
+    if user and "_id" in user:
         user["_id"] = str(user["_id"])  # ObjectId를 문자열로 변환
+    
+    return user
+
+async def get_user_by_id(user_id: ObjectId) -> Optional[Dict]:
+    """
+    ID로 사용자 조회
+    """
+    db = await get_mongodb()
+    users_collection = db.users
+    
+    user = await users_collection.find_one({"_id": user_id})
+    
+    if user and "_id" in user:
+        user["_id"] = str(user["_id"])  # ObjectId를 문자열로 변환
+    
     return user
 
 async def get_users(skip: int = 0, limit: int = 10) -> List[Dict]:
-    """모든 사용자를 조회합니다."""
-    users_collection = await get_users_collection()
-    users = []
+    """
+    모든 사용자 조회
+    """
+    db = await get_mongodb()
+    users_collection = db.users
+    
     cursor = users_collection.find().skip(skip).limit(limit)
-    async for document in cursor:
-        document["_id"] = str(document["_id"])  # ObjectId를 문자열로 변환
-        users.append(document)
+    users = []
+    
+    async for user in cursor:
+        user["_id"] = str(user["_id"])  # ObjectId를 문자열로 변환
+        users.append(user)
+    
     return users
 
-async def update_user(id: str, update_data: Dict[str, Any]) -> Optional[Dict]:
-    """사용자 정보를 업데이트합니다."""
-    users_collection = await get_users_collection()
+async def update_user(user_id: ObjectId, update_data: Dict) -> Optional[Dict]:
+    """
+    사용자 정보 업데이트
+    """
+    db = await get_mongodb()
+    users_collection = db.users
     
-    try:
-        object_id = ObjectId(id)
-        
-        # 사용자 존재 여부 확인
-        user = await users_collection.find_one({"_id": object_id})
-        if not user:
-            return None
-        
-        # 백그라운드 서베이 데이터 처리
-        if "background_survey" in update_data:
-            bg_survey = user.get("background_survey", {})
-            new_bg_survey = update_data.pop("background_survey", {})
-            
-            if new_bg_survey:
-                if bg_survey is None:
-                    bg_survey = {}
-                
-                for key, value in new_bg_survey.items():
-                    if value is not None:
-                        bg_survey[key] = value
-                
-                update_data["background_survey"] = bg_survey
-        
-        # date 객체를 datetime 객체로 변환 (MongoDB 호환성을 위해)
-        if "target_exam_date" in update_data and isinstance(update_data["target_exam_date"], date):
-            update_data["target_exam_date"] = datetime.combine(
-                update_data["target_exam_date"], 
-                datetime.min.time()
-            )
-        
-        # 업데이트할 필드 필터링
-        update_dict = {k: v for k, v in update_data.items() if v is not None}
-        update_dict["updated_at"] = datetime.now()
-        
-        if update_dict:
-            await users_collection.update_one(
-                {"_id": object_id},
-                {"$set": update_dict}
-            )
-        
-        # 업데이트된 사용자 정보 반환
-        updated_user = await users_collection.find_one({"_id": object_id})
-        updated_user["_id"] = str(updated_user["_id"])  # ObjectId를 문자열로 변환
-        return updated_user
-    except:
+    # 업데이트할 필드 필터링 (None 값은 업데이트하지 않음)
+    filtered_update = {k: v for k, v in update_data.items() if v is not None}
+    
+    if not filtered_update:
+        # 업데이트할 데이터가 없으면 기존 사용자 반환
+        return await get_user_by_id(user_id)
+    
+    # 업데이트 수행
+    result = await users_collection.update_one(
+        {"_id": user_id},
+        {"$set": filtered_update}
+    )
+    
+    if result.modified_count == 0 and result.matched_count == 0:
+        # 문서가 존재하지 않음
         return None
+    
+    # 업데이트된 사용자 반환
+    return await get_user_by_id(user_id)
 
-async def delete_user(id: str) -> bool:
-    """사용자를 삭제합니다."""
-    users_collection = await get_users_collection()
-    try:
-        object_id = ObjectId(id)
-        result = await users_collection.delete_one({"_id": object_id})
-        return result.deleted_count > 0
-    except:
-        return False
+async def delete_user(user_id: ObjectId) -> bool:
+    """
+    사용자 삭제
+    """
+    db = await get_mongodb()
+    users_collection = db.users
+    
+    result = await users_collection.delete_one({"_id": user_id})
+    
+    # 삭제된 문서가 있는지 확인
+    return result.deleted_count > 0
