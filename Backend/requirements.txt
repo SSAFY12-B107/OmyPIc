@@ -28,8 +28,8 @@ pydantic_settings==2.8.1
 
 # Audio processing
 gtts==2.5.4
-pydub==0.25.1
-
+pydub==0.25.3
+pyaudio==0.2.13
 # Monitoring
 prometheus_client==0.21.1
 
