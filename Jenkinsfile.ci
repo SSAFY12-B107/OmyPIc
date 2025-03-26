@@ -7,7 +7,7 @@ pipeline {
         BACKEND_IMAGE = "${DOCKER_REGISTRY}/omypic-backend"
         FRONTEND_IMAGE = "${DOCKER_REGISTRY}/omypic-frontend"
         GIT_AUTHOR_ID = "${env.gitlabUserName}"
-        GIT_AUTHOR_EMAIL = "${env.gitlabEmail}"
+        GIT_AUTHOR_EMAIL = "${env.gitlabUserEmail}"
         GIT_COMMIT_SHORT = sh(
             script: "printf \$(git rev-parse --short HEAD)",
             returnStdout: true
