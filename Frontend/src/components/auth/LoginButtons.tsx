@@ -32,7 +32,7 @@ function LoginButtons() {
             localStorage.setItem("google_oauth_state", data.state);
           }
           // 제공받은 URL로 리다이렉트
-          window.location.href = data.auth_url;
+          // window.location.href = data.auth_url;
         } else {
           console.error("인증 URL이 없습니다.");
         }

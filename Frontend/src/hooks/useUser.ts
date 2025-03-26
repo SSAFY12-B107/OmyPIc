@@ -171,6 +171,7 @@ export const useUser = () => {
   
       if (!response.ok) {
         console.error("❌ 서버 응답 오류:", JSON.stringify(result, null, 2));
+        sessionStorage.clear();
         throw new Error(result.detail || "사용자 프로필 생성에 실패했습니다.");
       }
   
@@ -237,6 +238,7 @@ export const useUser = () => {
   
       if (!response.ok) {
         console.error("❌ 서버 응답 오류:", JSON.stringify(result, null, 2));
+        sessionStorage.clear();
         throw new Error(result.detail || "설문 저장에 실패했습니다.");
       }
   
