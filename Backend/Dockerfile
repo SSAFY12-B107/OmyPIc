@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -15,8 +15,9 @@ RUN apt-get update && \
 # 종속성 파일 복사 (캐싱을 위해 먼저 복사)
 COPY requirements.txt .
 
-# 의존성 설치
-RUN pip install --no-cache-dir -r requirements.txt
+# pip 업그레이드 후 의존성 설치 (안정성 향상을 위해)
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # 애플리케이션 코드 복사
 COPY . .
