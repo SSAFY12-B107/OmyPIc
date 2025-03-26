@@ -26,8 +26,8 @@ from services.test_service import create_test, process_audio_background, get_ran
 logger = logging.getLogger(__name__)
 
 # 두 가지 전역 인스턴스 생성 (Groq 기반)
-standard_audio_processor = AudioProcessor(model_name="whisper-large-v3", language="en")  # 7문제, 15문제용
-fast_audio_processor = FastAudioProcessor(model_name="whisper-large-v3", language="en")  # 랜덤 단일 문제용
+standard_audio_processor = AudioProcessor(model_name="whisper-large-v3")  # 7문제, 15문제용
+fast_audio_processor = FastAudioProcessor(model_name="whisper-large-v3")  # 랜덤 단일 문제용
 
 evaluator = ResponseEvaluator()
 
