@@ -10,16 +10,14 @@ logger = logging.getLogger(__name__)
 class AudioProcessor:
     """오디오 처리 클래스: 음성 데이터 변환 및 텍스트 추출 (Groq API 활용)"""
     
-    def __init__(self, model_name: str = "whisper-large-v3", language: str = "en"):
+    def __init__(self, model_name: str = "whisper-large-v3"):
         """
         오디오 프로세서 초기화
         
         Args:
             model_name: Groq Whisper 모델 이름 (기본값: "whisper-large-v3")
-            language: 인식할 언어 (기본값: "en")
         """
         self.model_name = model_name
-        self.language = language
         self._client = None
     
     @property
@@ -62,7 +60,6 @@ class AudioProcessor:
             transcription = self.client.audio.transcriptions.create(
                 file=(temp_file_name, audio_content),
                 model=self.model_name,
-                language=self.language,
                 response_format="text"
             )
             
@@ -88,15 +85,14 @@ class AudioProcessor:
 class FastAudioProcessor(AudioProcessor):
     """최적화된 설정으로 Groq Whisper 모델을 사용하는 오디오 프로세서"""
     
-    def __init__(self, model_name: str = "whisper-large-v3", language: str = "en"):
+    def __init__(self, model_name: str = "whisper-large-v3"):
         """
         최적화 오디오 프로세서 초기화
         
         Args:
             model_name: Groq Whisper 모델 이름 (기본값: "whisper-large-v3")
-            language: 인식할 언어 (기본값: "en")
         """
-        super().__init__(model_name, language)
+        super().__init__(model_name)
     
     def process_audio_fast(self, audio_content: bytes) -> str:
         """
@@ -122,7 +118,6 @@ class FastAudioProcessor(AudioProcessor):
             transcription = self.client.audio.transcriptions.create(
                 file=(f"temp_audio_file.mp3", processed_audio),
                 model=self.model_name,
-                language=self.language,
                 response_format="text"
             )
             

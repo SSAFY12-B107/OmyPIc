@@ -18,8 +18,8 @@ from services.test_generator import generate_short_test, generate_full_test
 logger = logging.getLogger(__name__)
 
 # 두 가지 전역 인스턴스 생성
-standard_audio_processor = AudioProcessor(model_name="whisper-large-v3", language="en")  # 정확성 우선
-fast_audio_processor = FastAudioProcessor(model_name="whisper-large-v3", language="en")  # 속도 우선
+standard_audio_processor = AudioProcessor(model_name="whisper-large-v3")  # 정확성 우선
+fast_audio_processor = FastAudioProcessor(model_name="whisper-large-v3")  # 속도 우선
 
 evaluator = ResponseEvaluator()
 
