@@ -1,0 +1,1680 @@
+diff --git a/Backend/Dockerfile b/Backend/Dockerfile
+index 7f0df3ee..e69de29b 100644
+--- a/Backend/Dockerfile
++++ b/Backend/Dockerfile
+@@ -1,22 +0,0 @@
+-FROM python:3.13-slim
+-
+-WORKDIR /app
+-
+-# 필요한 시스템 패키지 설치 (Git 포함)
+-RUN apt-get update && \
+-    apt-get install -y --no-install-recommends git && \
+-    apt-get clean && \
+-    rm -rf /var/lib/apt/lists/*
+-
+-# 종속성 파일 복사 (캐싱을 위해 먼저 복사)
+-COPY requirements.txt .
+-
+-# 의존성 설치
+-RUN pip install --no-cache-dir -r requirements.txt
+-
+-# 애플리케이션 코드 복사
+-COPY . .
+-
+-# 실행 설정
+-EXPOSE 8000
+-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+\ No newline at end of file
+diff --git a/Backend/api/problems.py b/Backend/api/problems.py
+new file mode 100644
+index 00000000..f18147d1
+--- /dev/null
++++ b/Backend/api/problems.py
+@@ -0,0 +1,320 @@
++from fastapi import APIRouter, Depends, HTTPException, status, Query, Path, Body
++from typing import Any, List, Dict, Optional, Union
++from bson import ObjectId
++from pymongo.database import Database
++
++from db.mongodb import get_mongodb
++from schemas.problem import ProblemResponse, ProblemDetailResponse, BasicQuestionResponse, ScriptUpdateRequest, ScriptResponse
++
++router = APIRouter()
++
++@router.get("/", response_model=Dict[str, Union[List[str], List[ProblemResponse]]], status_code=status.HTTP_200_OK)
++async def get_problems_by_topics(
++    skip: int = Query(0, description="건너뛸 문서 수"),
++    limit: int = Query(10, description="각 토픽당 가져올 문서 수", ge=1, le=100),
++    db: Database = Depends(get_mongodb)
++) -> Dict[str, List[Dict[str, Any]]]:
++    """
++    문제를 그룹별로 조회합니다
++    - topic_group이 빈출/고난도인 경우: 해당 그룹으로 분류
++    - topic_group이 null인 경우: problem_category 분류
++    - skip: 건너뛸 문서 수
++    - limit: 각 토픽당 가져올 최대 문서 수
++    """
++    # 결과 저장할 딕셔너리
++    result = {}
++
++    # 3. topic_group이 null인 문제를 problem_category별로 조회
++    categories = [
++        "주거", "해외여행", "여행", "음악감상", "술집/바에 가기", "영화보기", 
++        "국내여행", "식당/카페 가기", "공연/콘서트보기", "집에서 보내는 휴가", 
++        "걷기", "쇼핑하기", "하이킹, 트레킹", "해변 가기", "공원 가기", 
++        "캠핑하기", "차 드라이브 하기", "요리하기", "헬스", 
++        "혼자 노래 부르거나 합창하기", "자전거"
++    ]
++
++    result["카테고리"] = categories
++    
++    # 1. topic_group이 '빈출'인 문제 조회
++    cursor_frequent = db.problems.find({"topic_group": "빈출"}).skip(skip).limit(limit)
++    frequent_problems = await cursor_frequent.to_list(length=limit)
++    
++    # ObjectId를 문자열로 변환
++    for problem in frequent_problems:
++        problem["_id"] = str(problem["_id"])
++    
++    result["빈출"] = frequent_problems
++    
++    # 2. topic_group이 '고난도'인 문제 조회
++    cursor_difficult = db.problems.find({"topic_group": "고난도"}).skip(skip).limit(limit)
++    difficult_problems = await cursor_difficult.to_list(length=limit)
++    
++    # ObjectId를 문자열로 변환
++    for problem in difficult_problems:
++        problem["_id"] = str(problem["_id"])
++    
++    result["고난도"] = difficult_problems
++    
++    
++    for category in categories:
++        cursor = db.problems.find({
++            "topic_category": category
++        }).skip(skip).limit(limit)
++        
++        problems = await cursor.to_list(length=limit)
++        
++        # ObjectId를 문자열로 변환
++        for problem in problems:
++            problem["_id"] = str(problem["_id"])
++        
++        # 결과에 추가
++        result[category] = problems
++    
++    return result
++
++
++@router.get("/{problem_id}", response_model=ProblemDetailResponse, status_code=status.HTTP_200_OK)
++async def get_problem_detail(
++    problem_id: str = Path(..., description="조회할 문제 ID"),
++    user_id: Optional[str] = Query(None, description="사용자 ID (제공 시 해당 사용자의 스크립트와 오답노트만 반환)"),
++    db: Database = Depends(get_mongodb)
++) -> ProblemDetailResponse:
++    """
++    문제 세부 정보 조회
++    - problem_id: 조회할 문제 ID
++    - user_id: (선택) 특정 사용자의 스크립트와 오답노트만 반환
++    
++    반환:
++    - 문제 정보
++    - 사용자 스크립트 (is_script=true)
++    - 모의고사 오답노트 (is_script=false)
++    """
++    # 1. 문제 정보 조회
++    try:
++        problem = await db.problems.find_one({"_id": ObjectId(problem_id)})
++        if not problem:
++            raise HTTPException(
++                status_code=status.HTTP_404_NOT_FOUND,
++                detail=f"ID가 {problem_id}인 문제를 찾을 수 없습니다."
++            )
++        
++        # ObjectId를 문자열로 변환
++        problem["_id"] = str(problem["_id"])
++        
++        # 2. 스크립트 쿼리 구성
++        scripts_query = {"problem_id": problem_id}
++        
++        # 특정 사용자의 스크립트만 조회하는 경우
++        if user_id:
++            scripts_query["user_id"] = user_id
++        
++        # 3. 사용자 스크립트 조회 (is_script=true)
++        user_scripts_cursor = db.scripts.find({**scripts_query, "is_script": True}).sort("created_at", -1)
++        user_scripts = await user_scripts_cursor.to_list(length=100)  # 최대 100개 조회
++        
++        # ObjectId를 문자열로 변환
++        for script in user_scripts:
++            script["_id"] = str(script["_id"])
++        
++        # 4. 모의고사 오답노트 조회 (is_script=false)
++        test_notes_cursor = db.scripts.find({**scripts_query, "is_script": False}).sort("created_at", -1)
++        test_notes = await test_notes_cursor.to_list(length=100)  # 최대 100개 조회
++        
++        # ObjectId를 문자열로 변환
++        for note in test_notes:
++            note["_id"] = str(note["_id"])
++        
++        # 5. 결과 반환
++        return {
++            "problem": problem,
++            "user_scripts": user_scripts,
++            "test_notes": test_notes
++        }
++        
++    except Exception as e:
++        # 유효하지 않은 ObjectId 형식 등의 오류 처리
++        raise HTTPException(
++            status_code=status.HTTP_400_BAD_REQUEST,
++            detail=f"문제 조회 중 오류가 발생했습니다: {str(e)}"
++        )
++
++
++@router.get("/{problem_pk}/basic-question", response_model=BasicQuestionResponse, status_code=status.HTTP_200_OK)
++async def get_basic_questions(
++    problem_pk: str = Path(..., description="조회할 문제 ID"),
++    db: Database = Depends(get_mongodb)
++) -> BasicQuestionResponse:
++    """
++    문제에 해당하는 스크립트 기본 질문 조회
++    - problem_pk: 조회할 문제 ID
++    
++    반환:
++    - 문제 정보
++    - 해당 문제 카테고리에 맞는 기본 질문 목록
++    """
++    try:
++        # 1. 문제 정보 조회
++        problem = await db.problems.find_one({"_id": ObjectId(problem_pk)})
++        if not problem:
++            raise HTTPException(
++                status_code=status.HTTP_404_NOT_FOUND,
++                detail=f"ID가 {problem_pk}인 문제를 찾을 수 없습니다."
++            )
++        
++        # ObjectId를 문자열로 변환
++        problem["_id"] = str(problem["_id"])
++        
++        # 2. 문제 카테고리 추출
++        problem_category = problem.get("problem_category")
++        if not problem_category:
++            raise HTTPException(
++                status_code=status.HTTP_400_BAD_REQUEST,
++                detail="문제에 카테고리 정보가 없습니다."
++            )
++        
++        # 3. 해당 카테고리에 맞는 질문 조회
++        question_doc = await db.questions.find_one({"problem_category": problem_category})
++        if not question_doc:
++            # 질문이 없는 경우 빈 리스트 반환
++            return {
++                "questions": []
++            }
++        
++        # 4. 결과 반환
++        return {
++            "questions": question_doc.get("content", [])
++        }
++        
++    except Exception as e:
++        # 유효하지 않은 ObjectId 형식 등의 오류 처리
++        raise HTTPException(
++            status_code=status.HTTP_400_BAD_REQUEST,
++            detail=f"질문 조회 중 오류가 발생했습니다: {str(e)}"
++        )
++
++@router.post("/{problem_pk}/custom-quesiton", response_model="", status_code=status.HTTP_201_CREATED)
++async def make_custom_questions(
++    db: Database = Depends(get_mongodb)
++) -> Any:
++    """
++    스크립트 꼬리 질문 생성
++    """
++    pass
++
++@router.post("/{problem_pk}/scripts", response_model="", status_code=status.HTTP_201_CREATED)
++async def make_script(
++    problem: None,
++    db: Database = Depends(get_mongodb)
++) -> Any:
++    """
++    스크립트 작성
++    """
++    pass
++
++@router.patch("/scripts/{script_pk}", response_model=ScriptResponse, status_code=status.HTTP_200_OK)
++async def update_script(
++    script_pk: str = Path(..., description="수정할 스크립트 ID"),
++    script_update: ScriptUpdateRequest = Body(...),
++    db: Database = Depends(get_mongodb)
++) -> Any:
++    """
++    스크립트 수정 - 스크립트 내용(content)만 수정 가능
++    """
++    try:
++        # 스크립트 조회
++        script = await db.scripts.find_one({"_id": ObjectId(script_pk)})
++        if not script:
++            raise HTTPException(
++                status_code=status.HTTP_404_NOT_FOUND,
++                detail=f"ID가 {script_pk}인 스크립트를 찾을 수 없습니다."
++            )
++        
++        # 내용 업데이트
++        update_result = await db.scripts.update_one(
++            {"_id": ObjectId(script_pk)},
++            {"$set": {"content": script_update.content}}
++        )
++        
++        if update_result.modified_count == 0:
++            raise HTTPException(
++                status_code=status.HTTP_304_NOT_MODIFIED,
++                detail="스크립트 내용이 변경되지 않았습니다."
++            )
++        
++        # 업데이트된 스크립트 조회
++        updated_script = await db.scripts.find_one({"_id": ObjectId(script_pk)})
++        updated_script["_id"] = str(updated_script["_id"])
++        
++        return updated_script
++        
++    except Exception as e:
++        if "ObjectId" in str(e):
++            raise HTTPException(
++                status_code=status.HTTP_400_BAD_REQUEST,
++                detail=f"유효하지 않은 스크립트 ID 형식입니다: {script_pk}"
++            )
++        raise HTTPException(
++            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
++            detail=f"스크립트 수정 중 오류가 발생했습니다: {str(e)}"
++        )
++
++@router.delete("/scripts/{script_pk}", status_code=status.HTTP_204_NO_CONTENT)
++async def delete_script(
++    script_pk: str = Path(..., description="삭제할 스크립트 ID"),
++    db: Database = Depends(get_mongodb)
++) -> None:
++    """
++    스크립트 삭제
++    """
++    try:
++        # 스크립트 조회 (존재 여부 확인)
++        script = await db.scripts.find_one({"_id": ObjectId(script_pk)})
++        if not script:
++            raise HTTPException(
++                status_code=status.HTTP_404_NOT_FOUND,
++                detail=f"ID가 {script_pk}인 스크립트를 찾을 수 없습니다."
++            )
++        
++        # 스크립트 삭제
++        delete_result = await db.scripts.delete_one({"_id": ObjectId(script_pk)})
++        
++        if delete_result.deleted_count == 0:
++            raise HTTPException(
++                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
++                detail="스크립트 삭제에 실패했습니다."
++            )
++        
++        # 204 No Content 상태 코드로 응답 (반환 데이터 없음)
++        return None
++        
++    except Exception as e:
++        if "ObjectId" in str(e):
++            raise HTTPException(
++                status_code=status.HTTP_400_BAD_REQUEST,
++                detail=f"유효하지 않은 스크립트 ID 형식입니다: {script_pk}"
++            )
++        raise HTTPException(
++            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
++            detail=f"스크립트 삭제 중 오류가 발생했습니다: {str(e)}"
++        )
++
++
++@router.post("/scripts/{script_pk}/listen", response_model="", status_code=status.HTTP_201_CREATED)
++async def listen_script(
++    script_pk: str = Path(..., description="조회할 문제 ID"),
++    db: Database = Depends(get_mongodb)
++) -> Any:
++    """
++    스크립트 발음 듣기
++    """
++    pass
++
++@router.post("/scripts/{script_pk}/record", response_model="", status_code=status.HTTP_201_CREATED)
++async def practice_script(
++    script_pk: str = Path(..., description="조회할 문제 ID"),
++    db: Database = Depends(get_mongodb)
++) -> Any:
++    """
++    스크립트 발음 연습
++    """
++    pass
+diff --git a/Backend/core/jwt_utils.py b/Backend/core/jwt_utils.py
+new file mode 100644
+index 00000000..ee6fb983
+--- /dev/null
++++ b/Backend/core/jwt_utils.py
+@@ -0,0 +1,31 @@
++import jwt
++from datetime import datetime, timedelta
++from typing import Dict, Any, Optional
++from fastapi import HTTPException, status
++
++from core.config import settings
++
++def decode_jwt(token: str, secret_key: str) -> dict:
++    """
++    JWT 토큰 디코딩 및 페이로드 반환
++    """
++    try:
++        payload = jwt.decode(
++            token,
++            secret_key,
++            algorithms=[settings.JWT_ALGORITHM],
++            options={"verify_signature": True}
++        )
++        return payload
++    except jwt.ExpiredSignatureError:
++        raise HTTPException(
++            status_code=status.HTTP_401_UNAUTHORIZED,
++            detail="Token has expired",
++            headers={"WWW-Authenticate": "Bearer"},
++        )
++    except jwt.PyJWTError as e:
++        raise HTTPException(
++            status_code=status.HTTP_401_UNAUTHORIZED,
++            detail=f"Invalid token: {str(e)}",
++            headers={"WWW-Authenticate": "Bearer"},
++        )
+\ No newline at end of file
+diff --git a/Backend/db/make_problem.py b/Backend/db/make_problem.py
+new file mode 100644
+index 00000000..f4686428
+--- /dev/null
++++ b/Backend/db/make_problem.py
+@@ -0,0 +1,79 @@
++import pandas as pd
++import uuid
++from motor.motor_asyncio import AsyncIOMotorClient
++import asyncio
++from bson import ObjectId
++
++async def setup_mongodb():
++    client = AsyncIOMotorClient("mongodb+srv://S12P22B107:tgXSWypINd@ssafy.ngivl.mongodb.net/S12P22B107?authSource=admin")
++    db = client["S12P22B107"]
++    return db
++
++# Excel 파일 읽기 및 데이터 가공
++async def process_excel_and_save(file_path):
++    # MongoDB 연결
++    db = await setup_mongodb()
++    
++    # Excel 파일 읽기
++    df = pd.read_excel(file_path)
++    
++    # 필요한 컬럼이 있는지 확인
++    required_columns = ["topic_category", "problem_category", "content", "connected_problem", "high_grade_kit"]
++    for col in required_columns:
++        if col not in df.columns:
++            print(f"오류: '{col}' 컬럼이 없습니다.")
++            return
++    
++    # 데이터 가공 및 MongoDB에 저장
++    current_group_id = None
++    order_in_group = 0
++    
++    for idx, row in df.iterrows():
++        # 필요한 필드 추출
++        has_connected = row.get("connected_problem") == "O"
++        
++        # 연결된 문제 그룹 관리
++        if has_connected and order_in_group == 0:
++            # 연결된 문제의 시작이면 새 그룹 ID 생성
++            current_group_id = str(uuid.uuid4())
++            order_in_group = 1
++        elif order_in_group > 0:
++            # 이전 문제가 연결된 문제라면 같은 그룹에 속함
++            order_in_group += 1
++            # 이 문제가 연결된 문제를 가지지 않으면 그룹의 마지막
++            if not has_connected:
++                current_group_id = None
++                order_in_group = 0
++        
++        # topic_group 필드 설정
++        # topic_group 컬럼이 있으면 해당 값 사용, 없으면 None
++        topic_group = row.get("topic_group") if "topic_group" in df.columns else None
++        
++        # None이거나 NaN인 경우 None으로 설정
++        if pd.isna(topic_group):
++            topic_group = None
++        
++        # 문제 데이터 생성
++        problem_data = {
++            "topic_category": row["topic_category"],
++            "problem_category": row["problem_category"],
++            "content": row["content"],
++            "audio_s3_url": str(row.get("audio_s3_url", "")) if not pd.isna(row.get("audio_s3_url", "")) else None,
++            "high_grade_kit": bool(row.get("high_grade_kit", False)),
++            "problem_group_id": current_group_id,
++            "problem_order": order_in_group if order_in_group > 0 else 0,
++            "topic_group": topic_group  # 새로 추가된 필드
++        }
++        
++        # MongoDB에 저장
++        result = await db.problems.insert_one(problem_data)
++        print(f"문제 ID {result.inserted_id} 저장 완료: 그룹 {current_group_id}, 순서 {order_in_group}, 토픽 그룹 {topic_group}")
++
++# 비동기 실행
++async def main():
++    file_path = "C:/Users/SSAFY/Desktop/pjt2/data/problem_data.xlsx"  # Excel 파일 경로
++    await process_excel_and_save(file_path)
++
++# 스크립트 실행
++if __name__ == "__main__":
++    asyncio.run(main())
+\ No newline at end of file
+diff --git a/Backend/db/make_question.py b/Backend/db/make_question.py
+new file mode 100644
+index 00000000..12cf28b1
+--- /dev/null
++++ b/Backend/db/make_question.py
+@@ -0,0 +1,48 @@
++import pandas as pd
++import json
++from motor.motor_asyncio import AsyncIOMotorClient
++import asyncio
++from bson import ObjectId
++
++async def setup_mongodb():
++    client = AsyncIOMotorClient("mongodb+srv://S12P22B107:tgXSWypINd@ssafy.ngivl.mongodb.net/S12P22B107?authSource=admin")
++    db = client["S12P22B107"]
++    return db
++
++async def process_excel_and_save_questions(file_path):
++    db = await setup_mongodb()
++    
++    # Excel 파일 읽기
++    df = pd.read_excel(file_path)
++    
++    for idx, row in df.iterrows():
++        problem_category = row.iloc[0]  # A열을 problem_category로 가정
++        content_text = row.iloc[1]      # B열의 content 데이터
++        
++        try:
++            # JSON 형식의 문자열로 되어 있는 경우
++            if isinstance(content_text, str):
++                # 작은따옴표를 큰따옴표로 변환 (JSON 형식에 맞춤)
++                content_text = content_text.replace("'", '"')
++                content_list = json.loads(content_text)
++            else:
++                content_list = []
++        except json.JSONDecodeError:
++            # JSON 파싱 오류 시 단일 문자열로 처리
++            content_list = [content_text] if isinstance(content_text, str) else []
++        
++        question_data = {
++            "problem_category": problem_category,
++            "content": content_list
++        }
++        
++        result = await db.questions.insert_one(question_data)
++        print(f"질문 ID {result.inserted_id} 저장 완료: {problem_category}")
++        print(f"  - 내용: {content_list}")
++
++async def main():
++    file_path = "C:/Users/SSAFY/Desktop/pjt2/data/question_data.xlsx"
++    await process_excel_and_save_questions(file_path)
++
++if __name__ == "__main__":
++    asyncio.run(main())
+\ No newline at end of file
+diff --git a/Backend/services/s3_service.py b/Backend/services/s3_service.py
+new file mode 100644
+index 00000000..d0bc7712
+--- /dev/null
++++ b/Backend/services/s3_service.py
+@@ -0,0 +1,86 @@
++# services/s3_service.py
++
++import boto3
++from botocore.exceptions import NoCredentialsError
++from fastapi import HTTPException
++import uuid
++from core.config import settings
++
++# S3 클라이언트 초기화
++s3_client = boto3.client(
++    's3',
++    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
++    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
++    region_name=settings.AWS_REGION
++)
++
++async def upload_audio_to_s3(audio_data, problem_id):
++    """
++    오디오 파일을 S3에 업로드하고 URL을 반환합니다.
++    
++    Args:
++        audio_data (bytes): 업로드할 오디오 파일 데이터
++        problem_id (str): 문제 ID
++        
++    Returns:
++        str: S3에 업로드된 파일의 URL
++    """
++    try:
++        # 파일명 생성 (문제 ID + 고유 식별자)
++        file_name = f"problem_audio/{problem_id}/{uuid.uuid4()}.mp3"
++        
++        # S3에 업로드
++        s3_client.put_object(
++            Bucket=settings.AWS_S3_BUCKET_NAME,
++            Key=file_name,
++            Body=audio_data,
++            ContentType='audio/mpeg'
++        )
++        
++        # S3 URL 생성
++        s3_url = f"https://{settings.AWS_S3_BUCKET_NAME}.s3.{settings.AWS_REGION}.amazonaws.com/{file_name}"
++        
++        return s3_url
++    
++    except NoCredentialsError:
++        raise HTTPException(status_code=500, detail="AWS 자격 증명을 찾을 수 없습니다.")
++    except Exception as e:
++        raise HTTPException(status_code=500, detail=f"S3 업로드 중 오류가 발생했습니다: {str(e)}")
++
++
++
++# 다른 유형의 파일 업로드를 위한 일반 함수
++async def upload_file_to_s3(file_data, folder, file_name, content_type):
++    """
++    일반 파일을 S3에 업로드하고 URL을 반환합니다.
++    
++    Args:
++        file_data (bytes): 업로드할 파일 데이터
++        folder (str): S3 폴더 경로
++        file_name (str): 파일 이름
++        content_type (str): 파일 콘텐츠 타입
++        
++    Returns:
++        str: S3에 업로드된 파일의 URL
++    """
++    try:
++        # 파일 경로 생성
++        s3_path = f"{folder}/{file_name}"
++        
++        # S3에 업로드
++        s3_client.put_object(
++            Bucket=settings.AWS_S3_BUCKET_NAME,
++            Key=s3_path,
++            Body=file_data,
++            ContentType=content_type
++        )
++        
++        # S3 URL 생성
++        s3_url = f"https://{settings.AWS_S3_BUCKET_NAME}.s3.{settings.AWS_REGION}.amazonaws.com/{s3_path}"
++        
++        return s3_url
++    
++    except NoCredentialsError:
++        raise HTTPException(status_code=500, detail="AWS 자격 증명을 찾을 수 없습니다.")
++    except Exception as e:
++        raise HTTPException(status_code=500, detail=f"S3 업로드 중 오류가 발생했습니다: {str(e)}")
+\ No newline at end of file
+diff --git a/Frontend/Dockerfile b/Frontend/Dockerfile
+deleted file mode 100644
+index e989f8fe..00000000
+--- a/Frontend/Dockerfile
++++ /dev/null
+@@ -1,13 +0,0 @@
+-FROM node:22-alpine AS build
+-
+-WORKDIR /app
+-
+-COPY package.json package-lock.json ./
+-
+-RUN npm ci
+-
+-COPY . .
+-
+-RUN npm run build
+-
+-CMD ["/bin/sh", "-c", "cp -r dist/* /usr/share/nginx/html/ && tail -f /dev/null"]
+\ No newline at end of file
+diff --git a/Frontend/README.md b/Frontend/README.md
+index 8bb41471..76666f97 100644
+--- a/Frontend/README.md
++++ b/Frontend/README.md
+@@ -52,4 +52,4 @@ export default tseslint.config({
+   },
+ })
+ ```
+-test 5
+\ No newline at end of file
++test 1
+\ No newline at end of file
+diff --git a/Frontend/package-lock.json b/Frontend/package-lock.json
+index 835d4572..abd8c3ed 100644
+--- a/Frontend/package-lock.json
++++ b/Frontend/package-lock.json
+@@ -19,7 +19,7 @@
+         "react-dom": "^19.0.0",
+         "react-intersection-observer": "^9.16.0",
+         "react-redux": "^9.2.0",
+-        "react-router-dom": "^7.3.0"
++        "react-router-dom": "^7.4.0"
+       },
+       "devDependencies": {
+         "@eslint/js": "^9.21.0",
+@@ -5996,9 +5996,9 @@
+       }
+     },
+     "node_modules/react-router": {
+-      "version": "7.3.0",
+-      "resolved": "https://registry.npmjs.org/react-router/-/react-router-7.3.0.tgz",
+-      "integrity": "sha512-466f2W7HIWaNXTKM5nHTqNxLrHTyXybm7R0eBlVSt0k/u55tTCDO194OIx/NrYD4TS5SXKTNekXfT37kMKUjgw==",
++      "version": "7.4.0",
++      "resolved": "https://registry.npmjs.org/react-router/-/react-router-7.4.0.tgz",
++      "integrity": "sha512-Y2g5ObjkvX3VFeVt+0CIPuYd9PpgqCslG7ASSIdN73LwA1nNWzcMLaoMRJfP3prZFI92svxFwbn7XkLJ+UPQ6A==",
+       "license": "MIT",
+       "dependencies": {
+         "@types/cookie": "^0.6.0",
+@@ -6020,12 +6020,12 @@
+       }
+     },
+     "node_modules/react-router-dom": {
+-      "version": "7.3.0",
+-      "resolved": "https://registry.npmjs.org/react-router-dom/-/react-router-dom-7.3.0.tgz",
+-      "integrity": "sha512-z7Q5FTiHGgQfEurX/FBinkOXhWREJIAB2RiU24lvcBa82PxUpwqvs/PAXb9lJyPjTs2jrl6UkLvCZVGJPeNuuQ==",
++      "version": "7.4.0",
++      "resolved": "https://registry.npmjs.org/react-router-dom/-/react-router-dom-7.4.0.tgz",
++      "integrity": "sha512-VlksBPf3n2bijPvnA7nkTsXxMAKOj+bWp4R9c3i+bnwlSOFAGOkJkKhzy/OsRkWaBMICqcAl1JDzh9ZSOze9CA==",
+       "license": "MIT",
+       "dependencies": {
+-        "react-router": "7.3.0"
++        "react-router": "7.4.0"
+       },
+       "engines": {
+         "node": ">=20.0.0"
+diff --git a/Frontend/package.json b/Frontend/package.json
+index 15cc42b2..314343e4 100644
+--- a/Frontend/package.json
++++ b/Frontend/package.json
+@@ -21,7 +21,7 @@
+     "react-dom": "^19.0.0",
+     "react-intersection-observer": "^9.16.0",
+     "react-redux": "^9.2.0",
+-    "react-router-dom": "^7.3.0"
++    "react-router-dom": "^7.4.0"
+   },
+   "devDependencies": {
+     "@eslint/js": "^9.21.0",
+diff --git a/Frontend/src/App.css b/Frontend/src/App.css
+index eec46189..11ccc047 100644
+--- a/Frontend/src/App.css
++++ b/Frontend/src/App.css
+@@ -1,13 +1,12 @@
+ /* 리셋 스타일 임포트 */
+-@import '../src/assets/styles/rest.css';
++@import '../src/assets/styles/reset.css';
+ 
+ /* 반응형 스타일 임포트 */
+ @import '../src/assets/styles/responsive.css';
+ 
+ /* 메인 스타일 */
+ :root {
+-  /* 앱에서 사용할 전역 변수 */
+-  --background-color: #F9F9F9;
++  background-color: #F9F9F9;
+ }
+ 
+ /* PWA 최적화를 위한 추가 스타일 */
+diff --git a/Frontend/src/assets/images/google_login.png b/Frontend/src/assets/images/google_login.png
+new file mode 100644
+index 00000000..564d9268
+Binary files /dev/null and b/Frontend/src/assets/images/google_login.png differ
+diff --git a/Frontend/src/assets/images/intro1.png b/Frontend/src/assets/images/intro1.png
+new file mode 100644
+index 00000000..3fc29804
+Binary files /dev/null and b/Frontend/src/assets/images/intro1.png differ
+diff --git a/Frontend/src/assets/images/intro2.png b/Frontend/src/assets/images/intro2.png
+new file mode 100644
+index 00000000..bfc84c1d
+Binary files /dev/null and b/Frontend/src/assets/images/intro2.png differ
+diff --git a/Frontend/src/assets/images/logo.png b/Frontend/src/assets/images/logo.png
+new file mode 100644
+index 00000000..b3de0367
+Binary files /dev/null and b/Frontend/src/assets/images/logo.png differ
+diff --git a/Frontend/src/assets/images/naver_login.png b/Frontend/src/assets/images/naver_login.png
+new file mode 100644
+index 00000000..feb2f65b
+Binary files /dev/null and b/Frontend/src/assets/images/naver_login.png differ
+diff --git a/Frontend/src/assets/styles/rest.css b/Frontend/src/assets/styles/reset.css
+similarity index 100%
+rename from Frontend/src/assets/styles/rest.css
+rename to Frontend/src/assets/styles/reset.css
+diff --git a/Frontend/src/components/auth/Introduction.module.css b/Frontend/src/components/auth/Introduction.module.css
+new file mode 100644
+index 00000000..62e064c7
+--- /dev/null
++++ b/Frontend/src/components/auth/Introduction.module.css
+@@ -0,0 +1,99 @@
++.introFirst {
++  margin-top: 13rem;
++}
++
++/* 첫번째 소개화면 */
++.character {
++  display: flex;
++  flex-direction: column;
++  justify-content: center;
++  align-items: center;
++}
++
++.logoImg {
++  width: 15.5rem;
++}
++
++.opigiImg {
++  width: 12rem;
++  margin-top: 1.5rem;
++}
++
++/* 공통 글씨 스타일 */
++.textContainer {
++  margin-top: 2rem;
++  text-align: center;
++}
++
++.mainText {
++  font-size: 1.8rem;
++  font-weight: 700;
++}
++
++.mainText span {
++  color: #8A63D2;
++  font-size: 2.4rem;
++}
++
++.subText {
++  margin-top: 1rem;
++  font-size: 1.4rem;
++}
++
++/* 두번째 소개화면 */
++.introSecond {
++  display: flex;
++  flex-direction: column;
++  justify-content: center;
++  align-items: center;
++}
++
++.chatContainer {
++  margin: 8rem 0;
++  width: 30rem;
++}
++
++/* 세번째 소개화면 */
++.introThird {
++  display: flex;
++  flex-direction: column;
++  justify-content: center;
++  align-items: center;
++}
++
++.testContainer {
++  margin: 5.5rem 0;
++  width: 30rem;
++}
++
++@media screen and (max-height: 700px) {
++  .introFirst {
++    margin-top: 8rem; /* 작은 화면 높이에서는 마진 줄이기 */
++  }
++
++  .chatContainer {
++    width: 25rem;
++    margin: 6rem 0;
++  }
++
++  .testContainer {
++    width: 25rem;
++    margin: 3rem 0;
++  }
++}
++
++@media screen and (max-height: 600px) {
++  .introFirst {
++    margin-top: 5rem; /* 더 작은 화면 높이에서는 마진 더 줄이기 */
++  }
++
++  .chatContainer {
++    width: 25rem;
++    margin: 5rem 0;
++  }
++
++  .chatContainer {
++    width: 25rem;
++    margin: 2rem 0; /* 작은 화면에서 여백 줄이기 */
++  }
++}
+\ No newline at end of file
+diff --git a/Frontend/src/components/auth/LoginButtons.tsx b/Frontend/src/components/auth/LoginButtons.tsx
+index 8a2d9f80..c02a2537 100644
+--- a/Frontend/src/components/auth/LoginButtons.tsx
++++ b/Frontend/src/components/auth/LoginButtons.tsx
+@@ -32,7 +32,7 @@ function LoginButtons() {
+             localStorage.setItem("google_oauth_state", data.state);
+           }
+           // 제공받은 URL로 리다이렉트
+-          // window.location.href = data.auth_url;
++          window.location.href = data.auth_url;
+         } else {
+           console.error("인증 URL이 없습니다.");
+         }
+diff --git a/Frontend/src/components/common/Navbar.module.css b/Frontend/src/components/common/Navbar.module.css
+new file mode 100644
+index 00000000..a0cb35e5
+--- /dev/null
++++ b/Frontend/src/components/common/Navbar.module.css
+@@ -0,0 +1,40 @@
++.nav-bar {
++  position: fixed;
++  bottom: 0;
++  display: flex;
++  justify-content: center;
++  align-items: center;
++  gap: 4rem;
++  width: 100%;
++  max-width: 480px;
++  padding: 2rem 0 1rem;
++  border-radius: 2rem 2rem 0 0;
++  background-color: #fff;
++  box-shadow: 1px -1px 6px rgba(0, 0, 0, 0.07);
++  z-index: 1000;
++}
++
++.nav-txt {
++  position: relative;
++  font-size: 1.4rem;
++  color: #565656;
++  text-decoration: none;
++}
++
++.nav-txt.active::before {
++  content: "";
++  position: absolute;
++  top: -5px;
++  left: 0;
++  right: 0;
++  height: 3px;
++  background-color: #A986E8;
++}
++
++/* 화면이 매우 작을 때 간격 조정 */
++@media screen and (max-width: 360px) {
++  .nav-bar {
++    gap: 3rem; /* 더 작은 화면에서는 버튼 간격 줄임 */
++    padding: 1.5rem 0 0.8rem; /* 패딩 살짝 줄임 */
++  }
++}
+\ No newline at end of file
+diff --git a/Frontend/src/components/common/NavigationButton.module.css b/Frontend/src/components/common/NavigationButton.module.css
+new file mode 100644
+index 00000000..e2162316
+--- /dev/null
++++ b/Frontend/src/components/common/NavigationButton.module.css
+@@ -0,0 +1,27 @@
++.frame {
++    display: flex;
++    justify-content: center;
++    align-items: center;
++    background-color: #e3e3e3;
++    border-radius: 1rem;
++    height: 4rem;
++    width: 13.5rem;
++    cursor: pointer;
++    transition: background-color 0.2s;
++  }
++  
++  .frameNext {
++    background-color: #9466E9;
++  }
++  
++  .textWrapper {
++    font-size: 1.4rem;
++    color: #565656;
++    font-weight: 400;
++    text-align: center;
++  }
++  
++  .textWrapperNext {
++    color: white;
++    font-weight: 800;
++  }
+\ No newline at end of file
+diff --git a/Frontend/src/components/home/CharacterChange.module.css b/Frontend/src/components/home/CharacterChange.module.css
+new file mode 100644
+index 00000000..1bba79bd
+--- /dev/null
++++ b/Frontend/src/components/home/CharacterChange.module.css
+@@ -0,0 +1,23 @@
++.character-change {
++  display: flex;
++  flex-direction: column;
++  justify-content: center;
++  align-items: center;
++  margin-bottom: 1.5rem;
++  padding: 1.5rem 0;
++  border-radius: 1rem;
++  background-color: #fff;
++  box-shadow: 1px 1px 6px 0 rgba(0, 0, 0, 0.07);
++}
++
++.character-change p {
++  font-size: 1.4rem;
++  color: #888;
++}
++
++.character-change img {
++  width: 8.5rem;
++  height: 8.5rem;
++  margin-top: 1rem;
++  object-fit: contain;
++}
+\ No newline at end of file
+diff --git a/Frontend/src/components/script/QuestionBox.module.css b/Frontend/src/components/script/QuestionBox.module.css
+new file mode 100644
+index 00000000..cb4d8ce7
+--- /dev/null
++++ b/Frontend/src/components/script/QuestionBox.module.css
+@@ -0,0 +1,31 @@
++/* title */
++.title-box {
++  display: flex;
++  align-items: center;
++  margin-bottom: 0.5rem;
++}
++
++.icon-box {
++  display: flex;
++  justify-content: center;
++  align-items: center;
++  width: 3rem;
++  height: 3rem;
++  border-radius: 50%;
++  background-color: #F7F3FF;
++}
++
++.title-box p {
++  margin-left: 0.5rem;
++  font-size: 1.4rem;
++  font-weight: 700;
++}
++
++/* content */
++.content-box {
++  margin-bottom: 2rem;
++  padding: 1.5rem;
++  border-radius: 1rem;
++  font-size: 1.4rem;
++  box-shadow: 1px 1px 6px 0 rgba(0, 0, 0, 0.07);
++}
+\ No newline at end of file
+diff --git a/Frontend/src/hooks/useUser.ts b/Frontend/src/hooks/useUser.ts
+index 7429c143..6155486a 100644
+--- a/Frontend/src/hooks/useUser.ts
++++ b/Frontend/src/hooks/useUser.ts
+@@ -171,7 +171,6 @@ export const useUser = () => {
+   
+       if (!response.ok) {
+         console.error("❌ 서버 응답 오류:", JSON.stringify(result, null, 2));
+-        sessionStorage.clear();
+         throw new Error(result.detail || "사용자 프로필 생성에 실패했습니다.");
+       }
+   
+@@ -238,7 +237,6 @@ export const useUser = () => {
+   
+       if (!response.ok) {
+         console.error("❌ 서버 응답 오류:", JSON.stringify(result, null, 2));
+-        sessionStorage.clear();
+         throw new Error(result.detail || "설문 저장에 실패했습니다.");
+       }
+   
+diff --git a/Frontend/src/pages/Loading.module.css b/Frontend/src/pages/Loading.module.css
+new file mode 100644
+index 00000000..ea4139ab
+--- /dev/null
++++ b/Frontend/src/pages/Loading.module.css
+@@ -0,0 +1,38 @@
++.loading{
++  display: flex;
++  flex-direction: column;
++  justify-content: center;
++  align-items: center;
++  height: 100vh;
++}
++
++.character {
++  display: flex;
++  flex-direction: column;
++  justify-content: center;
++  align-items: center;
++}
++
++.logoImg img {
++  width: 15.5rem;
++}
++
++.opigiImg {
++  width: 12rem;
++  margin-top: 1.5rem;
++}
++
++.textContainer {
++  margin-top: 2rem;
++  text-align: center;
++}
++
++.mainText {
++  font-size: 1.8rem;
++  font-weight: 700;
++}
++
++.mainText span {
++  color: #8a63d2;
++  font-size: 2.4rem;
++}
+diff --git a/Frontend/src/pages/Loading.tsx b/Frontend/src/pages/Loading.tsx
+new file mode 100644
+index 00000000..4bf316ad
+--- /dev/null
++++ b/Frontend/src/pages/Loading.tsx
+@@ -0,0 +1,28 @@
++import styles from './Loading.module.css'
++import logo from "../assets/images/logo.png";
++import opigi from "../assets/images/opigi.png";
++
++type Props = {};
++
++function Loading({}: Props) {
++  return (
++    <div className={styles.loading}>
++      <div className={styles.character}>
++        <h1 className={styles.logoImg}>
++          <img src={logo} alt="logo-img" />
++        </h1>
++        <img src={opigi} alt="opigi-img" className={styles.opigiImg} />
++      </div>
++
++      <div className={styles.textContainer}>
++        <p className={styles.mainText}>
++          생성형 AI와 함께
++          <br />
++          <span>단기간</span> 오픽 취득하기
++        </p>
++      </div>
++    </div>
++  );
++}
++
++export default Loading;
+diff --git a/Frontend/src/pages/auth/Login.module.css b/Frontend/src/pages/auth/Login.module.css
+new file mode 100644
+index 00000000..705d473d
+--- /dev/null
++++ b/Frontend/src/pages/auth/Login.module.css
+@@ -0,0 +1,34 @@
++.loginContainer {
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  height: 100vh;
++}
++
++.indicatorContainer {
++  display: flex;
++  align-items: center;
++  margin-top: 5rem;
++  justify-content: center;
++  gap: 0.5rem;
++  margin-bottom: 1rem;
++}
++
++/* 페이지 인디케이터 */
++.indicator {
++  width: 3.5rem;
++  height: 0.5rem;
++  border-radius: 1rem;
++  transition: all 0.3s ease;
++  border: none;
++  padding: 0;
++  cursor: pointer;
++}
++
++.active {
++  background-color: #6026CC; /* 보라색 (활성화) */
++}
++
++.inactive {
++  background-color: #D9D9D9; /* 회색 (비활성화) */
++}
+\ No newline at end of file
+diff --git a/Frontend/src/pages/auth/ProfilePage.module.css b/Frontend/src/pages/auth/ProfilePage.module.css
+deleted file mode 100644
+index ef6c8f8d..00000000
+--- a/Frontend/src/pages/auth/ProfilePage.module.css
++++ /dev/null
+@@ -1,209 +0,0 @@
+-
+-.screen {
+-    display: flex;
+-    flex-direction: column;
+-    align-items: center;
+-    width: 100%;
+-    min-height: 100vh;
+-    background-color: #f5f5f5;
+-  }
+-  
+-  .container {
+-    position: relative;
+-    width: 100%;
+-    max-width: 768px;
+-    padding: 20px;
+-  }
+-  
+-  /* Header styles */
+-  .header {
+-    position: relative;
+-    margin-bottom: 30px;
+-  }
+-  
+-  .headerBackground {
+-    position: absolute;
+-    top: 0;
+-    left: 0;
+-    width: 100%;
+-    height: 100%;
+-    background-color: #f0f0f0;
+-    border-radius: 8px;
+-  }
+-  
+-  .headerTitle {
+-    position: relative;
+-    font-size: 18px;
+-    font-weight: 600;
+-    z-index: 1;
+-    padding: 15px;
+-  }
+-  
+-  .headerImage {
+-    position: absolute;
+-    top: 50%;
+-    right: 15px;
+-    transform: translateY(-50%);
+-    width: auto;
+-    height: 24px;
+-    z-index: 1;
+-  }
+-  
+-  /* Labels */
+-  .currentGradeLabel,
+-  .desiredGradeLabel,
+-  .testDateLabel,
+-  .privacyAgreementLabel {
+-    font-size: 16px;
+-    font-weight: 500;
+-    margin-bottom: 10px;
+-  }
+-  
+-  /* Checkbox groups */
+-  .checkGroup {
+-    margin-bottom: 15px;
+-  }
+-  
+-  .checkItem {
+-    position: relative;
+-    display: flex;
+-    align-items: center;
+-  }
+-  
+-  .checkIcon {
+-    position: relative;
+-    z-index: 1;
+-    color: #4caf50;
+-    width: 24px;
+-    height: 24px;
+-  }
+-  
+-  .checkCircle {
+-    position: absolute;
+-    width: 24px;
+-    height: 24px;
+-    border-radius: 50%;
+-    background-color: #e8f5e9;
+-  }
+-  
+-  /* Privacy agreement section */
+-  .privacyAgreementContainer {
+-    border: 1px solid #e0e0e0;
+-    border-radius: 8px;
+-    padding: 15px;
+-    margin-bottom: 20px;
+-    background-color: #fff;
+-  }
+-  
+-  .agreementFrame {
+-    display: flex;
+-    justify-content: space-between;
+-    align-items: center;
+-    margin-bottom: 15px;
+-  }
+-  
+-  .agreementCheckbox {
+-    display: flex;
+-    align-items: center;
+-    gap: 10px;
+-  }
+-  
+-  .agreementText {
+-    margin: 0;
+-    font-size: 14px;
+-  }
+-  
+-  .checkboxIcon {
+-    width: 20px;
+-    height: 20px;
+-    color: #757575;
+-  }
+-  
+-  .agreementImage {
+-    width: auto;
+-    height: 24px;
+-  }
+-  
+-  .privacyPolicyText {
+-    margin: 0;
+-    font-size: 14px;
+-    line-height: 1.5;
+-  }
+-  
+-  .policyTitle {
+-    font-weight: 600;
+-    display: block;
+-    margin-bottom: 8px;
+-  }
+-  
+-  .policyContent {
+-    color: #757575;
+-    display: block;
+-  }
+-  
+-  /* Selectors */
+-  .currentGradeSelector,
+-  .desiredGradeSelector,
+-  .testDateSelector {
+-    display: flex;
+-    justify-content: space-between;
+-    align-items: center;
+-    border: 1px solid #e0e0e0;
+-    border-radius: 8px;
+-    padding: 12px 15px;
+-    margin-bottom: 20px;
+-    background-color: #fff;
+-  }
+-  
+-  .selectorLabel,
+-  .dateLabel {
+-    color: #9e9e9e;
+-    font-size: 14px;
+-  }
+-  
+-  .dropdownIcon,
+-  .calendarIcon {
+-    width: 20px;
+-    height: 20px;
+-    color: #757575;
+-  }
+-  
+-  .selectorGroup {
+-    display: flex;
+-    align-items: center;
+-  }
+-  
+-  /* Button styles */
+-  .nextButton,
+-  .prevButton {
+-    display: flex;
+-    justify-content: center;
+-    align-items: center;
+-    gap: 10px;
+-    padding: 12px 24px;
+-    border-radius: 8px;
+-    margin-top: 10px;
+-    cursor: pointer;
+-  }
+-  
+-  .nextButton {
+-    background-color: #1976d2;
+-    color: white;
+-  }
+-  
+-  .prevButton {
+-    background-color: #f5f5f5;
+-    border: 1px solid #e0e0e0;
+-    color: #757575;
+-  }
+-  
+-  .buttonText {
+-    font-size: 14px;
+-    font-weight: 500;
+-  }
+-  
+-  .nextArrow,
+-  .prevArrow {
+-    width: 16px;
+-    height: 16px;
+-  }
+\ No newline at end of file
+diff --git a/Frontend/src/pages/auth/ProfilePage.tsx b/Frontend/src/pages/auth/ProfilePage.tsx
+deleted file mode 100644
+index 9e6c284e..00000000
+--- a/Frontend/src/pages/auth/ProfilePage.tsx
++++ /dev/null
+@@ -1,113 +0,0 @@
+-import React from "react";
+-import styles from "./ProfilePage.module.css";
+-
+-interface ProfilePageProps {
+-  // You can add props here if needed
+-}
+-
+-export const ProfilePage: React.FC<ProfilePageProps> = () => {
+-  return (
+-    <div className={styles.screen}>
+-      <div className={styles.container}>
+-        <div className={styles.header}>
+-          <div className={styles.headerBackground} />
+-          <div className={styles.headerTitle}>회원정보 입력</div>
+-          {/* 이미지 임시 제거 */}
+-        </div>
+-
+-        <div className={styles.desiredGradeLabel}>희망 등급</div>
+-        <div className={styles.testDateLabel}>시험 예정일</div>
+-        <div className={styles.privacyAgreementLabel}>개인정보 동의서</div>
+-
+-        <div className={styles.checkGroup}>
+-          <div className={styles.checkItem}>
+-            {/* 아이콘 임시 제거 */}
+-            <div className={styles.checkCircle}>✓</div>
+-          </div>
+-        </div>
+-
+-        <div className={styles.checkGroup}>
+-          <div className={styles.checkItem}>
+-            {/* 아이콘 임시 제거 */}
+-            <div className={styles.checkCircle}>✓</div>
+-          </div>
+-        </div>
+-
+-        <div className={styles.checkGroup}>
+-          <div className={styles.checkItem}>
+-            {/* 아이콘 임시 제거 */}
+-            <div className={styles.checkCircle}>✓</div>
+-          </div>
+-        </div>
+-
+-        <div className={styles.checkGroup}>
+-          <div className={styles.checkItem}>
+-            {/* 아이콘 임시 제거 */}
+-            <div className={styles.checkCircle}>✓</div>
+-          </div>
+-        </div>
+-
+-        <div className={styles.currentGradeLabel}>현재 등급</div>
+-
+-        <div className={styles.privacyAgreementContainer}>
+-          <div className={styles.agreementFrame}>
+-            <div className={styles.agreementCheckbox}>
+-              <p className={styles.agreementText}>위 개인정보 수집 및 이용에 동의합니다.</p>
+-              {/* 아이콘 임시 제거 */}
+-              <div className={styles.checkboxIcon}>□</div>
+-            </div>
+-            {/* 이미지 임시 제거 */}
+-          </div>
+-
+-          <p className={styles.privacyPolicyText}>
+-            <span className={styles.policyTitle}>
+-              개인정보 수집 및 이용 동의 (필수)
+-              <br />
+-            </span>
+-            <span className={styles.policyContent}>
+-              (주)오마이픽은 서비스 제공을 위해 아래와 같이 개인정보를 수집 및
+-              이용합니다. 동의를 거부할 권리가 있으며, 동의 거부 시 서비스
+-              이용이 제한됩니다.
+-              <br />
+-              수집 목적: 서비스 제공 및 계정 관리
+-            </span>
+-          </p>
+-        </div>
+-
+-        <div className={styles.currentGradeSelector}>
+-          <div className={styles.selectorLabel}>현재 등급을 선택하세요.</div>
+-          {/* 아이콘 임시 제거 */}
+-          <div className={styles.dropdownIcon}>▼</div>
+-        </div>
+-
+-        <div className={styles.testDateSelector}>
+-          <div className={styles.dateLabel}>연도-월-일</div>
+-          {/* 아이콘 임시 제거 */}
+-          <div className={styles.calendarIcon}>📅</div>
+-        </div>
+-
+-        <div className={styles.desiredGradeSelector}>
+-          <div className={styles.selectorGroup}>
+-            <div className={styles.selectorLabel}>희망하는 등급을 선택하세요.</div>
+-          </div>
+-          {/* 아이콘 임시 제거 */}
+-          <div className={styles.dropdownIcon}>▼</div>
+-        </div>
+-
+-        <div className={styles.nextButton}>
+-          <div className={styles.buttonText}>다음</div>
+-          {/* 이미지 임시 제거 */}
+-          <span className={styles.nextArrow}>→</span>
+-        </div>
+-
+-        <div className={styles.prevButton}>
+-          <div className={styles.buttonText}>이전</div>
+-          {/* 이미지 임시 제거 */}
+-          <span className={styles.prevArrow}>←</span>
+-        </div>
+-      </div>
+-    </div>
+-  );
+-};
+-
+-export default ProfilePage;
+\ No newline at end of file
+diff --git a/Frontend/src/pages/script/ScriptList.module.css b/Frontend/src/pages/script/ScriptList.module.css
+new file mode 100644
+index 00000000..3b721d1d
+--- /dev/null
++++ b/Frontend/src/pages/script/ScriptList.module.css
+@@ -0,0 +1,33 @@
++.script-list-container {
++  margin: 0 2rem;
++}
++
++/* 질문 선택 멘트 */
++.selection-title {
++  display: flex;
++  justify-content: center;
++  align-items: center;
++  gap: 0.5rem;
++  margin-top: 3rem;
++  /* letter-spacing: -1px; */
++}
++
++.selection-title p {
++  font-size: 1.4rem;
++  text-align: center;
++}
++
++.selection-title p span {
++  font-weight: 700;
++}
++
++.selection-title img {
++  width: 5rem;
++  height: 5rem;
++  object-fit: contain;
++}
++
++/* 질문 리스트 */
++.question-list {
++  margin-top: 3rem;
++}
+\ No newline at end of file
+diff --git a/Frontend/styles/main.css b/Frontend/styles/main.css
+deleted file mode 100644
+index e69de29b..00000000
+diff --git a/Jenkinsfile.cd b/Jenkinsfile.cd
+index 17f0f987..a3b1fb5e 100644
+--- a/Jenkinsfile.cd
++++ b/Jenkinsfile.cd
+@@ -11,18 +11,6 @@ pipeline {
+     }
+     
+     stages {
+-        
+-        stage('Check MR Target') {
+-            steps {
+-                script {
+-                    // MR이 master 브랜치로 향하는 경우에만 진행
+-                    if(env.gitlabTargetBranch != 'master') {
+-                        error("This pipeline only runs for MRs targeting the master branch")
+-                    }
+-                }
+-            }
+-        }
+-        
+         stage('Deploy') {
+             steps {
+                 script {
+@@ -89,7 +77,7 @@ pipeline {
+                             
+                             echo "Rolling back to previous state..."
+                             docker compose -f docker-compose-blue.yml down
+-                            docker compose -p omypic -f docker-compose-blue.yml up -d
++                            docker compose -f -p omypic docker-compose-blue.yml up -d
+                         '
+                     """
+                 }
+diff --git a/Jenkinsfile.ci b/Jenkinsfile.ci
+index a9059aec..580a6c45 100644
+--- a/Jenkinsfile.ci
++++ b/Jenkinsfile.ci
+@@ -6,8 +6,6 @@ pipeline {
+         DOCKER_REGISTRY = "kst1040"
+         BACKEND_IMAGE = "${DOCKER_REGISTRY}/omypic-backend"
+         FRONTEND_IMAGE = "${DOCKER_REGISTRY}/omypic-frontend"
+-        GIT_AUTHOR_ID = "${env.gitlabUserName}"
+-        GIT_AUTHOR_EMAIL = "${env.gitlabUserEmail}"
+         GIT_COMMIT_SHORT = sh(
+             script: "printf \$(git rev-parse --short HEAD)",
+             returnStdout: true
+@@ -19,7 +17,8 @@ pipeline {
+             steps {
+                 checkout([
+                     $class: 'GitSCM',
+-                    branches: [[name: "dev"]],
++                    branches: [[name: "${env.gitlabSourceBranch}"]],
++                    extensions: [[$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: 'origin', mergeTarget: "${env.gitlabTargetBranch}"]]],
+                     userRemoteConfigs: [[url: 'https://lab.ssafy.com/s12-ai-speech-sub1/S12P21B107.git', credentialsId: 'gitlab-user-pwd']]
+                 ])
+             }
+@@ -28,8 +27,8 @@ pipeline {
+         stage('Check Target Branch') {
+             steps {
+                 script {
+-                    if (env.gitlabTargetBranch != 'dev' && !env.GIT_BRANCH.endsWith('dev')) {
+-                        error("This pipeline only runs for pushes targeting the dev branch")
++                    if (env.gitlabTargetBranch != 'master' && !env.GIT_BRANCH.endsWith('master')) {
++                        error("This pipeline only runs for MRs targeting the master branch")
+                     }
+                 }
+             }
+@@ -61,10 +60,12 @@ pipeline {
+     post {
+         success {
+             script {
++                def Author_ID = sh(script: "git show -s --pretty-%an", returnStdout: true)
++                def Author_Name = sh(script: "git show -s --pretty=%ae", returnStdout: true)
+                 mattermostSend(
+                     color: 'good', 
+-                    message: "빌드 성공: ${env.JOB_NAME} #${env.BUILD_NUMBER} by ${env.GIT_AUTHOR_ID}(${env.GIT_AUTHOR_EMAIL})\n(<${env.BUILD_URL}|Details>)",
+-                    endpoint: 'https://meeting.ssafy.com/hooks/gd11st38kbd1znej9kh3ftbg6o',
++                    message: "빌드 성공: ${env.JOB_NAME} #${env.BUILD_NUMBER} by ${Author_ID}(${Author_Name})\n(<${env.BUILD_URL}|Details>)",
++                    endpoint: 'https://meeting.ssafy.com/hooks/gd11st38kbd1znej9kh3ftbg6o'
+                     channel: 'B107-Jenkins'
+                 )
+             }
+@@ -72,10 +73,12 @@ pipeline {
+         }
+         failure {
+             script {
++                def Author_ID = sh(script: "git show -s --pretty-%an", returnStdout: true)
++                def Author_Name = sh(script: "git show -s --pretty=%ae", returnStdout: true)
+                 mattermostSend(
+                     color: 'danger', 
+-                    message: "빌드 실패: ${env.JOB_NAME} #${env.BUILD_NUMBER} by ${env.GIT_AUTHOR_ID}(${env.GIT_AUTHOR_EMAIL})\n(<${env.BUILD_URL}|Details>)",
+-                    endpoint: 'https://meeting.ssafy.com/hooks/gd11st38kbd1znej9kh3ftbg6o',
++                    message: "빌드 실패: ${env.JOB_NAME} #${env.BUILD_NUMBER} by ${Author_ID}(${Author_Name})\n(<${env.BUILD_URL}|Details>)",
++                    endpoint: 'https://meeting.ssafy.com/hooks/gd11st38kbd1znej9kh3ftbg6o'
+                     channel: 'B107-Jenkins'
+                 )
+             }
+@@ -90,10 +93,14 @@ pipeline {
+ 
+ def buildAndPushImage(String imageName, String context) {
+     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
++        // Buildx를 사용하여 빌드 및 푸시를 한 번에 수행
+         sh """
+-            docker build -t ${imageName}:${GIT_COMMIT_SHORT} -t ${imageName}:latest ${context}
+-            docker push ${imageName}:${GIT_COMMIT_SHORT}
+-            docker push ${imageName}:latest
++            docker buildx build \\
++            --cache-from ${imageName}:latest \\
++            --push \\
++            -t ${imageName}:${GIT_COMMIT_SHORT} \\
++            -t ${imageName}:latest \\
++            ${context}
+         """
+     }
+ }
+\ No newline at end of file
+diff --git a/MRTEST.txt b/MRTEST.txt
+deleted file mode 100644
+index 23a767c3..00000000
+--- a/MRTEST.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-Jenkins Backend CD Test 
+\ No newline at end of file
+diff --git a/nginx/Dockerfile b/nginx/Dockerfile
+deleted file mode 100644
+index 73edb033..00000000
+--- a/nginx/Dockerfile
++++ /dev/null
+@@ -1,6 +0,0 @@
+-FROM nginx:alpine
+-
+-COPY conf.d/default.conf /etc/nginx/conf.d/default.conf
+-
+-EXPOSE 80 443
+-CMD ["nginx", "-g", "daemon off;"]
+\ No newline at end of file

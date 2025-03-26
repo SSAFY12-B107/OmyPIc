@@ -1,0 +1,38 @@
+.loading{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.character {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.logoImg img {
+  width: 15.5rem;
+}
+
+.opigiImg {
+  width: 12rem;
+  margin-top: 1.5rem;
+}
+
+.textContainer {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.mainText {
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.mainText span {
+  color: #8a63d2;
+  font-size: 2.4rem;
+}

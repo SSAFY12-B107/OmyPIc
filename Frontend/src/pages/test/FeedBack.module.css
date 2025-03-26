@@ -1,0 +1,42 @@
+.container {
+    background-color: hsl(0, 0%, 98%);
+    padding: 2rem;
+  }
+  
+
+  .stepsContainer {
+    display: flex;
+    justify-content: center;
+    justify-content: space-evenly;
+    margin: 77px 0 24px;
+  }
+  
+  .stepCircle {
+    width: 3.3rem;
+    height: 3.3rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #EFE6FF;
+    border: 0.8px solid rgba(87, 63, 132, 0.2);
+    cursor: pointer;
+    
+  }
+
+  
+  .activeStep {
+    background-color: #8A63D2;
+
+  }
+  
+  .stepText {
+    font-size: 1.4rem;
+    color: #8E8E8E;
+  }
+  
+  .stepTextActive {
+    font-size: 1.4rem;
+    color: white;
+  }
+  

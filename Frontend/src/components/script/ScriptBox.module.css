@@ -1,0 +1,102 @@
+/* header */
+.script-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.title-box {
+  display: flex;
+  align-items: center;
+}
+
+.icon-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background-color: #F7F3FF;
+}
+
+.title-box p {
+  margin-left: 0.5rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+/* 듣기 버튼 */
+.listen-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.2em;
+  width: 100%;
+  margin-top: 2rem;
+  padding: 1rem 0.8rem;
+  border-radius: 1rem;
+  color: #565656;
+  background-color: #EDE3FF;
+}
+
+/* content */
+.contentList {
+  margin-bottom: 2rem;
+}
+
+.content-item {
+  margin-bottom: 1rem;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  font-size: 1.4rem;
+  box-shadow: 1px 1px 6px 0 rgba(0, 0, 0, 0.07);
+}
+
+.content-item p {
+  font-size: 1.4rem;
+}
+
+/* 스크립트 생성중인 경우 */
+.generating .content-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.generating .content-item img {
+  width: 8.5rem;
+  height: 8.5rem;
+  object-fit: contain;
+}
+
+.generating .content-item p {
+  margin-top: 1rem;
+  font-size: 1.2rem;
+}
+
+/* 답변 없는 경우 */
+.noContent {
+  text-align: center;
+}
+
+/* 발음 듣기 로딩 스피너 */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(94, 94, 94, 0.3);
+  border-radius: 50%;
+  border-top-color: rgba(94, 94, 94, 0.5);
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

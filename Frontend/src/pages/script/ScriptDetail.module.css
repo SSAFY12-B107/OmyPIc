@@ -1,0 +1,71 @@
+.script-detail-container {
+  margin: 0 2rem;
+}
+
+.category {
+  display: inline-block;
+  margin: 1.5rem 0;
+  padding: 0.3rem 1rem 0.4rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #8A63D2;
+  border-radius: 1.5rem;
+  background-color: #E5D8FF;
+}
+
+/* 나의 모의고사 답변 */
+.title-box {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.icon-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background-color: #F7F3FF;
+}
+
+.title-box p {
+  margin-left: 0.5rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.noteList {
+  margin-bottom: 2rem;
+}
+
+.noteItem {
+  margin-bottom: 1rem;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  font-size: 1.4rem;
+  box-shadow: 1px 1px 6px 0 rgba(0, 0, 0, 0.07);
+}
+
+/* 답변 없는 경우 */
+.noContent {
+  text-align: center;
+}
+
+.countLimit {
+  margin-top: 2rem;
+  font-size: 1.3rem;
+  text-align: center;
+}
+
+.create-btn {
+  width: calc(100% - 2rem);
+  margin: 0.5rem;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #fff;
+  background-color: #9466E9;
+}
