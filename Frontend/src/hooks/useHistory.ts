@@ -45,6 +45,7 @@ export interface UserHistoryResponse {
 const fetchUserHistory = async (): Promise<UserHistoryResponse> => {
   try {
     const { data } = await apiClient.get('/tests/history');
+    console.log('히스토리 데이터 조회')
     return data;
   } catch (error) {
     console.error('히스토리 조회 에러:', error);
@@ -61,13 +62,16 @@ export const useUserHistory = (options?: {
 }) => {
   const {
     enablePolling = false,
-    pollingInterval = 1000, // 1초 
+    pollingInterval = 3000, // 1초 
     recentTestId,
     onFeedbackReady
   } = options || {};
 
   // 폴링 상태 추적 
   const [isPolling, setIsPolling] = useState(enablePolling);
+
+   // 피드백 준비 상태
+  const [feedbackStatus, setFeedbackStatus] = useState<boolean>(false);
 
   // 폴링 시작/중지 함수
   const startPolling = useCallback(() => setIsPolling(true), []);
@@ -78,7 +82,7 @@ export const useUserHistory = (options?: {
     queryKey: ['userHistory'],
     queryFn: fetchUserHistory,
     refetchInterval: isPolling ? pollingInterval : false,
-    staleTime: isPolling ? 0 : 5 * 60 * 1000, // 3초 후 다시 받아오겠다  
+    staleTime: isPolling ? 0 : 60 * 60 * 1000, // 1시간 동안 캐시 데이터 사용// 3초 후 다시 받아오겠다  
   });
 
   // 데이터 변경 감지
@@ -93,11 +97,12 @@ export const useUserHistory = (options?: {
           testHistory.test_score !== null) {
         
         // 피드백이 준비되면 콜백 실행 및 폴링 중지
-        onFeedbackReady(testHistory);
+        setFeedbackStatus(true); // 피드백 상태 업데이트
         stopPolling();
+        onFeedbackReady(testHistory);
       }
     }
-  }, [data, recentTestId, onFeedbackReady, stopPolling]);
+  }, [data, recentTestId, onFeedbackReady, stopPolling, feedbackStatus]);
 
   // enablePolling 값이 변경될 때 폴링 상태 업데이트
   useEffect(() => {
@@ -116,6 +121,8 @@ export const useUserHistory = (options?: {
     ...queryResult,
     isPolling,
     startPolling,
-    stopPolling
+    stopPolling,
+    feedbackStatus
+
   };
 };
