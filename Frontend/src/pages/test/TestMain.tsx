@@ -17,38 +17,50 @@ function TestMain() {
 
   // location.state에서 최근 테스트 정보 확인
   const { recentTestId, feedbackReady } = location.state || {};
-  
-  // 폴링 활성화 여부 결정
+
+  console.log("recenttestId", recentTestId);
+
+  // 폴링 활성화 여부 결정 - feedbackReady가 true면 폴링 비활성화
   const shouldPoll = recentTestId && !feedbackReady;
+  console.log('shouldpoll',shouldPoll)
+
+  // 이미 확인된 피드백 상태 추적
+  const [feedbackChecked, setFeedbackChecked] = useState(
+    feedbackReady || false
+  );
 
   // 히스토리 데이터 가져오기 (폴링 기능 통합)
   const { 
     data: historyData, 
     isLoading, 
     startPolling,
-    stopPolling
+    stopPolling,
+    feedbackStatus
   } = useUserHistory({
-    enablePolling: shouldPoll,
+    enablePolling: shouldPoll && !feedbackChecked,
     recentTestId,
-    onFeedbackReady: () => {
-      // console.log('피드백이 준비되었습니다:', testHistory.id);
+    onFeedbackReady: (testHistory) => {
+      // 피드백이 준비되면 상태 업데이트
+      setFeedbackChecked(true);
       
-      // 피드백이 준비되면 상태 업데이트 (UI 갱신용)
-      navigate('/tests', { 
-        state: { recentTestId, feedbackReady: true }, 
-        replace: true 
-      });
+      // navigate 자기자신 호출 제거 - 이것이 무한 루프의 원인이었습니다
     }
   });
-  
+
   // 폴링 상태 관리
   useEffect(() => {
-    if (shouldPoll) {
+    if (shouldPoll && !feedbackChecked) {
       startPolling();
     } else {
       stopPolling();
     }
-  }, [shouldPoll, startPolling, stopPolling]);
+    
+    // 피드백 상태가 변경되면 폴링 중지
+    if (feedbackStatus) {
+      stopPolling();
+      setFeedbackChecked(true);
+    }
+  }, [shouldPoll, feedbackChecked, startPolling, stopPolling, feedbackStatus]);
 
   // 테스트 배포 : 문제 생성 모의고사 3회, 랜덤 단일문제 5회
   // 모의고사 횟수, 단일 랜덤문제 횟수
@@ -93,7 +105,7 @@ function TestMain() {
         // 응답 데이터를 Redux에 저장
         dispatch(testActions.setCurrentTest(response.data));
 
-        console.log('테스트 생성완료!')
+        console.log("테스트 생성완료!");
         // 페이지 이동
         navigate("/tests/practice");
       } catch (error) {
@@ -113,10 +125,14 @@ function TestMain() {
     }
   };
 
-  console.log('history', historyData)
+  // { /tests/라는 주소로 왔다면 (
+  //   setIsNavigated(true)
+  //   historydata 호출 그만
+  // )}
+  console.log("메인페이지에서 history 호출", historyData);
+
   return (
     <div className={styles.container}>
-
       {/* 테스트 배포 : 3회 응시 횟수 제한 추가 필요 */}
       <main className={styles.main}>
         <section className={styles.section1}>
@@ -175,7 +191,7 @@ function TestMain() {
                   <RecordItem
                     key={record.id}
                     date={formattedDate}
-                    record ={record}
+                    record={record}
                   />
                 );
               })}
