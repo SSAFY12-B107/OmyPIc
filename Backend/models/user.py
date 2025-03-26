@@ -20,6 +20,12 @@ class User(BaseModel):
         "living_place": None,
         "info": []
     })
+    average_score: dict = Field(default_factory=lambda: {
+        "total_score": None,
+        "comboset_score": None,
+        "roleplaying_score": None,
+        "unexpected_score": None
+    }),
     # 테스트 횟수 제한 필드 추가
     limits: dict = Field(default_factory=lambda: {
         "test_count": 0,  # 7문제 + 15문제 테스트 합산 (최대 3회)

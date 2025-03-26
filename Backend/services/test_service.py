@@ -18,8 +18,8 @@ from services.test_generator import generate_short_test, generate_full_test
 logger = logging.getLogger(__name__)
 
 # 두 가지 전역 인스턴스 생성
-standard_audio_processor = AudioProcessor(model_name="whisper-large-v3", language="en")  # 정확성 우선
-fast_audio_processor = FastAudioProcessor(model_name="whisper-large-v3", language="en")  # 속도 우선
+standard_audio_processor = AudioProcessor(model_name="whisper-large-v3")  # 정확성 우선
+fast_audio_processor = FastAudioProcessor(model_name="whisper-large-v3")  # 속도 우선
 
 evaluator = ResponseEvaluator()
 
@@ -460,50 +460,126 @@ async def process_audio_background(
 
 async def evaluate_overall_test_background(db: Database, test_id: str):
     """
-    백그라운드에서 전체 테스트 평가 수행
+    테스트 전체에 대한 종합 평가 수행
     
     Args:
         db: MongoDB 데이터베이스
         test_id: 테스트 ID
     """
     try:
-        # 상태 업데이트
+        # 1. 상태 업데이트 - 종합 평가 중
         await db.tests.update_one(
             {"_id": ObjectId(test_id)},
             {"$set": {
                 "overall_feedback_status": "processing",
-                "overall_feedback_message": "전체 평가 진행 중입니다."
+                "overall_feedback_message": "전체 테스트 평가 중입니다."
             }}
         )
         
-        # 테스트 정보 조회
+        # 2. 테스트 정보 가져오기
         test = await db.tests.find_one({"_id": ObjectId(test_id)})
         if not test:
-            logger.error(f"테스트 ID {test_id}에 해당하는 테스트를 찾을 수 없습니다.")
-            return
+            raise ValueError(f"테스트 ID {test_id}에 해당하는 테스트를 찾을 수 없습니다.")
+            
+        user_id = test.get("user_id")
+        if not user_id:
+            raise ValueError(f"테스트 ID {test_id}에 연결된 사용자 ID가 없습니다.")
         
-        # 평가기 생성 (API 키 순환 적용된 평가기)
+        # 3. 문제별 상세 데이터 수집
+        problem_details = {}
+        for problem_number, problem_data in test.get("problem_data", {}).items():
+            problem_details[problem_number] = problem_data
+        
+        # 4. ResponseEvaluator 인스턴스 생성 및 종합 평가 실행
         evaluator = ResponseEvaluator()
+        evaluation_result = await evaluator.evaluate_overall_test(test, problem_details)
         
-        # 종합 평가 수행
-        overall_evaluation = await evaluator.evaluate_overall_test(test, test.get("problem_data", {}))
-        
-        # 평가 결과 업데이트
+        # 5. 테스트 점수 및 피드백 업데이트
         await db.tests.update_one(
             {"_id": ObjectId(test_id)},
             {"$set": {
-                "test_score": overall_evaluation.get("test_score", {}),
-                "test_feedback": overall_evaluation.get("test_feedback", {}),
+                "test_score": evaluation_result.get("test_score", {}),
+                "test_feedback": evaluation_result.get("test_feedback", {}),
                 "overall_feedback_status": "completed",
-                "overall_feedback_message": "종합 평가가 완료되었습니다.",
+                "overall_feedback_message": "전체 테스트 평가가 완료되었습니다.",
                 "overall_feedback_completed_at": datetime.now()
             }}
         )
         
-        logger.info(f"테스트 ID {test_id}의 종합 평가 완료")
+        logger.info(f"테스트 {test_id}의 종합 평가가 완료되었습니다.")
+        
+        # 6. 사용자의 모든 테스트 가져오기
+        user_tests = await db.tests.find(
+            {"user_id": user_id, "test_score.total_score": {"$exists": True}}
+        ).to_list(length=None)
+        
+        # 7. 테스트 점수 분류
+        all_test_scores = {
+            "total_score": [],
+            "comboset_score": [],
+            "roleplaying_score": [],
+            "unexpected_score": []
+        }
+        
+        # OPIC_LEVELS 정의
+        OPIC_LEVELS = ["NL", "NM", "NH", "IL", "IM1", "IM2", "IM3", "IH", "AL"]
+        
+        for test_doc in user_tests:
+            test_score = test_doc.get("test_score", {})
+            
+            # 각 카테고리별 점수 수집
+            for category in all_test_scores.keys():
+                score = test_score.get(category)
+                if score and score != "N/A" and score in OPIC_LEVELS:
+                    all_test_scores[category].append(score)
+        
+        # 8. 평균 점수 계산
+        user_average_scores = {}
+        
+        for category, scores in all_test_scores.items():
+            if not scores:
+                user_average_scores[category] = None
+                continue
+                
+            # 레벨을 숫자로 변환
+            level_values = []
+            for level in scores:
+                try:
+                    level_index = OPIC_LEVELS.index(level)
+                    level_values.append(level_index)
+                except (ValueError, IndexError):
+                    # 유효하지 않은 레벨은 중간 레벨(IM2)로 처리
+                    level_values.append(OPIC_LEVELS.index("IM2"))
+            
+            # 평균 계산 및 가장 가까운 레벨 반환
+            average_value = sum(level_values) / len(level_values)
+            closest_index = round(average_value)
+            
+            # 인덱스 범위 확인
+            if closest_index < 0:
+                closest_index = 0
+            elif closest_index >= len(OPIC_LEVELS):
+                closest_index = len(OPIC_LEVELS) - 1
+            
+            user_average_scores[category] = OPIC_LEVELS[closest_index]
+        
+        # 9. 사용자 평균 점수 업데이트
+        await db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": {
+                "average_score": {
+                    "total_score": user_average_scores.get("total_score"),
+                    "comboset_score": user_average_scores.get("comboset_score"),
+                    "roleplaying_score": user_average_scores.get("roleplaying_score"),
+                    "unexpected_score": user_average_scores.get("unexpected_score")
+                }
+            }}
+        )
+        
+        logger.info(f"사용자 {user_id}의 평균 점수가 업데이트되었습니다: {user_average_scores}")
         
     except Exception as e:
-        logger.error(f"종합 평가 중 오류 발생: {str(e)}", exc_info=True)
+        logger.error(f"종합 평가 중 오류: {str(e)}", exc_info=True)
         
         # 오류 발생 시 상태 업데이트
         try:
@@ -511,9 +587,18 @@ async def evaluate_overall_test_background(db: Database, test_id: str):
                 {"_id": ObjectId(test_id)},
                 {"$set": {
                     "overall_feedback_status": "failed",
-                    "overall_feedback_message": f"종합 평가 중 오류가 발생했습니다: {str(e)}",
+                    "overall_feedback_message": f"전체 평가 중 오류가 발생했습니다: {str(e)}",
                     "overall_feedback_completed_at": datetime.now()
                 }}
             )
         except Exception as inner_error:
             logger.error(f"오류 상태 업데이트 중 추가 오류: {str(inner_error)}", exc_info=True)
+        
+        # 오류 로깅
+        await db.errors.insert_one({
+            "test_id": test_id,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "timestamp": datetime.now(),
+            "source": "evaluate_overall_test_background"
+        })

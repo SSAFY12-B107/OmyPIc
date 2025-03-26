@@ -44,7 +44,8 @@ async def create_user(
     }
     
     # 테스트 제한 설정
-    test_limits = {
+    limits = {
+        "script_count": 0,
         "test_count": 0,        # 기본 테스트 횟수
         "random_problem": 0     # 기본 랜덤 문제 수
     }
@@ -64,7 +65,7 @@ async def create_user(
         "updated_at": current_time,
         "background_survey": background_survey,
         "average_score": average_score,
-        "test_limits": test_limits
+        "limits": limits
     }
     
     # MongoDB에 사용자 추가

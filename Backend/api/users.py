@@ -46,14 +46,15 @@ async def create_user(user_data: UserCreate = Body(...), db = Depends(get_mongod
         
         # 평균 점수 초기화
         average_score = {
+            "total_score": None,
             "comboset_score": None,
             "roleplaying_score": None,
-            "total_score": None,
             "unexpected_score": None
         }
         
         # 테스트 제한 설정
-        test_limits = {
+        limits = {
+            "script_count": 0,
             "test_count": 0,
             "random_problem": 0
         }
@@ -82,7 +83,7 @@ async def create_user(user_data: UserCreate = Body(...), db = Depends(get_mongod
             "updated_at": current_time,
             "background_survey": background_survey,
             "average_score": average_score,
-            "test_limits": test_limits
+            "limits": limits
         }
         
         # MongoDB에 사용자 추가

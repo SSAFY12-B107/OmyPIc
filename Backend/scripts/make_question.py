@@ -1,16 +1,28 @@
 import pandas as pd
 import json
-from motor.motor_asyncio import AsyncIOMotorClient
 import asyncio
-from bson import ObjectId
+import logging
+import sys
+import os
 
-async def setup_mongodb():
-    client = AsyncIOMotorClient("mongodb+srv://S12P22B107:tgXSWypINd@ssafy.ngivl.mongodb.net/S12P22B107?authSource=admin")
-    db = client["S12P22B107"]
-    return db
+from motor.motor_asyncio import AsyncIOMotorClient
+from core.config import settings
+
+# 프로젝트 루트 디렉토리를 Python 경로에 추가
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# 로깅 설정
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+async def get_mongodb():
+    """MongoDB 연결"""
+    client = AsyncIOMotorClient(settings.MONGODB_URL)
+    return client[settings.MONGODB_DB_NAME]
+
 
 async def process_excel_and_save_questions(file_path):
-    db = await setup_mongodb()
+    db = await get_mongodb()
     
     # Excel 파일 읽기
     df = pd.read_excel(file_path)

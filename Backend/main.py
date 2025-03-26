@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from scripts.scheduler import setup_scheduler
+
 import time
 import logging
 
@@ -9,12 +11,11 @@ from api import auth, users
 from core.config import settings
 from db.mongodb import connect_to_mongo, close_mongo_connection
 
-from prometheus_client import Summary, make_asgi_app
-from starlette.middleware.base import BaseHTTPMiddleware
-
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -26,8 +27,18 @@ async def lifespan(app: FastAPI):
     # MongoDB 인덱스 생성
     await setup_mongo_indexes()
     
+    # 스케줄러 설정 및 시작
+    app.state.scheduler = setup_scheduler()
+    app.state.scheduler.start()
+    logger.info("스케줄러가 시작되었습니다.")
+
     yield  # 애플리케이션 실행
     
+    # 스케줄러 종료
+    if hasattr(app.state, "scheduler"):
+        app.state.scheduler.shutdown()
+        logger.info("스케줄러가 종료되었습니다.")
+
     # MongoDB 연결 종료
     await close_mongo_connection()
     
@@ -52,6 +63,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Error-Type"]  # 커스텀 헤더 노출 설정 추가
 )
 
 

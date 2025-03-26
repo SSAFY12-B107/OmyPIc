@@ -205,12 +205,13 @@ async def google_callback(
                     "info": []
                 },
                 "average_score": {
+                    "total_score": None,
                     "comboset_score": None,
                     "roleplaying_score": None,
-                    "total_score": None,
                     "unexpected_score": None
                 },
-                "test_limits": {             # 초기 test_limits 구조
+                "limits": {             # 초기 limits 구조
+                    "script_count": 0,
                     "test_count": 0,         # 기본 테스트 횟수
                     "random_problem": 0      # 기본 랜덤 문제 수
                 }
