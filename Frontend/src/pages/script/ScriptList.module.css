@@ -1,0 +1,33 @@
+.script-list-container {
+  margin: 0 2rem;
+}
+
+/* 질문 선택 멘트 */
+.selection-title {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 3rem;
+  /* letter-spacing: -1px; */
+}
+
+.selection-title p {
+  font-size: 1.4rem;
+  text-align: center;
+}
+
+.selection-title p span {
+  font-weight: 700;
+}
+
+.selection-title img {
+  width: 5rem;
+  height: 5rem;
+  object-fit: contain;
+}
+
+/* 질문 리스트 */
+.question-list {
+  margin-top: 3rem;
+}

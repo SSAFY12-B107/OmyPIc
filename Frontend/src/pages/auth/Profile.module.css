@@ -1,0 +1,144 @@
+.profile-container {
+  background-color: #ffffff;
+  width: 100%;
+  min-height: 100vh;
+  padding: 0 2rem;
+  box-sizing: border-box;
+  max-width: 50rem;
+  margin: 0 auto;
+}
+
+.form-group {
+  margin-bottom: 2rem;
+}
+
+.form-label {
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.check-icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  background-color: #f5efff;
+  position: relative;
+  margin-right: 0.72rem;
+}
+
+.form-label label {
+  font-size: 1.6rem;
+  font-weight: 500;
+  color: #565656;
+}
+
+.select, 
+.date-input {
+  width: 100%;
+  height: 3.9rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 1rem;
+  padding: 0 1.6rem;
+  font-size: 1.4rem;
+  color: #515151;
+  background-color: #fff;
+  appearance: none;
+}
+
+.select {
+  background-repeat: no-repeat;
+  background-position: right 1.6rem center;
+}
+
+.date-input-container {
+  position: relative;
+  width: 100%;
+}
+
+.date-input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  right: 1.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.select option[value=""],
+.date-input::placeholder {
+  color: #a3a3a3;
+}
+
+.select option {
+  color: #515151;
+}
+
+.terms-content {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  overflow: visible;
+  padding: 0.5rem;
+}
+
+.terms-container {
+  width: 100%;
+  border-radius: 0.8rem;
+  padding: 1rem;
+  background-color: #fff;
+  margin-bottom: 1rem;
+  box-shadow: 1px 1px 6px 0 rgba(0, 0, 0, 0.07);
+}
+
+.terms-content p {
+  margin: 0.5rem 0;
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: #565656;
+}
+
+.terms-content p:first-child {
+  font-weight: 500;
+  font-size: 1.3rem;
+}
+
+.terms-detail {
+  font-size: 1.1rem !important;
+  color: #666;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  padding-top: 1.1rem;
+  border-top: 1px solid #f0f0f0;
+  position: relative;
+  background-color: #fff;
+}
+
+.checkbox {
+  width: 2rem;
+  height: 2rem;
+  accent-color: #8069e6;
+}
+
+.checkbox-label {
+  margin-left: 0.8rem;
+  font-size: 1.4rem;
+  color: #515151;
+}
+
+.errorText {
+  font-size: 1.4rem;
+  color: #FF7979;
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+.button-group {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  gap: 1rem;
+  padding: 0 1rem;
+  margin-top: 3.9rem;
+}

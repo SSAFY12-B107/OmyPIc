@@ -1,0 +1,27 @@
+.frame {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #e3e3e3;
+    border-radius: 1rem;
+    height: 4rem;
+    width: 13.5rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .frameNext {
+    background-color: #9466E9;
+  }
+  
+  .textWrapper {
+    font-size: 1.4rem;
+    color: #565656;
+    font-weight: 400;
+    text-align: center;
+  }
+  
+  .textWrapperNext {
+    color: white;
+    font-weight: 800;
+  }

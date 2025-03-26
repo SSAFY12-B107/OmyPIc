@@ -1,0 +1,103 @@
+/* Survey.module.css */
+.surveyContainer {
+  max-width: 768px;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem;
+}
+
+.content {
+  margin-bottom: 1.5rem;
+}
+
+.tip {
+  background-color: #f8f5ff;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  text-align: center;
+  font-size: 1.4rem;
+  color: #565656;
+  line-height: 1.6;
+}
+
+.choice {
+  margin-bottom: 1.5rem;
+}
+
+.additionalQuestion {
+  margin-top: 0.5rem; /* 추가 질문 사이의 간격 */
+}
+
+.errorMessage {
+  color: #FF6B6B;
+  font-size: 16px;
+  font-weight: 500;
+  margin-top: 8px;
+  margin-bottom: 12px;
+  padding-left: 20px;
+  position: center;
+  text-align: center;
+}
+
+/* 색상이 변경된 막대 스타일 Progress Bar */
+.progressBarContainer {
+  width: 100%;
+  padding: 0 1rem;
+  margin: 1.5rem 0;
+}
+
+.progressBar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 330px; /* 프로그레스 바 전체 너비 증가 */
+  margin: 0 auto;
+}
+
+.progressStep {
+  flex: 1; /* 각 막대가 동일한 비율로 공간 차지 */
+  height: 0.5rem;
+  border-radius: 0.25rem;
+  background-color: #E0E0E0;
+  transition: all 0.3s ease;
+}
+
+/* 현재 진행 중인 단계 - #6026CC (짙은 보라색) */
+.progressStep.current {
+  background-color: #6026CC;
+  height: 0.6rem; /* 현재 단계 약간 더 높게 */
+}
+
+/* 이미 완료된 단계 - #C9B2F2 (연한 보라색) */
+.progressStep.active {
+  background-color: #C9B2F2;
+}
+
+.button-group {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  gap: 1rem;
+  padding: 0 1rem;
+  margin-top: 2rem;
+}
+
+/* Survey 제목 스타일 */
+.surveyTitle {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.surveyTitle h2 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.description {
+  font-size: 1.4rem;
+  color: #666;
+  line-height: 1.5;
+}
