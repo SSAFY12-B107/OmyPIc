@@ -43,7 +43,7 @@ function AuthCallback() {
         // 요청 데이터 상세 로깅
         console.log('인증 코드 전송:', { code });
         
-        const response = await fetch('http://localhost:8000/api/auth/exchange-token', {
+        const response = await fetch('https://omypic.store/api/auth/exchange-token', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
