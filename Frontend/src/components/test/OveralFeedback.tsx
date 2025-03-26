@@ -1,4 +1,4 @@
-import styles from "./OveralFeedBack.module.css";
+import styles from "./OveralFeedback.module.css";
 import { MultipleFeedback } from "@/hooks/useFeedBack";
 // import {
 //   Chart as ChartJS,

@@ -1,4 +1,4 @@
-import styles from "./DetailFeedBack.module.css";
+import styles from "./DetailFeedback.module.css";
 import { ProblemData } from "@/hooks/useFeedBack";
 import { useState } from "react";
 
