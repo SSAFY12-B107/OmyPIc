@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+// import { useEffect } from 'react';
 
 // 타입 정의
 type TestDateResult = {
@@ -13,24 +13,25 @@ type TestDateResult = {
  * @returns 포맷된 날짜, D-day 숫자, D-day 텍스트
  */
 export function useTestDate(isoString: string): TestDateResult {
-  const [dday, setDday] = useState<number>(calculateDday(isoString));
   const formattedDate = formatTestDate(isoString);
+  const dday = calculateDday(isoString)
+
   
   // 자정마다 D-day 업데이트
-  useEffect(() => {
-    // 다음 자정에 업데이트할 타이머 설정
-    const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setDate(now.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
+  // useEffect(() => {
+  //   // 다음 자정에 업데이트할 타이머 설정
+  //   const now = new Date();
+  //   const tomorrow = new Date(now);
+  //   tomorrow.setDate(now.getDate() + 1);
+  //   tomorrow.setHours(0, 0, 0, 0);
     
-    const timeUntilMidnight = tomorrow.getTime() - now.getTime();
-    const timerId = setTimeout(() => {
-      setDday(calculateDday(isoString));
-    }, timeUntilMidnight);
+  //   const timeUntilMidnight = tomorrow.getTime() - now.getTime();
+  //   const timerId = setTimeout(() => {
+  //     // setDday(calculateDday(isoString)); // 이걸로 하니깡 안됨.
+  //   }, timeUntilMidnight);
     
-    return () => clearTimeout(timerId);
-  }, [isoString]);
+  //   return () => clearTimeout(timerId);
+  // }, [isoString]);
   
   // D-day 텍스트 생성 (D-Day, D-3, D+2 등)
   const ddayText = dday === 0 ? "D-Day" : dday > 0 ? `D-${dday}` : `D+${Math.abs(dday)}`;

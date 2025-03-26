@@ -11,7 +11,8 @@ import LoadingSpinner from "@/components/common/LoadingSpinner";
 function Home() {
   // 사용자 정보 가져오기
   const { data: userInfo, isLoading: userInfoIsLoading, error } = useGetUserInfo();
-  const [testDateIso, setTestDateIso] = useState("");
+  const today = new Date();
+  const [testDateIso, setTestDateIso] = useState(`${today}`);
 
   // 로그아웃 로직
   const { mutate: logout } = useLogout();
