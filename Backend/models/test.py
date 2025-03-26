@@ -25,7 +25,11 @@ class ProblemDetailFeedback(BaseModel):
 
 class ProblemDetail(BaseModel):
     """문제 상세 정보 모델"""
+    problem_id: Optional[str] = None  # 문제 ID
+    problem_category: Optional[str] = None  # 문제 카테고리
+    topic_category: Optional[str] = None  # 문제 카테고리
     problem: Optional[str] = None  # 문제 내용 
+    audio_s3_url: Optional[str] = None
     user_response: Optional[str] = None  # 사용자 응답
     score: Optional[str] = None  # 점수
     feedback: Optional[ProblemDetailFeedback] = None  # 피드백 (단일 객체)
@@ -37,12 +41,15 @@ class TestModel(BaseModel):
     test_type: bool  # 테스트 유형 (False: Full, True: Half(속성))
     test_score: Optional[ScoreDetail] = None  # 테스트 점수 정보
     test_feedback: Optional[FeedbackDetail] = None  # 테스트 피드백 정보
-    problem_data: Dict[int, ProblemDetail] = Field(default_factory=dict)  # 문제 번호를 키로 하는 문제 상세 정보
+    problem_data: Dict[str, ProblemDetail] = Field(default_factory=dict)  # 문제 번호를 키로 하는 문제 상세 정보 (문자열 키 사용)
     test_date: datetime = Field(default_factory=datetime.now)  # 테스트 날짜
     user_id: Optional[str] = None  # 사용자 ID(MongoDB ObjectId를 문자열로 표현)
     
     model_config = {
         "populate_by_name": True,
+        "json_encoders": {
+            datetime: lambda v: v.isoformat()
+        },
         "json_schema_extra": {
             "example": {
                 "_id": "507f1f77bcf86cd799439011",
@@ -61,7 +68,11 @@ class TestModel(BaseModel):
                 },
                 "problem_data": {
                     "1": {
+                        "problem_id": "507f1f77bcf86cd799439123",
+                        "problem_category": "묘사",
+                        "topic_category": "주거",
                         "problem": "자기소개를 해보세요.",
+                        "audio_s3_url": "https://example-bucket.s3.amazonaws.com/audio/problem123.mp3",
                         "user_response": "안녕하세요. 저는...",
                         "score": "IH",
                         "feedback": {

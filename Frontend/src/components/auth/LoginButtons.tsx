@@ -17,7 +17,7 @@ function LoginButtons() {
     };
 
     // HTTP로 요청
-    fetch("http://localhost:8000/api/auth/google/login", requestOptions)
+    fetch("https://omypic.store/api/auth/google/login", requestOptions)
       .then((response) => {
         if (!response.ok) {
           throw new Error(`Status: ${response.status}`);
