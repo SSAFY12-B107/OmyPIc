@@ -1,7 +1,5 @@
-# services/evaluator.py
-import json
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_groq import ChatGroq
@@ -250,14 +248,15 @@ class ResponseEvaluator:
             
         except Exception as e:
             logger.error(f"응답 평가 중 오류 발생: {str(e)}", exc_info=True)
-            # 오류 발생 시 기본 평가 결과 반환
+            # 오류 발생 시 점수를 제공하지 않고 오류 정보만 반환
             return {
-                "score": "IM2",
+                "score": "ERROR",  # 점수를 제공하지 않고 ERROR 표시
                 "feedback": {
                     "paragraph": f"평가 중 오류가 발생했습니다: {str(e)}. 논리적 구성에 대한 평가를 완료하지 못했습니다.",
                     "vocabulary": "평가 중 오류가 발생했습니다. 어휘 사용에 대한 평가를 완료하지 못했습니다.",
                     "spoken_amount": "평가 중 오류가 발생했습니다. 발화량에 대한 평가를 완료하지 못했습니다."
-                }
+                },
+                "error": True  # 평가 오류 플래그 추가
             }
     
     async def evaluate_overall_test(
@@ -298,21 +297,24 @@ class ResponseEvaluator:
                 
                 response = problem_data.get("user_response", "")
                 score = problem_data.get("score", "")
+                if score == "ERROR" or "error" in problem_data:
+                    score = "N/A"  # 오류가 발생한 문제는 점수를 N/A로 표시
                 problem_text = problem_data.get("problem", "")
                 
-                # 문제 유형별 카운트 및 응답 정보 수집
-                if problem_type == "self_introduction":
-                    self_introduction_count += 1
-                    self_introduction_responses.append({"response": response, "score": score})
-                elif problem_type == "comboset":
-                    comboset_count += 1
-                    comboset_responses.append({"response": response, "score": score})
-                elif problem_type == "roleplaying":
-                    roleplaying_count += 1
-                    roleplaying_responses.append({"response": response, "score": score})
-                elif problem_type == "unexpected":
-                    unexpected_count += 1
-                    unexpected_responses.append({"response": response, "score": score})
+                # 문제 유형별 카운트 및 응답 정보 수집 - 오류가 아닌 응답만 처리
+                if score != "N/A":  # 오류가 발생하지 않은 경우에만 평가에 포함
+                    if problem_type == "self_introduction":
+                        self_introduction_count += 1
+                        self_introduction_responses.append({"response": response, "score": score})
+                    elif problem_type == "comboset":
+                        comboset_count += 1
+                        comboset_responses.append({"response": response, "score": score})
+                    elif problem_type == "roleplaying":
+                        roleplaying_count += 1
+                        roleplaying_responses.append({"response": response, "score": score})
+                    elif problem_type == "unexpected":
+                        unexpected_count += 1
+                        unexpected_responses.append({"response": response, "score": score})
                 
                 # 종합 평가를 위한 문제별 응답 텍스트 구성
                 problem_responses_text += f"### 문제 {problem_number} ({problem_type}):\n"
@@ -371,19 +373,19 @@ class ResponseEvaluator:
             
         except Exception as e:
             logger.error(f"종합 평가 중 오류 발생: {str(e)}", exc_info=True)
-            # 오류 발생 시 기본 종합 평가 결과 반환
+            # 오류 발생 시 계산된 값 사용, 없으면 "N/A" 반환
             return {
                 "test_score": {
-                    "total_score": total_score if 'total_score' in locals() else "IM2",
-                    "comboset_score": comboset_score if 'comboset_score' in locals() else "IM2",
-                    "roleplaying_score": roleplaying_score if 'roleplaying_score' in locals() else "IM2",
-                    "unexpected_score": unexpected_score if 'unexpected_score' in locals() else "IM2"
+                    "total_score": total_score if 'total_score' in locals() else "N/A",
+                    "comboset_score": comboset_score if 'comboset_score' in locals() else "N/A",
+                    "roleplaying_score": roleplaying_score if 'roleplaying_score' in locals() else "N/A",
+                    "unexpected_score": unexpected_score if 'unexpected_score' in locals() else "N/A"
                 },
                 "test_feedback": {
                     "total_feedback": f"평가 중 오류가 발생했습니다: {str(e)}. 전체 영어 구사력에 대한 평가를 완료하지 못했습니다.",
-                    "paragraph": "전반적인 문단 구성 능력은 중간 수준입니다.",
-                    "vocabulary": "일상적인 어휘는 적절히 사용하고 있으나, 다양한 어휘 구사가 필요합니다.",
-                    "spoken_amount": "발화량은 적절하나 더 상세한 설명이 필요한 부분이 있습니다."
+                    "paragraph": "평가 중 오류가 발생했습니다. 문단 구성력에 대한 종합 평가를 제공할 수 없습니다.",
+                    "vocabulary": "평가 중 오류가 발생했습니다. 어휘력에 대한 종합 평가를 제공할 수 없습니다.",
+                    "spoken_amount": "평가 중 오류가 발생했습니다. 발화량에 대한 종합 평가를 제공할 수 없습니다."
                 }
             }
     
@@ -430,6 +432,13 @@ class ResponseEvaluator:
         if not levels:
             return "N/A"
         
+        # 오류가 있는 평가 결과는 제외
+        valid_levels = [level for level in levels if level != "ERROR" and level in OPIC_LEVELS]
+        
+        # 유효한 레벨이 없으면 N/A 반환
+        if not valid_levels:
+            return "N/A"
+        
         # 레벨을 숫자로 변환
         level_values = []
         for level in levels:
@@ -437,9 +446,13 @@ class ResponseEvaluator:
                 level_index = OPIC_LEVELS.index(level)
                 level_values.append(level_index)
             except (ValueError, IndexError):
-                # 유효하지 않은 레벨은 중간 레벨(IM2)로 처리
-                level_values.append(OPIC_LEVELS.index("IM2"))
+                # 유효하지 않은 레벨은 건너뛰기
+                continue
         
+        # 변환된 값이 없으면 N/A 반환
+        if not level_values:
+            return "N/A"
+
         # 평균 계산 및 가장 가까운 레벨 반환
         average_value = sum(level_values) / len(level_values)
         closest_index = round(average_value)
@@ -469,8 +482,8 @@ class ResponseEvaluator:
         
         # 점수 필드 검증 및 보정
         if "score" not in result or not result["score"] or result["score"] not in OPIC_LEVELS:
-            result["score"] = "IM2"  # 기본값
-            logger.warning(f"유효하지 않은 점수를 'IM2'로 대체합니다.")
+            result["score"] = "NL"  # 오류가 아닌 경우에는 최하 점수인 NL 부여
+            logger.warning(f"유효하지 않은 점수를 'NL'로 대체합니다.")
         
         # 피드백 필드 검증 및 보정
         if "feedback" not in result or not isinstance(result["feedback"], dict):
