@@ -1,17 +1,18 @@
-// src/pages/auth/AuthCallback.tsx
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
+import { useMutation } from '@tanstack/react-query';
 import { setUser } from '../../store/authSlice';
+import apiClient from '../../api/apiClient';
 
 function AuthCallback() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
-  const [status, setStatus] = useState<string>('처리 중...');
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 스피너 스타일 정의 - 컴포넌트 안에서 정의
+  // 스피너 스타일 정의
   const spinnerStyle = {
     width: '40px',
     height: '40px',
@@ -22,126 +23,103 @@ function AuthCallback() {
     margin: '0 auto'
   };
 
+  // TanStack Query를 사용한 토큰 교환 mutation
+  const exchangeTokenMutation = useMutation({
+    mutationFn: async (code: string) => {
+      return await apiClient.post('/auth/exchange-token', { code });
+    },
+    onSuccess: (response) => {
+      const data = response.data;
+      
+      try {
+        // 액세스 토큰 저장
+        sessionStorage.setItem('access_token', data.access_token);
+        
+        if (data.user) {
+          // 사용자 정보 저장
+          sessionStorage.setItem('isOnboarded', data.user.is_onboarded ? 'true' : 'false');
+          
+          // Redux 스토어에 사용자 정보 저장
+          dispatch(setUser(data.user));
+          
+          // 페이지 이동 전 지연
+          setTimeout(() => {
+            if (!data.user.is_onboarded) {
+              // 온보딩이 필요한 경우
+              if (data.user.current_opic_score && data.user.target_opic_score && data.user.target_exam_date) {
+                // 이미 프로필 정보가 있으면 설문 페이지로
+                navigate('/auth/survey');
+              } else {
+                // 프로필 정보가 없으면 프로필 페이지로
+                navigate('/auth/profile');
+              }
+            } else {
+              // 온보딩이 완료된 경우 홈으로
+              navigate('/');
+            }
+          }, 500);
+        } else {
+          setTimeout(() => navigate('/'), 500);
+        }
+      } catch (storageError) {
+        console.error('스토리지 저장 오류:', storageError);
+        setError('사용자 정보 저장 중 오류가 발생했습니다');
+        setTimeout(() => navigate('/'), 1000);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    onError: (error: any) => {
+      console.error('인증 오류:', error);
+      
+      let errorMessage = '인증 처리 중 오류가 발생했습니다';
+      if (error.response?.data) {
+        errorMessage = typeof error.response.data === 'object' 
+          ? JSON.stringify(error.response.data) 
+          : error.response.data;
+      }
+      
+      setError(errorMessage);
+      setIsLoading(false);
+      
+      // 실패 시 로그인 페이지로 이동
+      setTimeout(() => {
+        navigate('/auth/login');
+      }, 2000);
+    }
+  });
+
   useEffect(() => {
     async function handleAuth() {
       try {
-        // 1. URL에서 code 파라미터 추출
+        // URL에서 code 파라미터 추출
         const searchParams = new URLSearchParams(location.search);
         const code = searchParams.get('code');
         
         if (!code) {
-          setStatus('인증 코드가 없습니다');
           setError('인증 코드가 없습니다');
+          setIsLoading(false);
+          setTimeout(() => navigate('/auth/login'), 2000);
           return;
         }
         
-        setStatus(`코드 확인됨: ${code.substring(0, 10)}...`);
+        // TanStack Query mutation 실행
+        exchangeTokenMutation.mutate(code);
         
-        // 2. 백엔드 API 호출하여 토큰 교환 - 요청 방식 수정
-        setStatus('토큰 교환 API 호출 중...');
-        
-        // 요청 데이터 상세 로깅
-        console.log('인증 코드 전송:', { code });
-        
-        const response = await fetch('https://omypic.store/api/auth/exchange-token', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          credentials: 'include', // 쿠키 포함
-          body: JSON.stringify({ 
-            code
-          })
-        });
-        
-        // 응답 상태 로깅
-        console.log('API 응답 상태:', response.status, response.statusText);
-        
-        if (!response.ok) {
-          let errorText;
-          try {
-            // JSON 형태로 오류 응답 파싱 시도
-            const errorData = await response.json();
-            errorText = JSON.stringify(errorData);
-            console.error('API 오류 상세 (JSON):', errorData);
-          } catch (e) {
-            // 일반 텍스트로 파싱
-            errorText = await response.text();
-            console.error('API 오류 상세 (텍스트):', errorText);
-          }
-          
-          setStatus(`API 오류: ${response.status}`);
-          setError(`API 오류: ${errorText}`);
-          return;
-        }
-        
-        // 3. API 응답 파싱
-        const data = await response.json();
-        setStatus('토큰 교환 성공, 저장 시도 중...');
-        console.log('받은 데이터:', data);
-        
-        // 4. 세션 스토리지에 직접 데이터 저장
-        try {
-          // 프로퍼티 방식으로 저장
-          sessionStorage.setItem('access_token', data.access_token);
-          console.log('토큰 저장 시도 완료');
-          
-          // 저장 확인
-          const savedToken = sessionStorage.getItem('access_token');
-          console.log('저장된 토큰 확인:', savedToken ? '성공' : '실패');
-          
-          if (data.user) {
-            // 사용자 정보도 저장
-            sessionStorage.setItem('isOnboarded', data.user.is_onboarded ? 'true' : 'false');
-            console.log('사용자 정보 저장됨:', data.user);
-            
-            // Redux 스토어에 사용자 정보 저장
-            dispatch(setUser(data.user));
-            
-            setStatus('데이터 저장 완료, 리다이렉트 준비 중...');
-            
-            // 페이지 이동 전 저장 완료를 위한 지연
-            setTimeout(() => {
-              if (!data.user.is_onboarded) {
-                // 온보딩이 필요한 경우
-                if (data.user.current_opic_score && data.user.target_opic_score && data.user.target_exam_date) {
-                  // 이미 프로필 정보가 있으면 설문 페이지로
-                  navigate('/auth/survey');
-                } else {
-                  // 프로필 정보가 없으면 프로필 페이지로
-                  navigate('/auth/profile');
-                }
-              } else {
-                // 온보딩이 완료된 경우 홈으로
-                navigate('/');
-              }
-            }, 1000);
-          } else {
-            setStatus('사용자 정보 없음, 홈으로 이동 중...');
-            setTimeout(() => navigate('/'), 1000);
-          }
-        } catch (storageError) {
-          console.error('스토리지 저장 오류:', storageError);
-          setStatus(`스토리지 저장 오류: ${storageError instanceof Error ? storageError.message : String(storageError)}`);
-          
-          // 오류가 있어도 일단 이동은 시도
-          setTimeout(() => navigate('/'), 2000);
-        }
       } catch (err) {
         console.error('인증 처리 오류:', err);
         const errorMessage = err instanceof Error ? err.message : '인증 처리 중 오류가 발생했습니다';
-        setStatus(`처리 오류: ${errorMessage}`);
         setError(errorMessage);
+        setIsLoading(false);
         
         setTimeout(() => {
           navigate('/auth/login');
-        }, 3000);
+        }, 2000);
       }
     }
     
     handleAuth();
-  }, [location, navigate, dispatch]);
+  }, [location, navigate, exchangeTokenMutation]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">
@@ -156,8 +134,20 @@ function AuthCallback() {
         `}
       </style>
       
-      {/* 항상 스피너만 표시 */}
-      <div style={spinnerStyle}></div>
+      <div className="text-center">
+        {/* 스피너 표시 */}
+        {isLoading && <div style={spinnerStyle}></div>}
+        
+        {/* 로딩 메시지 */}
+        {isLoading && <p className="mt-4 text-gray-600">로그인 처리 중...</p>}
+        
+        {/* 에러가 있을 경우 표시 */}
+        {error && (
+          <p className="mt-2 text-red-600">
+            {error}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

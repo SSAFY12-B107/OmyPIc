@@ -15,7 +15,8 @@ function ProfilePage() {
   const { profileData } = useSelector((state: RootState) => state.auth);
   
   // useUser 훅 사용
-  const { isSubmitting } = useUser();
+  const { user } = useUser();
+  const[isSubmitting, setIsSubmitting] = useState(false);
   
   // 로컬 폼 상태 관리 (Redux와 별개로)
   const [formData, setFormData] = useState({
