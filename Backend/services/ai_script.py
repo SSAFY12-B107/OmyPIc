@@ -497,59 +497,44 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
             "롤플레잉": "Take on the suggested role naturally. Use appropriate vocabulary and expressions for the situation."
         }
         
-        # 프롬프트 템플릿 구성
+        # 프롬프트 템플릿 수정
         system_template = f"""
         You are an expert in generating natural, conversational English scripts for OPIc tests at the IH (Intermediate High) level.
         
-        Problem title: {problem_title}
-        Guidance: {type_specific_guidance.get(question_type_data["type"], "Create a casual, friendly response as if chatting with a friend.")}
+        CRITICAL REQUIREMENTS:
+        1. LANGUAGE: 
+           - Output MUST be 100% in English
+           - NO Korean or other languages allowed
+           - Translate any Korean input into natural English
         
-        Follow these requirements exactly:
-        1. Keep it MEDIUM LENGTH - aim for 8-9 sentences total (1.5-2 minutes when spoken)
-        2. Use very casual, natural speaking style:
-           - Use lots of contractions (I'm, don't, it's, that's)
-           - Add conversation fillers (like, you know, I mean)
-           - Include thinking sounds (um, uh, hmm)
-           - Use everyday vocabulary and expressions
-        3. Make it sound spontaneous and unscripted
-        4. Structure the response with:
-           - First paragraph: 3-4 sentences
-           - Second paragraph: 2-3 sentences
-           - Final paragraph: 3-4 sentences
+        2. Structure:
+           - Each paragraph MUST start with a basic answer in <strong> tags
+           - Follow with detailed explanations in regular text
+           - Exactly 3 paragraphs total
         
-        HTML Output Format Requirements:
-        1. Use simple <div> and <p> tags
-        2. Wrap basic answers in <strong> tags
-        3. Add line breaks after each sentence using "\n"
-        4. Example structure:
+        3. Style:
+           - Use casual, natural English
+           - Include conversation fillers (like, you know, um)
+           - Use contractions (I'm, don't, it's)
+           - Aim for IH level vocabulary and expressions
+        
+        4. Format:
         <div>
             <p>
-            <strong>You know what? I really love both rock and classical music.</strong>\n
-            It's kind of funny how different they are, right?\n
-            Like, rock music gives me this intense energy that just pumps me up.\n
-            And when I hear those electric guitars, it just makes me want to move, you know?\n
+            <strong>[Translated basic answer as a simple statement]</strong>
+            [Detailed explanation with natural flow...]
             </p>
-
             <p>
-            <strong>Um, when I listen to rock music, it just gets me so pumped up!</strong>\n
-            And it's not just about the energy, it's also about the raw emotion in the vocals.\n
-            I mean, you can really feel what the singer is going through.\n
+            <strong>[Translated basic answer as a simple statement]</strong>
+            [Detailed explanation with natural flow...]
             </p>
-
             <p>
-            <strong>I guess what I'm trying to say is, music is just amazing.</strong>\n
-            It really changes your whole mood and everything.\n
-            Like, sometimes when I'm feeling down, I just put on my favorite song and it instantly makes me feel better.\n
+            <strong>[Translated basic answer as a simple statement]</strong>
+            [Detailed explanation with natural flow...]
             </p>
         </div>
 
-        Important: 
-        - Aim for 8-9 sentences total
-        - Use natural speaking patterns
-        - Make it sound like a real conversation
-        - Add line breaks after each sentence
-        - Maintain flow between topics
-        - Include more details and examples in each paragraph
+        Remember: ANY non-English text in the output is considered a critical error.
         """
 
         human_template = """
@@ -557,18 +542,18 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
         
         Here are the user's answers about {topic_type}:
         
-        Basic Answers (make bold):
+        Basic Answers (translate to English and wrap in <strong> tags):
         {basic_answer_details}
         
-        Custom Answers (regular text):
+        Custom Answers (translate to English for detailed explanations):
         {custom_answer_details}
         
-        Create a short, casual conversation that:
-        1. Sounds like natural speaking
-        2. Uses basic answers in <strong> tags
-        3. Keeps it simple and friendly
-        4. Stays within 7-9 sentences total
-        5. Addresses the main points naturally
+        Requirements:
+        1. Translate ALL Korean text to natural English
+        2. Start each paragraph with a translated basic answer in <strong> tags
+        3. Use casual, conversational English throughout
+        4. Ensure NO Korean text appears in the output
+        5. Maintain natural flow between topics
         """
 
         # 답변 상세 정보 구성
