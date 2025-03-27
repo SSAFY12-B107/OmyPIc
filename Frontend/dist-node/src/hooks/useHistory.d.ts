@@ -42,6 +42,7 @@ export declare const useUserHistory: (options?: {
     isPolling: boolean;
     startPolling: () => void;
     stopPolling: () => void;
+    feedbackStatus: boolean;
     data: UserHistoryResponse;
     error: Error;
     isError: true;
@@ -71,6 +72,7 @@ export declare const useUserHistory: (options?: {
     isPolling: boolean;
     startPolling: () => void;
     stopPolling: () => void;
+    feedbackStatus: boolean;
     data: UserHistoryResponse;
     error: null;
     isError: false;
@@ -100,6 +102,7 @@ export declare const useUserHistory: (options?: {
     isPolling: boolean;
     startPolling: () => void;
     stopPolling: () => void;
+    feedbackStatus: boolean;
     data: undefined;
     error: Error;
     isError: true;
@@ -129,6 +132,7 @@ export declare const useUserHistory: (options?: {
     isPolling: boolean;
     startPolling: () => void;
     stopPolling: () => void;
+    feedbackStatus: boolean;
     data: undefined;
     error: null;
     isError: false;
@@ -158,6 +162,7 @@ export declare const useUserHistory: (options?: {
     isPolling: boolean;
     startPolling: () => void;
     stopPolling: () => void;
+    feedbackStatus: boolean;
     data: undefined;
     error: null;
     isError: false;
@@ -187,6 +192,7 @@ export declare const useUserHistory: (options?: {
     isPolling: boolean;
     startPolling: () => void;
     stopPolling: () => void;
+    feedbackStatus: boolean;
     data: UserHistoryResponse;
     isError: false;
     error: null;
