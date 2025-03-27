@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useMutation } from "@tanstack/react-query";
 import { useDispatch } from 'react-redux';
-import { useMutation } from '@tanstack/react-query';
 import { setUser } from '../../store/authSlice';
-import apiClient from '../../api/apiClient';
+import apiClient from '@/api/apiClient';
 
 function AuthCallback() {
   const navigate = useNavigate();
@@ -11,6 +11,9 @@ function AuthCallback() {
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // 요청이 이미 진행 중인지 추적하는 ref
+  const isCalledRef = useRef(false);
 
   // 스피너 스타일 정의
   const spinnerStyle = {
@@ -30,43 +33,41 @@ function AuthCallback() {
     },
     onSuccess: (response) => {
       const data = response.data;
+      console.log('response', response);
       
       try {
         // 액세스 토큰 저장
         sessionStorage.setItem('access_token', data.access_token);
         
         if (data.user) {
-          // 사용자 정보 저장
+          // isOnboarded 정보 저장
           sessionStorage.setItem('isOnboarded', data.user.is_onboarded ? 'true' : 'false');
           
           // Redux 스토어에 사용자 정보 저장
           dispatch(setUser(data.user));
           
+          // 로딩 상태 업데이트
+          setIsLoading(false);
+          
           // 페이지 이동 전 지연
-          setTimeout(() => {
-            if (!data.user.is_onboarded) {
-              // 온보딩이 필요한 경우
-              if (data.user.current_opic_score && data.user.target_opic_score && data.user.target_exam_date) {
-                // 이미 프로필 정보가 있으면 설문 페이지로
-                navigate('/auth/survey');
-              } else {
-                // 프로필 정보가 없으면 프로필 페이지로
-                navigate('/auth/profile');
-              }
-            } else {
-              // 온보딩이 완료된 경우 홈으로
-              navigate('/');
-            }
-          }, 500);
+          if (!data.user.is_onboarded) {
+            // 온보딩이 필요한 경우 프로필 페이지로 이동
+            navigate('/auth/profile');
+          } else {
+            // 온보딩이 완료된 경우 홈으로 이동
+            navigate('/');
+          }
         } else {
-          setTimeout(() => navigate('/'), 500);
+          // 사용자 데이터가 없는 경우
+          setIsLoading(false);
+          setError('사용자 정보를 찾을 수 없습니다');
+          setTimeout(() => navigate('/auth/login'), 1000);
         }
       } catch (storageError) {
         console.error('스토리지 저장 오류:', storageError);
-        setError('사용자 정보 저장 중 오류가 발생했습니다');
-        setTimeout(() => navigate('/'), 1000);
-      } finally {
         setIsLoading(false);
+        setError('사용자 정보 저장 중 오류가 발생했습니다');
+        setTimeout(() => navigate('/auth/login'), 1000);
       }
     },
     onError: (error: any) => {
@@ -79,47 +80,48 @@ function AuthCallback() {
           : error.response.data;
       }
       
-      setError(errorMessage);
-      setIsLoading(false);
-      
       // 실패 시 로그인 페이지로 이동
       setTimeout(() => {
         navigate('/auth/login');
-      }, 2000);
+      }, 1000);
     }
   });
 
-  useEffect(() => {
-    async function handleAuth() {
-      try {
-        // URL에서 code 파라미터 추출
-        const searchParams = new URLSearchParams(location.search);
-        const code = searchParams.get('code');
-        
-        if (!code) {
-          setError('인증 코드가 없습니다');
-          setIsLoading(false);
-          setTimeout(() => navigate('/auth/login'), 2000);
-          return;
-        }
-        
-        // TanStack Query mutation 실행
-        exchangeTokenMutation.mutate(code);
-        
-      } catch (err) {
-        console.error('인증 처리 오류:', err);
-        const errorMessage = err instanceof Error ? err.message : '인증 처리 중 오류가 발생했습니다';
-        setError(errorMessage);
-        setIsLoading(false);
-        
-        setTimeout(() => {
-          navigate('/auth/login');
-        }, 2000);
-      }
-    }
+  async function handleAuth() {
+    // 이미 호출된 경우 중복 실행 방지
+    if (isCalledRef.current) return;
+    isCalledRef.current = true;
     
+    try {
+      // URL에서 code 파라미터 추출
+      const searchParams = new URLSearchParams(location.search);
+      const code = searchParams.get('code');
+      console.log('Code from URL:', code);
+      
+      if (!code) {
+        setTimeout(() => navigate('/auth/login'), 1000);
+        return;
+      }
+      
+      // TanStack Query mutation 실행
+      exchangeTokenMutation.mutate(code);
+      
+    } catch (err) {
+      console.error('인증 처리 오류:', err);
+      const errorMessage = err instanceof Error ? err.message : '인증 처리 중 오류가 발생했습니다';
+      
+      setTimeout(() => navigate('/auth/login'), 1000);
+    }
+  }
+  
+  useEffect(() => {
     handleAuth();
-  }, [location, navigate, exchangeTokenMutation]);
+    
+    // cleanup 함수 추가
+    return () => {
+      isCalledRef.current = false;
+    };
+  }, []);
 
   return (
     <div className="flex items-center justify-center min-h-screen">

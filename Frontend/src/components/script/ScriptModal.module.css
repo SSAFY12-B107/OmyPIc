@@ -85,7 +85,8 @@
   margin-bottom: 2.5rem;
   padding: 1.5rem 2rem;
   border-radius: 1rem;
-  font-size: 1.4rem;
+  font-size: 1.5rem;
+  line-height: 2.2rem;
   box-shadow: 1px 1px 6px 0 rgba(0, 0, 0, 0.07);
   background-color: #fff;
 
@@ -93,6 +94,10 @@
   max-height: 25rem; /* 최대 높이 설정 */
   overflow-y: auto; /* 세로 방향 스크롤 활성화 */
   word-break: break-word; /* 긴 단어 처리 */
+}
+
+.scriptBox p {
+  letter-spacing: 0;
 }
 
 .additionalQ {

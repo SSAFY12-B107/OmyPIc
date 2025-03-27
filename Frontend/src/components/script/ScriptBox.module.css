@@ -50,12 +50,14 @@
   margin-bottom: 1rem;
   padding: 1.5rem;
   border-radius: 1rem;
-  font-size: 1.4rem;
+  font-size: 1.5rem;
+  line-height: 2.2rem;
+  background-color: #fff;
   box-shadow: 1px 1px 6px 0 rgba(0, 0, 0, 0.07);
 }
 
 .content-item p {
-  font-size: 1.4rem;
+  letter-spacing: 0;
 }
 
 /* 스크립트 생성중인 경우 */
