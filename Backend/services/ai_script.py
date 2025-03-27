@@ -308,7 +308,17 @@ async def generate_follow_up_questions(problem_pk: str, answers: Dict[str, str])
             원래 질문: {original_question}
             사용자 답변: {answer}
             
-            위 답변에 대한 적절한 후속 질문을 생성해주세요.
+            Here are the user's answers about {question_type_data["type"]}:
+            
+            Basic Answers (make bold):
+            {answer}
+            
+            Create a short, casual conversation that:
+            1. Sounds like natural speaking
+            2. Uses basic answers in <strong> tags
+            3. Keeps it simple and friendly
+            4. Stays within 7-9 sentences total
+            5. Addresses the main points naturally
             """
             
             chat_prompt = ChatPromptTemplate.from_messages([
@@ -318,7 +328,11 @@ async def generate_follow_up_questions(problem_pk: str, answers: Dict[str, str])
             
             # 꼬리질문 생성 - 최신 LangChain 방식 사용
             chain = chat_prompt | llm
-            follow_up = await chain.ainvoke({})
+            follow_up = await chain.ainvoke({
+                "topic_type": question_type_data["type"],
+                "problem_content": original_question,
+                "answer": answer
+            })
             
             # 결과 정리 (불필요한 따옴표나 공백 제거)
             if hasattr(follow_up, 'content'):
@@ -483,68 +497,97 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
             "롤플레잉": "Take on the suggested role naturally. Use appropriate vocabulary and expressions for the situation."
         }
         
-        # 프롬프트 템플릿 구성
+        # 프롬프트 템플릿 수정
         system_template = f"""
         You are an expert in generating natural, conversational English scripts for OPIc tests at the IH (Intermediate High) level.
         
-        Topic type: {question_type_data["type"]}
-        Problem title: {problem_title}
-        Guidance: {type_specific_guidance.get(question_type_data["type"], "Create a natural, conversational response that demonstrates paragraph-level discourse.")}
+        CRITICAL REQUIREMENTS:
+        1. LANGUAGE: 
+           - Output MUST be 100% in English
+           - NO Korean or other languages allowed
+           - Translate any Korean input into natural English
         
-        Follow these requirements exactly:
-        1. Generate a 1-1.5 minute spoken script (7-9 sentences total).
-        2. Use diverse and natural conversation starters and discourse markers. Choose from:
-           - Thoughtful starts: "Let me think...", "Hmm...", "Oh, that's interesting..."
-           - Personal engagement: "Actually...", "To be honest...", "I'd say..."
-           - Natural reactions: "Oh!", "Ah!", "You see..."
-           - Casual transitions: "Well...", "You know...", "I mean..."
-        3. Include a mix of simple and complex sentences.
-        4. Use appropriate transitions between ideas.
-        5. Include personal opinions, feelings, or reflections.
-        6. Maintain coherent paragraph-level discourse.
-        7. Avoid overly formal language - this should sound natural when spoken.
-        8. Include 2-3 natural hesitations or self-corrections throughout the response (like "um", "uh", "I mean", "what I'm trying to say is", etc.).
-        9. Make sure to fully incorporate the user's actual answers into the script.
-        10. Create a script that directly addresses the original problem and questions.
+        2. Structure:
+           - Each paragraph MUST start with a basic answer in <strong> tags
+           - Follow with detailed explanations in regular text
+           - Exactly 3 paragraphs total
         
-        Important: Vary your conversation starters and fillers throughout the script. Don't overuse any single expression.
+        3. Style:
+           - Use casual, natural English
+           - Include conversation fillers (like, you know, um)
+           - Use contractions (I'm, don't, it's)
+           - Aim for IH level vocabulary and expressions
+        
+        4. Format:
+        <div>
+            <p>
+            <strong>[Translated basic answer as a simple statement]</strong>
+            [Detailed explanation with natural flow...]
+            </p>
+            <p>
+            <strong>[Translated basic answer as a simple statement]</strong>
+            [Detailed explanation with natural flow...]
+            </p>
+            <p>
+            <strong>[Translated basic answer as a simple statement]</strong>
+            [Detailed explanation with natural flow...]
+            </p>
+        </div>
+
+        Remember: ANY non-English text in the output is considered a critical error.
         """
-        
+
         human_template = """
         Original problem: {problem_content}
         
-        Here are the user's Korean answers to questions about {topic_type}:
+        Here are the user's answers about {topic_type}:
         
-        {answer_details}
+        Basic Answers (translate to English and wrap in <strong> tags):
+        {basic_answer_details}
         
-        Create a natural, conversational English script at the OPIc IH level that directly addresses the original problem and incorporates the user's answers into a coherent response.
-        The script should be 7-9 sentences long (1-1.5 minutes when spoken).
+        Custom Answers (translate to English for detailed explanations):
+        {custom_answer_details}
+        
+        Requirements:
+        1. Translate ALL Korean text to natural English
+        2. Start each paragraph with a translated basic answer in <strong> tags
+        3. Use casual, conversational English throughout
+        4. Ensure NO Korean text appears in the output
+        5. Maintain natural flow between topics
         """
 
         # 답변 상세 정보 구성
-        answer_details = ""
-        for idx, item in enumerate(combined_info):
-            answer_details += f"Question {idx+1}: {item['question']}\nAnswer {idx+1}: {item['answer']}\n\n"
+        basic_answer_details = ""
+        custom_answer_details = ""
         
-        # 디버깅 로그
-        logger.info(f"Final prompt answer details: {answer_details}")
-        
-        # LangChain 최신 방식으로 사용 - RunnableSequence
+        for i in range(1, 4):
+            answer_key = f"answer{i}"
+            if i <= len(questions):
+                question = questions[i-1]
+                basic_answer = basic_answers.get(answer_key, "")
+                custom_answer = custom_answers.get(answer_key, "")
+                
+                if basic_answer:
+                    basic_answer_details += f"Question {i}: {question}\nBasic Answer: {basic_answer}\n\n"
+                if custom_answer:
+                    custom_answer_details += f"Question {i}: {question}\nCustom Answer: {custom_answer}\n\n"
+
+        # 프롬프트 템플릿 구성
         chat_prompt = ChatPromptTemplate.from_messages([
             SystemMessagePromptTemplate.from_template(system_template),
             HumanMessagePromptTemplate.from_template(human_template)
         ])
-        
-        # 파이프라인 사용
+
+        # Chain execution
         chain = chat_prompt | llm
         
-        # ainvoke 메서드 사용
         response = await chain.ainvoke({
             "topic_type": question_type_data["type"],
             "problem_content": problem_content,
-            "answer_details": answer_details
+            "basic_answer_details": basic_answer_details,
+            "custom_answer_details": custom_answer_details
         })
-        
+
         # LLM 응답에서 콘텐츠 추출
         if hasattr(response, 'content'):
             script = response.content.strip()
@@ -552,7 +595,7 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
             script = str(response).strip()
             
         if not script:
-            script = "Script generation failed: Empty response from LLM."
+            script = '<div class="opic-script"><p class="error">Script generation failed: Empty response from LLM.</p></div>'
     
         # 로그에 성공 메시지 및 스크립트 일부 기록
         logger.info(f"OPIc 스크립트 생성 성공 (처음 100자): {script[:100]}...")
@@ -562,6 +605,6 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
     except Exception as e:
         error_msg = f"OPIc 스크립트 생성 중 오류 발생: {str(e)}"
         logger.error(f"{error_msg}\n{traceback.format_exc()}")
-        return f"Script generation failed: {str(e)}"
+        return f'<div class="opic-script"><p class="error">Script generation failed: {str(e)}</p></div>'
 
 
