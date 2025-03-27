@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+from typing import List, Optional, Any
 from pydantic import field_validator, Field
 from pydantic_settings import BaseSettings
 
@@ -8,37 +8,37 @@ class Settings(BaseSettings):
     PROJECT_DESCRIPTION: str = "단기 오픽 성적 취득 서비스"
     PROJECT_VERSION: str = "0.1.0"
     
+    # 환경 설정
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    IS_DEVELOPMENT: bool = ENVIRONMENT == "development"
+    
     # SECURITY
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "default_secret_key_for_dev")  # 액세스 토큰용 시크릿 키
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "default_secret_key_for_dev")  # 액세스 토큰용 시크릿 키
     REFRESH_TOKEN_SECRET_KEY: str = os.getenv("REFRESH_TOKEN_SECRET_KEY", "default_refresh_key_for_dev")  # 리프레시 토큰용 시크릿 키
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15  # 액세스 토큰 만료 시간(분) - 짧게 설정
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7     # 리프레시 토큰 만료 시간(일)
     
     # COOKIE SETTINGS
-    COOKIE_SECURE: bool = False  # 프로덕션 환경에서는 True로 설정
+    COOKIE_SECURE: bool = not IS_DEVELOPMENT  # 개발환경에서는 False, 운영환경에서는 True
     COOKIE_HTTPONLY: bool = True
     COOKIE_SAMESITE: str = "lax"  # 프로덕션 환경에서는 "strict"로 고려
+    COOKIE_DOMAIN_DEV: str = os.getenv("COOKIE_DOMAIN_DEV", "localhost")
+    COOKIE_DOMAIN_PROD: str = os.getenv("COOKIE_DOMAIN_PROD", "omypic.store")
     
     # DATABASE
     MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
     MONGODB_DB_NAME: str = os.getenv("MONGODB_DB_NAME", "omypic_db")
     
     # CORS
-    CORS_ORIGINS: List[str] = []
-    
-    @field_validator("CORS_ORIGINS", mode="before")
-    def assemble_cors_origins(cls, v):
-        if isinstance(v, str):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, list):
-            return v
-        return []
-    
-    # 카카오 OAuth 설정
-    KAKAO_CLIENT_ID: str = os.getenv("KAKAO_CLIENT_ID", "YOUR_KAKAO_CLIENT_ID")
-    KAKAO_CLIENT_SECRET: str = os.getenv("KAKAO_CLIENT_SECRET", "YOUR_KAKAO_CLIENT_SECRET")
-    KAKAO_REDIRECT_URI: str = os.getenv("KAKAO_REDIRECT_URI", "http://localhost:8000/api/auth/kakao/callback")
+    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:5173")
+
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+    # OAuth 설정
+    NAVER_CLIENT_ID: str = os.getenv("NAVER_CLIENT_ID", "NAVER_CLIENT_ID")
+    NAVER_CLIENT_SECRET: str = os.getenv("NAVER_CLIENT_SECRET", "NAVER_CLIENT_SECRET")
+    NAVER_REDIRECT_URI: str = os.getenv("NAVER_REDIRECT_URI", "http://localhost:8000/api/auth/naver/callback")
     
     # Google OAuth 설정 (추후 구현을 위한 설정)
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "YOUR_GOOGLE_CLIENT_ID")
@@ -48,11 +48,26 @@ class Settings(BaseSettings):
     # AWS S3 설정
     AWS_ACCESS_KEY_ID: str = Field(..., env="AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY: str = Field(..., env="AWS_SECRET_ACCESS_KEY")
-    AWS_REGION: str = Field(default="ap-northeast-2", env="AWS_REGION")  # 기본값: 서울 리전
+    AWS_REGION: str = Field(..., env="AWS_REGION")
     AWS_S3_BUCKET_NAME: str = Field(..., env="AWS_S3_BUCKET_NAME")
 
-    # 프론트엔드 URL
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:5173")
+    GEMINI_API_KEYS: str = os.getenv("GEMINI_API_KEYS")
+    GROQ_API_KEYS: str = os.getenv("GROQ_API_KEYS")
+    
+    def cors_origins(self) -> List[str]:
+        return [i.strip() for i in self.CORS_ORIGINS.split(",") if i.strip()]
+    
+    def gemini_api_keys(self) -> List[str]:
+        return [i.strip() for i in self.GEMINI_API_KEYS.split(",") if i.strip()]
+    
+    def groq_api_keys(self) -> List[str]:
+        return [i.strip() for i in self.GROQ_API_KEYS.split(",") if i.strip()]
+
+    @property
+    def cookie_domain(self) -> Optional[str]:
+        """현재 환경에 맞는 쿠키 도메인을 반환합니다."""
+        return None if self.IS_DEVELOPMENT else self.COOKIE_DOMAIN_PROD
     
     class Config:
         env_file = ".env"
