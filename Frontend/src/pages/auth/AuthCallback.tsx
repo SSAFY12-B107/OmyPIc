@@ -9,11 +9,13 @@ function AuthCallback() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // 요청이 이미 진행 중인지 추적하는 ref
   const isCalledRef = useRef(false);
 
-  // 스피너 스타일 정의 - 컴포넌트 안에서 정의
+  // 스피너 스타일 정의
   const spinnerStyle = {
     width: '40px',
     height: '40px',
@@ -44,20 +46,28 @@ function AuthCallback() {
           // Redux 스토어에 사용자 정보 저장
           dispatch(setUser(data.user));
           
+          // 로딩 상태 업데이트
+          setIsLoading(false);
+          
           // 페이지 이동 전 지연
           if (!data.user.is_onboarded) {
-            // 온보딩이 필요한 경우
+            // 온보딩이 필요한 경우 프로필 페이지로 이동
             navigate('/auth/profile');
           } else {
-            // 온보딩이 완료된 경우 홈으로
+            // 온보딩이 완료된 경우 홈으로 이동
             navigate('/');
           }
         } else {
-          setTimeout(() => navigate('/'), 500);
+          // 사용자 데이터가 없는 경우
+          setIsLoading(false);
+          setError('사용자 정보를 찾을 수 없습니다');
+          setTimeout(() => navigate('/auth/login'), 1000);
         }
       } catch (storageError) {
         console.error('스토리지 저장 오류:', storageError);
-        setTimeout(() => navigate('/'), 1000);
+        setIsLoading(false);
+        setError('사용자 정보 저장 중 오류가 발생했습니다');
+        setTimeout(() => navigate('/auth/login'), 1000);
       }
     },
     onError: (error: any) => {
@@ -126,8 +136,20 @@ function AuthCallback() {
         `}
       </style>
       
-      {/* 항상 스피너만 표시 */}
-      <div style={spinnerStyle}></div>
+      <div className="text-center">
+        {/* 스피너 표시 */}
+        {isLoading && <div style={spinnerStyle}></div>}
+        
+        {/* 로딩 메시지 */}
+        {isLoading && <p className="mt-4 text-gray-600">로그인 처리 중...</p>}
+        
+        {/* 에러가 있을 경우 표시 */}
+        {error && (
+          <p className="mt-2 text-red-600">
+            {error}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

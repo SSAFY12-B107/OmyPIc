@@ -1,7 +1,7 @@
 // FeedBack.tsx
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import styles from "./Feedback.module.css";
+import styles from "./FeedBack.module.css";
 import DetailFeedBack from "@/components/test/DetailFeedback";
 import OveralFeedBack from "@/components/test/OveralFeedback";
 import {
