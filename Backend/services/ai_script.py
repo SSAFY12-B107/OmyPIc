@@ -308,7 +308,17 @@ async def generate_follow_up_questions(problem_pk: str, answers: Dict[str, str])
             원래 질문: {original_question}
             사용자 답변: {answer}
             
-            위 답변에 대한 적절한 후속 질문을 생성해주세요.
+            Here are the user's answers about {question_type_data["type"]}:
+            
+            Basic Answers (make bold):
+            {answer}
+            
+            Create a short, casual conversation that:
+            1. Sounds like natural speaking
+            2. Uses basic answers in <strong> tags
+            3. Keeps it simple and friendly
+            4. Stays within 7-9 sentences total
+            5. Addresses the main points naturally
             """
             
             chat_prompt = ChatPromptTemplate.from_messages([
@@ -318,7 +328,11 @@ async def generate_follow_up_questions(problem_pk: str, answers: Dict[str, str])
             
             # 꼬리질문 생성 - 최신 LangChain 방식 사용
             chain = chat_prompt | llm
-            follow_up = await chain.ainvoke({})
+            follow_up = await chain.ainvoke({
+                "topic_type": question_type_data["type"],
+                "problem_content": original_question,
+                "answer": answer
+            })
             
             # 결과 정리 (불필요한 따옴표나 공백 제거)
             if hasattr(follow_up, 'content'):
@@ -487,64 +501,108 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
         system_template = f"""
         You are an expert in generating natural, conversational English scripts for OPIc tests at the IH (Intermediate High) level.
         
-        Topic type: {question_type_data["type"]}
         Problem title: {problem_title}
-        Guidance: {type_specific_guidance.get(question_type_data["type"], "Create a natural, conversational response that demonstrates paragraph-level discourse.")}
+        Guidance: {type_specific_guidance.get(question_type_data["type"], "Create a casual, friendly response as if chatting with a friend.")}
         
         Follow these requirements exactly:
-        1. Generate a 1-1.5 minute spoken script (7-9 sentences total).
-        2. Use diverse and natural conversation starters and discourse markers. Choose from:
-           - Thoughtful starts: "Let me think...", "Hmm...", "Oh, that's interesting..."
-           - Personal engagement: "Actually...", "To be honest...", "I'd say..."
-           - Natural reactions: "Oh!", "Ah!", "You see..."
-           - Casual transitions: "Well...", "You know...", "I mean..."
-        3. Include a mix of simple and complex sentences.
-        4. Use appropriate transitions between ideas.
-        5. Include personal opinions, feelings, or reflections.
-        6. Maintain coherent paragraph-level discourse.
-        7. Avoid overly formal language - this should sound natural when spoken.
-        8. Include 2-3 natural hesitations or self-corrections throughout the response (like "um", "uh", "I mean", "what I'm trying to say is", etc.).
-        9. Make sure to fully incorporate the user's actual answers into the script.
-        10. Create a script that directly addresses the original problem and questions.
+        1. Keep it MEDIUM LENGTH - aim for 8-9 sentences total (1.5-2 minutes when spoken)
+        2. Use very casual, natural speaking style:
+           - Use lots of contractions (I'm, don't, it's, that's)
+           - Add conversation fillers (like, you know, I mean)
+           - Include thinking sounds (um, uh, hmm)
+           - Use everyday vocabulary and expressions
+        3. Make it sound spontaneous and unscripted
+        4. Structure the response with:
+           - First paragraph: 3-4 sentences
+           - Second paragraph: 2-3 sentences
+           - Final paragraph: 3-4 sentences
         
-        Important: Vary your conversation starters and fillers throughout the script. Don't overuse any single expression.
+        HTML Output Format Requirements:
+        1. Use simple <div> and <p> tags
+        2. Wrap basic answers in <strong> tags
+        3. Add line breaks after each sentence using "\n"
+        4. Example structure:
+        <div>
+            <p>
+            <strong>You know what? I really love both rock and classical music.</strong>\n
+            It's kind of funny how different they are, right?\n
+            Like, rock music gives me this intense energy that just pumps me up.\n
+            And when I hear those electric guitars, it just makes me want to move, you know?\n
+            </p>
+
+            <p>
+            <strong>Um, when I listen to rock music, it just gets me so pumped up!</strong>\n
+            And it's not just about the energy, it's also about the raw emotion in the vocals.\n
+            I mean, you can really feel what the singer is going through.\n
+            </p>
+
+            <p>
+            <strong>I guess what I'm trying to say is, music is just amazing.</strong>\n
+            It really changes your whole mood and everything.\n
+            Like, sometimes when I'm feeling down, I just put on my favorite song and it instantly makes me feel better.\n
+            </p>
+        </div>
+
+        Important: 
+        - Aim for 8-9 sentences total
+        - Use natural speaking patterns
+        - Make it sound like a real conversation
+        - Add line breaks after each sentence
+        - Maintain flow between topics
+        - Include more details and examples in each paragraph
         """
-        
+
         human_template = """
         Original problem: {problem_content}
         
-        Here are the user's Korean answers to questions about {topic_type}:
+        Here are the user's answers about {topic_type}:
         
-        {answer_details}
+        Basic Answers (make bold):
+        {basic_answer_details}
         
-        Create a natural, conversational English script at the OPIc IH level that directly addresses the original problem and incorporates the user's answers into a coherent response.
-        The script should be 7-9 sentences long (1-1.5 minutes when spoken).
+        Custom Answers (regular text):
+        {custom_answer_details}
+        
+        Create a short, casual conversation that:
+        1. Sounds like natural speaking
+        2. Uses basic answers in <strong> tags
+        3. Keeps it simple and friendly
+        4. Stays within 7-9 sentences total
+        5. Addresses the main points naturally
         """
 
         # 답변 상세 정보 구성
-        answer_details = ""
-        for idx, item in enumerate(combined_info):
-            answer_details += f"Question {idx+1}: {item['question']}\nAnswer {idx+1}: {item['answer']}\n\n"
+        basic_answer_details = ""
+        custom_answer_details = ""
         
-        # 디버깅 로그
-        logger.info(f"Final prompt answer details: {answer_details}")
-        
-        # LangChain 최신 방식으로 사용 - RunnableSequence
+        for i in range(1, 4):
+            answer_key = f"answer{i}"
+            if i <= len(questions):
+                question = questions[i-1]
+                basic_answer = basic_answers.get(answer_key, "")
+                custom_answer = custom_answers.get(answer_key, "")
+                
+                if basic_answer:
+                    basic_answer_details += f"Question {i}: {question}\nBasic Answer: {basic_answer}\n\n"
+                if custom_answer:
+                    custom_answer_details += f"Question {i}: {question}\nCustom Answer: {custom_answer}\n\n"
+
+        # 프롬프트 템플릿 구성
         chat_prompt = ChatPromptTemplate.from_messages([
             SystemMessagePromptTemplate.from_template(system_template),
             HumanMessagePromptTemplate.from_template(human_template)
         ])
-        
-        # 파이프라인 사용
+
+        # Chain execution
         chain = chat_prompt | llm
         
-        # ainvoke 메서드 사용
         response = await chain.ainvoke({
             "topic_type": question_type_data["type"],
             "problem_content": problem_content,
-            "answer_details": answer_details
+            "basic_answer_details": basic_answer_details,
+            "custom_answer_details": custom_answer_details
         })
-        
+
         # LLM 응답에서 콘텐츠 추출
         if hasattr(response, 'content'):
             script = response.content.strip()
@@ -552,7 +610,7 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
             script = str(response).strip()
             
         if not script:
-            script = "Script generation failed: Empty response from LLM."
+            script = '<div class="opic-script"><p class="error">Script generation failed: Empty response from LLM.</p></div>'
     
         # 로그에 성공 메시지 및 스크립트 일부 기록
         logger.info(f"OPIc 스크립트 생성 성공 (처음 100자): {script[:100]}...")
@@ -562,6 +620,6 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
     except Exception as e:
         error_msg = f"OPIc 스크립트 생성 중 오류 발생: {str(e)}"
         logger.error(f"{error_msg}\n{traceback.format_exc()}")
-        return f"Script generation failed: {str(e)}"
+        return f'<div class="opic-script"><p class="error">Script generation failed: {str(e)}</p></div>'
 
 
