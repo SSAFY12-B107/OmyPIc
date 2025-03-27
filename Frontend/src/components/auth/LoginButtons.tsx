@@ -17,7 +17,7 @@ function LoginButtons() {
     };
 
     // HTTP로 요청
-    fetch("http://omypic.store/api/auth/google/login", requestOptions)
+    fetch("https://omypic.store/api/auth/google/login", requestOptions)
       .then((response) => {
         if (!response.ok) {
           throw new Error(`Status: ${response.status}`);
@@ -40,7 +40,7 @@ function LoginButtons() {
       .catch((error) => {
         console.error("구글 로그인 초기화 오류:", error);
         // 오류 발생 시 직접 리다이렉트 시도 (백업 방법)
-        window.location.href = "http://omypic.store/api/auth/google/login";
+        window.location.href = "https://omypic.store/api/auth/google/login";
       });
   };
 
