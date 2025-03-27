@@ -56,13 +56,13 @@ async def get_test_history(
         test_counts = {
             "test_count": {
                 "used": limits.get("test_count", 0),
-                "limit": 3,
-                "remaining": max(0, 3 - limits.get("test_count", 0))
+                "limit": 2,
+                "remaining": max(0, 2 - limits.get("test_count", 0))
             },
             "random_problem": {
                 "used": limits.get("random_problem", 0),
-                "limit": 5,
-                "remaining": max(0, 5 - limits.get("random_problem", 0))
+                "limit": 3,
+                "remaining": max(0, 3 - limits.get("random_problem", 0))
             },
             # script_count 추가 (요청된 경우)
             "script_count": {
@@ -197,12 +197,12 @@ async def make_test(
     if test_type == 0 or test_type == 1:  # 7문제 또는 15문제 테스트 (통합 카운트)
         test_count = limits.get("test_count", 0)
         logger.info(f"현재 test_count: {test_count}")
-        if test_count >= 3:
+        if test_count >= 2:
             # 로깅 추가
-            logger.warning(f"사용자 {user_id}의 test_count({test_count})가 제한(3)을 초과했습니다")
+            logger.warning(f"사용자 {user_id}의 test_count({test_count})가 제한(2)을 초과했습니다")
             return JSONResponse(
                 status_code=403,
-                content={"detail": "7문제와 15문제 테스트는 합산하여 최대 3회까지만 생성 가능합니다"}
+                content={"detail": "속성 모의고사와 실전 모의고사는 합산하여 최대 2회까지만 생성 가능합니다"}
             )
         
         # 무조건 limits 필드 사용
@@ -210,12 +210,12 @@ async def make_test(
     else:  # 랜덤 1문제
         random_problem_count = limits.get("random_problem", 0)
         logger.info(f"현재 random_problem_count: {random_problem_count}")
-        if random_problem_count >= 5:
+        if random_problem_count >= 3:
             # 로깅 추가
-            logger.warning(f"사용자 {user_id}의 random_problem_count({random_problem_count})가 제한(5)을 초과했습니다")
+            logger.warning(f"사용자 {user_id}의 random_problem_count({random_problem_count})가 제한(3)을 초과했습니다")
             return JSONResponse(
                 status_code=403,
-                content={"detail": "랜덤 1문제는 최대 5회까지만 생성 가능합니다"}
+                content={"detail": "맛보기 한 문제는 최대 3회까지만 생성 가능합니다"}
             )
         
         # 무조건 limits 필드 사용
