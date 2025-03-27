@@ -197,7 +197,7 @@ function ScriptWrite() {
                 <img src={opigi} alt="opigi-img" />
                 <p>오피기</p>
               </div>
-              <div className={styles.chat}>{questions[currentStep - 1]}</div>
+              <div className={styles.chat} dangerouslySetInnerHTML={{ __html: questions[currentStep - 1] }} />
             </div>
             <div className={`${styles.myBox} ${styles.chatTxtBox}`}>
               <textarea

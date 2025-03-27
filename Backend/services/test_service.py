@@ -370,7 +370,7 @@ async def process_audio_background(
             "user_id": str(test["user_id"]),
             "problem_id": problem_id,
             "content": transcribed_text,
-            "is_script": True,
+            "is_script": False,
             "created_at": test_created_at
         }
         

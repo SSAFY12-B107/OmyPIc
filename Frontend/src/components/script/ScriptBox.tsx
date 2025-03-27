@@ -113,7 +113,7 @@ function ScriptBox({ userScript }: ScriptBoxProps) {
           // 스크립트 생성된 경우
           userScript.map((script) => (
             <div key={`script-${script._id}`} className={styles["content-item"]}>
-              <p>{script.content}</p>
+              <p dangerouslySetInnerHTML={{ __html: script.content }} />
               {/* 각 스크립트마다 발음 듣기 버튼 추가 */}
               <button 
                 className={styles["listen-btn"]} 

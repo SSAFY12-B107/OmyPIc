@@ -8,6 +8,7 @@ class User(BaseModel):
     name: str
     email: Optional[str] = None  # 이메일 필드
     auth_provider: str = "google"
+    profile_image: str = None
     current_opic_score: Optional[str] = None
     target_opic_score: Optional[str] = None
     target_exam_date: Optional[date] = None
@@ -28,8 +29,8 @@ class User(BaseModel):
     }),
     # 테스트 횟수 제한 필드 추가
     limits: dict = Field(default_factory=lambda: {
-        "test_count": 0,  # 7문제 + 15문제 테스트 합산 (최대 3회)
-        "random_problem": 0,  # 랜덤 1문제 (최대 5회)
+        "test_count": 0,  # 7문제 + 15문제 테스트 합산 (최대 2회)
+        "random_problem": 0,  # 랜덤 1문제 (최대 3회)
         "script_count": 0  # 스크립트 생성 (최대 5회)
     })
 

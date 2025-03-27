@@ -130,7 +130,7 @@ function ScriptModal({
           // 스크립트 생성 완료된 경우
           <>
             <div className={styles.scriptBox}>
-              <p>{scriptContent}</p>
+              <p dangerouslySetInnerHTML={{ __html: scriptContent }} />
             </div>
 
             <div className={styles.additionalQ}>
