@@ -51,8 +51,7 @@ function AuthCallback() {
           },
           credentials: 'include', // 쿠키 포함
           body: JSON.stringify({ 
-            code,
-            redirect_uri: window.location.origin + '/auth/callback' // 리다이렉트 URI 추가
+            code
           })
         });
         
