@@ -133,27 +133,21 @@ function ScriptModal({
               <p dangerouslySetInnerHTML={{ __html: scriptContent }} />
             </div>
 
-            <div className={styles.additionalQ}>
-              <p>
-                AI와 추가로 대화해
-                <br />더 구체적인 답변을 받아보시겠어요?
-              </p>
-              <div className={styles.btnBox}>
-                <button 
-                  className={styles.yesBtn} 
-                  onClick={handleYesClick}
-                  disabled={isGeneratingCustom}
-                >
-                  네
-                </button>
-                <button 
-                  className={styles.noBtn} 
-                  onClick={handleNoClick}
-                  disabled={isGeneratingCustom}
-                >
-                  아니요
-                </button>
-              </div>
+            <div className={styles.btnBox}>
+              <button 
+                className={styles.purpleBtn} 
+                onClick={handleYesClick}
+                disabled={isGeneratingCustom}
+              >
+                추가 질문으로 스크립트 보완하기
+              </button>
+              <button 
+                className={styles.grayBtn} 
+                onClick={handleNoClick}
+                disabled={isGeneratingCustom}
+              >
+                현재 스크립트 사용하기
+              </button>
             </div>
           </>
         )}
