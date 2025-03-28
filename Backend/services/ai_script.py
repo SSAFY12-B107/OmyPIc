@@ -290,35 +290,30 @@ async def generate_follow_up_questions(problem_pk: str, answers: Dict[str, str])
                 
             original_question = question_type_data["questions"][i] if i < len(question_type_data["questions"]) else ""
             
-            # 프롬프트 템플릿 구성
+            # 프롬프트 템플릿 수정
             system_template = f"""
-            당신은 심층적인 대화를 이끌어내는 전문가입니다. 
-            사용자의 답변을 분석하고 더 깊은 통찰이나 상세한 정보를 이끌어낼 수 있는 후속 질문을 생성해주세요.
+            당신은 자연스러운 후속 질문을 생성하는 전문가입니다.
             
             질문 유형: {question_type_data["type"]}
             가이드라인: {type_specific_guidance.get(question_type_data["type"], "더 깊은 통찰이나 상세한 정보를 이끌어내는 질문을 제시하세요.")}
             
-            답변이 모호하거나 불충분한 경우, 구체적인 예시나 경험을 요청하는 질문을 생성하세요.
-            답변이 충분히 상세하다면, 그 의미나 영향에 대해 더 깊이 생각해볼 수 있는 질문을 생성하세요.
-            
-            한국어로 자연스럽고 대화적인 하나의 후속 질문만 생성하세요. 친근하고 간결하게 작성하세요.
+            다음 사항을 고려하여 질문을 생성하세요:
+            1. 답변이 모호하거나 불충분한 경우: 구체적인 예시나 경험을 요청하세요
+            2. 답변이 충분히 상세한 경우: 그 의미나 영향에 대해 더 깊이 생각해볼 수 있게 하세요
+            3. 질문은 반드시 한국어로 작성하세요
+            4. 자연스럽고 대화적인 어투를 사용하세요
+            5. 친근하고 간결하게 작성하세요
             """
             
             human_template = f"""
             원래 질문: {original_question}
             사용자 답변: {answer}
             
-            Here are the user's answers about {question_type_data["type"]}:
-            
-            Basic Answers (make bold):
-            {answer}
-            
-            Create a short, casual conversation that:
-            1. Sounds like natural speaking
-            2. Uses basic answers in <strong> tags
-            3. Keeps it simple and friendly
-            4. Stays within 7-9 sentences total
-            5. Addresses the main points naturally
+            다음 조건을 만족하는 하나의 후속 질문을 생성하세요:
+            1. 자연스러운 대화체로 작성
+            2. 친근하고 간단한 표현 사용
+            3. 더 깊은 생각이나 상세한 설명을 이끌어낼 수 있는 질문
+            4. 반드시 한국어로 작성
             """
             
             chat_prompt = ChatPromptTemplate.from_messages([
