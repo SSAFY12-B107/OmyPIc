@@ -238,7 +238,7 @@ function TestExam() {
       try {
         const mp3Recorder = new MicRecorder({
           bitRate: 64, // 매우 낮은 비트레이트 설정
-          // channels: 1, // 모노 채널 사용
+          channels: 1, // 모노 채널 사용
         } as any);
         await mp3Recorder.start();
         setRecorder(mp3Recorder);

@@ -62,7 +62,7 @@ export const useUserHistory = (options?: {
 }) => {
   const {
     enablePolling = false,
-    pollingInterval = 3000, // 1초 
+    pollingInterval = 10000, // 1초 
     recentTestId,
     onFeedbackReady
   } = options || {};
