@@ -270,6 +270,52 @@ async def exchange_token(
     # 로깅 추가
     print(f"Received code for exchange: {code}")
     
+    # 이미 사용된 코드인지 확인
+    used_code = await db.used_codes.find_one({"code": code})
+    if used_code:
+        # 요청 카운터 증가
+        await db.used_codes.update_one(
+            {"code": code},
+            {"$inc": {"request_count": 1}}
+        )
+        
+        # 업데이트 후 문서 다시 가져오기
+        updated_used_code = await db.used_codes.find_one({"code": code})
+        request_count = updated_used_code.get("request_count", 1)
+        
+        # 두 번째 요청인 경우에만 캐시된 응답 반환
+        if request_count == 2:
+            print(f"Second request for code: {code}, returning cached response")
+            if "response_data" in used_code:
+                response = JSONResponse(content=used_code["response_data"])
+                
+                # 리프레시 토큰이 저장되어 있다면 쿠키에 다시 설정
+                if "refresh_token" in used_code:
+                    cookie_params = {
+                        "key": "refresh_token",
+                        "value": used_code["refresh_token"],
+                        "httponly": settings.COOKIE_HTTPONLY, 
+                        "secure": settings.COOKIE_SECURE,
+                        "samesite": settings.COOKIE_SAMESITE,
+                        "max_age": settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+                        "path": "/"
+                    }
+                    
+                    if not settings.IS_DEVELOPMENT and settings.cookie_domain:
+                        cookie_params["domain"] = settings.cookie_domain
+                        
+                    response.set_cookie(**cookie_params)
+                    
+                return response
+        
+        # 세 번째 이후 요청은 에러 반환
+        print(f"Code already used {request_count} times: {code}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="이 코드는 이미 사용되었습니다"
+        )
+    
+    # 기존 코드: 임시 코드 검색, 유효성 검사 등
     # 중요: UTC 시간 사용으로 통일
     current_time = datetime.now(timezone.utc)
     
@@ -295,9 +341,6 @@ async def exchange_token(
     
     print(f"Valid code found with expiry: {temp_code_doc['expires_at']}")
     
-    # 코드 사용 후 삭제 (일회용)
-    await db.temp_codes.delete_one({"code": code})
-    
     # user 객체에서 datetime 필드를 문자열로 변환
     user_data = temp_code_doc["user"]
     
@@ -312,14 +355,15 @@ async def exchange_token(
                     if isinstance(sub_value, datetime):
                         value[sub_key] = sub_value.isoformat()
     
+    # 응답 데이터 준비
+    response_data = {
+        "access_token": temp_code_doc["access_token"],
+        "token_type": "bearer",
+        "user": user_data
+    }
+    
     # 응답 생성
-    response = JSONResponse(
-        content={
-            "access_token": temp_code_doc["access_token"],
-            "token_type": "bearer",
-            "user": user_data
-        }
-    )
+    response = JSONResponse(content=response_data)
     
     # 리프레시 토큰을 쿠키에 설정
     cookie_params = {
@@ -337,6 +381,24 @@ async def exchange_token(
         cookie_params["domain"] = settings.cookie_domain
 
     response.set_cookie(**cookie_params)
+    
+    # 코드 사용 후 삭제 (일회용)
+    await db.temp_codes.delete_one({"code": code})
+    
+    # 사용된 코드 기록 (요청 카운터를 포함하여)
+    await db.used_codes.insert_one({
+        "code": code,
+        "used_at": current_time,
+        "response_data": response_data,
+        "refresh_token": temp_code_doc["refresh_token"],
+        "request_count": 1  # 첫 번째 요청
+    })
+    
+    # used_codes 컬렉션에 TTL 인덱스 생성 (필요시 한 번만 실행)
+    try:
+        await db.used_codes.create_index("used_at", expireAfterSeconds=60*60*24) # 24시간 후 자동 삭제
+    except Exception as e:
+        print(f"인덱스 생성 중 오류 (이미 존재할 수 있음): {e}")
     
     return response
 

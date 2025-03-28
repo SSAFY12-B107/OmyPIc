@@ -5,6 +5,14 @@ import styles from "./ScriptDetail.module.css";
 import { useGetProblemDetail } from "@/hooks/useProblems";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 
+// TestNote 인터페이스 정의
+interface TestNote {
+  _id: string;
+  content: string;
+  created_at: string;
+  is_script: boolean;
+}
+
 type Props = {};
 
 function ScriptDetail({}: Props) {
@@ -13,6 +21,8 @@ function ScriptDetail({}: Props) {
     category: string;
     problemId: string;
   }>();
+
+  
 
   const navigate = useNavigate();
 
@@ -100,9 +110,9 @@ function ScriptDetail({}: Props) {
         {/* content */}
         <div className={styles.noteList}>
           {problemDetail?.test_notes?.length > 0 ? (
-            problemDetail?.test_notes?.map((note: string, noteIdx: number) => (
+            problemDetail?.test_notes?.map((note: TestNote, noteIdx: number) => (
               <div key={noteIdx} className={styles.noteItem}>
-                <p>{note}</p>
+                <p dangerouslySetInnerHTML={{ __html: note.content }} />
               </div>
             ))
           ) : (
