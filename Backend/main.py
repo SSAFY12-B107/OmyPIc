@@ -11,10 +11,12 @@ from api import auth, users
 from core.config import settings
 from db.mongodb import connect_to_mongo, close_mongo_connection
 
+# 요청 본문 크기 제한 설정
+from starlette.middleware.base import BaseHTTPMiddleware
+
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 
 @asynccontextmanager
@@ -57,6 +59,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+
+class MaxBodySizeMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        request._body_size_limit = 15 * 1024 * 1024  # 15MB
+        response = await call_next(request)
+        return response
+
+app.add_middleware(MaxBodySizeMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins(),
@@ -65,7 +76,6 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Error-Type"]  # 커스텀 헤더 노출 설정 추가
 )
-
 
 # 요청 시간 로깅
 @app.middleware("http")
