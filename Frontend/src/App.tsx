@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import "./App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HeaderProvider } from "./contexts/HeaderContext";
+import ReactGA from "react-ga4";
 import {
   PrivateRoute,
   PublicRoute,
@@ -20,14 +22,67 @@ import ScriptList from "./pages/script/ScriptList";
 import ScriptDetail from "./pages/script/ScriptDetail";
 import ScriptWrite from "./pages/script/ScriptWrite";
 import AuthCallback from "./pages/auth/AuthCallback";
-
+import RouteTracker from "./components/common/RouteTracker";
+import { useAnalytics } from "./hooks/useAnalytics";
 
 function App() {
+  const { initGA } = useAnalytics();
+
+  useEffect(() => {
+    // GA 초기화
+    initGA();
+
+    // 브라우저 종료/탭 닫기 추적
+    const win = window as any;
+    const doc = document as any;
+    
+    const handleBeforeUnload = () => {
+      const currentPath = win.location.pathname;
+      ReactGA.event({
+        category: 'Exit',
+        action: 'Browser Close',
+        label: currentPath
+      });
+    };
+
+    // 탭 비활성화 추적
+    const handleVisibilityChange = () => {
+      const currentPath = win.location.pathname;
+      
+      if (doc.visibilityState === 'hidden') {
+        ReactGA.event({
+          category: 'Exit',
+          action: 'Tab Hidden',
+          label: currentPath
+        });
+      } else if (doc.visibilityState === 'visible') {
+        ReactGA.event({
+          category: 'Engagement',
+          action: 'Tab Visible',
+          label: currentPath
+        });
+      }
+    };
+
+    // 이벤트 리스너 등록
+    win.addEventListener('beforeunload', handleBeforeUnload);
+    doc.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // 컴포넌트 언마운트 시 이벤트 리스너 제거
+    return () => {
+      win.removeEventListener('beforeunload', handleBeforeUnload);
+      doc.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [initGA]);
+
   return (
     <BrowserRouter>
       <HeaderProvider>
         {/* 헤더는 한 번만 선언하고, 모든 설정은 Context를 통해 관리됨 */}
         <Header />
+        
+        {/* GA 페이지 추적 컴포넌트 */}
+        <RouteTracker />
         
         <Routes>
            {/* 로그인, 온보딩 완료된 사용자만 접근 가능 */}
