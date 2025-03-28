@@ -173,7 +173,10 @@ function OveralFeedback({ testFeedback }: OveralFeedbackProps) {
           </div>
           <span className={styles.feedbackTitle}>종합 피드백</span>
         </div>
-        <p className={styles.feedbackContent}>{testFeedback.total_feedback}</p>
+        <p
+          className={styles.feedbackContent}
+          dangerouslySetInnerHTML={{ __html: testFeedback.total_feedback }}
+        />
 
         {/* <div className={styles.chartContainer}>
           <h3 className={styles.chartTitle}>영역별 평가</h3>

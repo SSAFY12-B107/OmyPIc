@@ -1,9 +1,9 @@
 .container {
-  min-height: 80rem;
-  background-color: #f9f9f9;
-  padding: 2rem;
+  width: 36rem;
+  /* min-height: 80rem; */
+  background-color: #F9F9F9;
+  padding: 1.6rem;
 }
-
 .header {
   height: 7rem;
   background-color: white;
@@ -172,7 +172,8 @@
 
 .feedbackText {
   color: #565656;
-  font-size: 1.4rem;
-  line-height: 1.5;
+  font-size: 1.5rem;
+  letter-spacing: 0px;
+
 
 }

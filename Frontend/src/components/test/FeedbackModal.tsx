@@ -11,7 +11,7 @@ interface FeedbackModalProps {
       spoken_amount: string;
       vocabulary: string;
     };
-    score : string;
+    score: string;
   } | null;
   isLoading: boolean;
 }
@@ -37,7 +37,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
   const paragraph = data?.feedback?.paragraph;
   const spokenAmount = data?.feedback?.spoken_amount;
   const vocabulary = data?.feedback?.vocabulary;
-  const score = data?.score
+  const score = data?.score;
 
   const navigate = useNavigate();
 
@@ -113,13 +113,17 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
                     </div>
                   </div>
                 </div>
-                <p className={styles.feedbackText}>
-                  {clickType === 0
-                    ? paragraph
-                    : clickType === 1
-                    ? vocabulary
-                    : spokenAmount}
-                </p>
+                <p
+                  className={styles.feedbackText}
+                  dangerouslySetInnerHTML={{
+                    __html:
+                      clickType === 0
+                        ? paragraph ?? "" // undefined면 빈 문자열 사용
+                        : clickType === 1
+                        ? vocabulary ?? ""
+                        : spokenAmount ?? "",
+                  }}
+                />
               </div>
             </div>
           </div>
