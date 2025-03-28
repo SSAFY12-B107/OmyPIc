@@ -14,7 +14,10 @@ pipeline {
 
         GIT_AUTHOR_ID = "${env.gitlabUserName}"
 
-        GIT_AUTHOR_EMAIL = "${env.gitlabUserEmail}"
+        GIT_AUTHOR_EMAIL = "${env.gitlabUserEmail ?: 'Not set'}"
+        
+        // 환경 변수 추가
+        VITE_API_URL = "https://omypic.store"
     }
 
     stages {
@@ -44,7 +47,7 @@ pipeline {
                     when { changeset "Backend/**" }
                     steps {
                         script {
-                            buildAndPushImage("${BACKEND_IMAGE}", "./Backend")
+                            buildAndPushImage("${BACKEND_IMAGE}", "./Backend", false)
                         }
                     }
                 }
@@ -53,7 +56,7 @@ pipeline {
                     when { changeset "Frontend/**" }
                     steps {
                         script {
-                            buildAndPushImage("${FRONTEND_IMAGE}", "./Frontend")
+                            buildAndPushImage("${FRONTEND_IMAGE}", "./Frontend", true)
                         }
                     }
                 }
@@ -91,12 +94,22 @@ pipeline {
     }
 }
 
-def buildAndPushImage(String imageName, String context) {
+def buildAndPushImage(String imageName, String context, boolean isFrontend) {
     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
-        sh """
-            docker build -t ${imageName}:${GIT_COMMIT_SHORT} -t ${imageName}:latest ${context}
-            docker push ${imageName}:${GIT_COMMIT_SHORT}
-            docker push ${imageName}:latest
-        """
+        if (isFrontend) {
+            // 프론트엔드 빌드 시 환경 변수 전달
+            sh """
+                docker build --build-arg VITE_API_URL=${VITE_API_URL} -t ${imageName}:${GIT_COMMIT_SHORT} -t ${imageName}:latest ${context}
+                docker push ${imageName}:${GIT_COMMIT_SHORT}
+                docker push ${imageName}:latest
+            """
+        } else {
+            // 백엔드는 기존 방식 유지
+            sh """
+                docker build -t ${imageName}:${GIT_COMMIT_SHORT} -t ${imageName}:latest ${context}
+                docker push ${imageName}:${GIT_COMMIT_SHORT}
+                docker push ${imageName}:latest
+            """
+        }
     }
 }

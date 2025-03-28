@@ -6,7 +6,7 @@ function LoginButtons() {
   // Google 로그인으로 GET 요청을 보내는 함수
   const handleGoogleLogin = useCallback(() => {
     // 브라우저 리다이렉트 사용 (axios가 아님)
-    window.location.href = "https://omypic.store/api/auth/google/login";
+    window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google/login`;
   }, []);
 
   return (

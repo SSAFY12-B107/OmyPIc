@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig} from 'axios';
 
 // 기본 설정
-const BASE_URL = 'https://omypic.store/api';
+const BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
 
 // 로그인 페이지로 리다이렉트하는 함수 타입
 type NavigateFunction = () => void;
