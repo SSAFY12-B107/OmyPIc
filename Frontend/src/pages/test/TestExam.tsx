@@ -11,8 +11,7 @@ import apiClient from "@/api/apiClient";
 import FeedbackModal from "@/components/test/FeedbackModal";
 
 function TestExam() {
-
-  console.log('이동완료(?)')
+  console.log("이동완료(?)");
   // 컴포넌트 최상단에 문제 mp3 캐시 객체 선언
   const audioCache = useRef<Record<string, HTMLAudioElement>>({}).current;
 
@@ -237,7 +236,10 @@ function TestExam() {
       }
     } else {
       try {
-        const mp3Recorder = new MicRecorder();
+        const mp3Recorder = new MicRecorder({
+          bitRate: 64, // 매우 낮은 비트레이트 설정
+          channels: 1, // 모노 채널 사용
+        } as any);
         await mp3Recorder.start();
         setRecorder(mp3Recorder);
         setIsRecording(true);

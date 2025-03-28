@@ -1,9 +1,9 @@
 .container {
-  min-height: 80rem;
-  background-color: #f9f9f9;
-  padding: 2rem;
+  /* width: 36rem; */
+  /* min-height: 80rem; */
+  background-color: #F9F9F9;
+  padding: 1.6rem;
 }
-
 .header {
   height: 7rem;
   background-color: white;
@@ -109,6 +109,7 @@
   padding: 1.6rem;
   box-shadow: 0.1rem 0.1rem 0.6rem rgba(0, 0, 0, 0.07);
   margin-bottom: 1.6rem;
+
 }
 
 .sectionTitle {
@@ -121,6 +122,8 @@
   color: #565656;
   margin: 1.4rem 0rem;
   font-size: 1.4rem;
+  letter-spacing: 0px;
+
 }
 
 .answerText {
@@ -128,6 +131,8 @@
   /* margin: 1.4rem 1.6rem; */
   font-size: 1.4rem;
   padding: 1.5rem 1rem;
+  letter-spacing: 0px;
+
 }
 
 .answerBox {
@@ -172,7 +177,8 @@
 
 .feedbackText {
   color: #565656;
-  font-size: 1.4rem;
-  line-height: 1.5;
+  font-size: 1.5rem;
+  letter-spacing: 0px;
+
 
 }
