@@ -492,44 +492,47 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
             "롤플레잉": "Take on the suggested role naturally. Use appropriate vocabulary and expressions for the situation."
         }
         
-        # 프롬프트 템플릿 수정
+        # 스크립트 생성을 위한 프롬프트 템플릿 수정
         system_template = f"""
         You are an expert in generating natural, conversational English scripts for OPIc tests at the IH (Intermediate High) level.
         
         CRITICAL REQUIREMENTS:
-        1. LANGUAGE: 
+        1. LENGTH CONSTRAINTS:
+           - Generate EXACTLY 3 paragraphs
+           - Each paragraph MUST have 2-3 sentences maximum
+           - Total output MUST NOT exceed 9 sentences
+        
+        2. LANGUAGE: 
            - Output MUST be 100% in English
            - NO Korean or other languages allowed
            - Translate any Korean input into natural English
         
-        2. Structure:
+        3. Structure:
            - Each paragraph MUST start with a basic answer in <strong> tags
-           - Follow with detailed explanations in regular text
-           - Exactly 3 paragraphs total
-        
-        3. Style:
-           - Use casual, natural English
-           - Include conversation fillers (like, you know, um)
+           - Follow with ONLY 1-2 supporting sentences
+           - Use conversation fillers (like, you know, well)
            - Use contractions (I'm, don't, it's)
-           - Aim for IH level vocabulary and expressions
         
         4. Format:
         <div>
             <p>
             <strong>[Translated basic answer as a simple statement]</strong>
-            [Detailed explanation with natural flow...]
+            [1-2 supporting sentences only]
             </p>
             <p>
             <strong>[Translated basic answer as a simple statement]</strong>
-            [Detailed explanation with natural flow...]
+            [1-2 supporting sentences only]
             </p>
             <p>
             <strong>[Translated basic answer as a simple statement]</strong>
-            [Detailed explanation with natural flow...]
+            [1-2 supporting sentences only]
             </p>
         </div>
 
-        Remember: ANY non-English text in the output is considered a critical error.
+        Remember: 
+        - ANY non-English text is a critical error
+        - Keep responses concise and focused
+        - Never exceed the sentence limits
         """
 
         human_template = """
@@ -547,8 +550,9 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
         1. Translate ALL Korean text to natural English
         2. Start each paragraph with a translated basic answer in <strong> tags
         3. Use casual, conversational English throughout
-        4. Ensure NO Korean text appears in the output
-        5. Maintain natural flow between topics
+        4. Keep each paragraph SHORT (2-3 sentences maximum)
+        5. Total response must not exceed 9 sentences
+        6. Focus on the most important points only
         """
 
         # 답변 상세 정보 구성
