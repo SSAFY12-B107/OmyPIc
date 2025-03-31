@@ -8,7 +8,7 @@ import {
   PublicRoute,
   OnboardingRoute,
 } from "./routes/ProtectedRoutes";
-import OpenExternalBrowser from "./components/common/OpenExternalBrowser";
+import AndroidKakaoTalkRedirect from "./components/common/AndroidKakaoTalkRedirect";
 
 import Header from "./components/common/Header";
 import Home from "./pages/home/Home";
@@ -78,7 +78,7 @@ function App() {
 
   return (
     <BrowserRouter>
-      <OpenExternalBrowser>
+      <AndroidKakaoTalkRedirect>
         <HeaderProvider>
           {/* 헤더는 한 번만 선언하고, 모든 설정은 Context를 통해 관리됨 */}
           <Header />
@@ -125,7 +125,7 @@ function App() {
             <Route path="*" element={<div>페이지를 찾을 수 없습니다.</div>} />
           </Routes>
         </HeaderProvider>
-      </OpenExternalBrowser>
+      </AndroidKakaoTalkRedirect>
     </BrowserRouter>
   );
 }
