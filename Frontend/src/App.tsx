@@ -8,6 +8,7 @@ import {
   PublicRoute,
   OnboardingRoute,
 } from "./routes/ProtectedRoutes";
+import OpenExternalBrowser from "./components/common/OpenExternalBrowser";
 
 import Header from "./components/common/Header";
 import Home from "./pages/home/Home";
@@ -35,58 +36,59 @@ function App() {
     // 브라우저 종료/탭 닫기 추적
     const win = window as any;
     const doc = document as any;
-    
+
     const handleBeforeUnload = () => {
       const currentPath = win.location.pathname;
       ReactGA.event({
-        category: 'Exit',
-        action: 'Browser Close',
-        label: currentPath
+        category: "Exit",
+        action: "Browser Close",
+        label: currentPath,
       });
     };
 
     // 탭 비활성화 추적
     const handleVisibilityChange = () => {
       const currentPath = win.location.pathname;
-      
-      if (doc.visibilityState === 'hidden') {
+
+      if (doc.visibilityState === "hidden") {
         ReactGA.event({
-          category: 'Exit',
-          action: 'Tab Hidden',
-          label: currentPath
+          category: "Exit",
+          action: "Tab Hidden",
+          label: currentPath,
         });
-      } else if (doc.visibilityState === 'visible') {
+      } else if (doc.visibilityState === "visible") {
         ReactGA.event({
-          category: 'Engagement',
-          action: 'Tab Visible',
-          label: currentPath
+          category: "Engagement",
+          action: "Tab Visible",
+          label: currentPath,
         });
       }
     };
 
     // 이벤트 리스너 등록
-    win.addEventListener('beforeunload', handleBeforeUnload);
-    doc.addEventListener('visibilitychange', handleVisibilityChange);
+    win.addEventListener("beforeunload", handleBeforeUnload);
+    doc.addEventListener("visibilitychange", handleVisibilityChange);
 
     // 컴포넌트 언마운트 시 이벤트 리스너 제거
     return () => {
-      win.removeEventListener('beforeunload', handleBeforeUnload);
-      doc.removeEventListener('visibilitychange', handleVisibilityChange);
+      win.removeEventListener("beforeunload", handleBeforeUnload);
+      doc.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [initGA]);
 
   return (
     <BrowserRouter>
-      <HeaderProvider>
-        {/* 헤더는 한 번만 선언하고, 모든 설정은 Context를 통해 관리됨 */}
-        <Header />
-        
-        {/* GA 페이지 추적 컴포넌트 */}
-        <RouteTracker />
-        
-        <Routes>
-           {/* 로그인, 온보딩 완료된 사용자만 접근 가능 */}
-           <Route element={<PrivateRoute />}>
+      <OpenExternalBrowser>
+        <HeaderProvider>
+          {/* 헤더는 한 번만 선언하고, 모든 설정은 Context를 통해 관리됨 */}
+          <Header />
+
+          {/* GA 페이지 추적 컴포넌트 */}
+          <RouteTracker />
+
+          <Routes>
+            {/* 로그인, 온보딩 완료된 사용자만 접근 가능 */}
+            <Route element={<PrivateRoute />}>
               <Route path="/" element={<Home />} />
 
               {/* Test 관련 라우트 */}
@@ -97,8 +99,14 @@ function App() {
               {/* Script 관련 라우트 */}
               <Route path="/scripts" element={<ScriptMain />} />
               <Route path="/scripts/:category" element={<ScriptList />} />
-              <Route path="/scripts/:category/:problemId" element={<ScriptDetail />} />
-              <Route path="/scripts/:category/:problemId/write" element={<ScriptWrite />} />
+              <Route
+                path="/scripts/:category/:problemId"
+                element={<ScriptDetail />}
+              />
+              <Route
+                path="/scripts/:category/:problemId/write"
+                element={<ScriptWrite />}
+              />
             </Route>
 
             {/* 로그인되지 않은 사용자만 접근 가능 */}
@@ -113,10 +121,11 @@ function App() {
               <Route path="/auth/survey" element={<Survey />} />
             </Route>
 
-          {/* 404 페이지 */}
-          <Route path="*" element={<div>페이지를 찾을 수 없습니다.</div>} />
-        </Routes>
-      </HeaderProvider>
+            {/* 404 페이지 */}
+            <Route path="*" element={<div>페이지를 찾을 수 없습니다.</div>} />
+          </Routes>
+        </HeaderProvider>
+      </OpenExternalBrowser>
     </BrowserRouter>
   );
 }
