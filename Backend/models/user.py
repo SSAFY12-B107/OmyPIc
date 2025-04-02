@@ -29,8 +29,9 @@ class User(BaseModel):
     }),
     # 테스트 횟수 제한 필드 추가
     limits: dict = Field(default_factory=lambda: {
-        "test_count": 0,  # 7문제 + 15문제 테스트 합산 (최대 2회)
-        "random_problem": 0,  # 랜덤 1문제 (최대 3회)
+        "full_test_limit": 0,  # 실전 모의고사(15문제) (최대 1회)
+        "categorical_test_limit": 0,  # 유형별 문제 (최대 2회)
+        "random_problem": 0, # 랜덤 1문제(최대 3회)
         "script_count": 0  # 스크립트 생성 (최대 5회)
     })
 
@@ -58,9 +59,10 @@ class User(BaseModel):
             # limits 필드가 없는 경우 기본값 추가
             if "limits" not in mongo_doc:
                 mongo_doc["limits"] = {
-                    "test_count": 0,
+                    "full_test_limit": 0, 
+                    "categorical_test_limit": 0, 
                     "random_problem": 0,
-                    "script_count": 0
+                    "script_count": 0 
                 }
             # 기존 limits에 script_count가 없는 경우 추가
             elif "script_count" not in mongo_doc["limits"]:
