@@ -31,6 +31,7 @@ class TestCountInfo(BaseModel):
 class TestCounts(BaseModel):
     """모든 테스트 생성 횟수 정보"""
     test_count: TestCountInfo
+    categorical_test_count: TestCountInfo
     random_problem: TestCountInfo
     script_count: Optional[TestCountInfo] = None
 
