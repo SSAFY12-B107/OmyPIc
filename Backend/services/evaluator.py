@@ -405,18 +405,55 @@ class ResponseEvaluator:
                 }
             }
     
-    def _get_problem_type(self, problem_number: int, test_type: bool) -> str:
+    def _get_problem_type(self, problem_number: int, test: Dict[str, Any]) -> str:
         """
-        문제 번호와 테스트 유형에 따라 문제 유형 결정
+        문제 번호와 테스트 정보에 따라 문제 유형 결정
         
         Args:
             problem_number: 문제 번호 (1부터 시작)
-            test_type: 테스트 유형(True: Full, False: Half)
+            test: 테스트 정보 딕셔너리
             
         Returns:
             문제 유형 문자열
         """
-        if test_type:  # Full 테스트
+        # 새 필드를 우선 확인
+        test_type_str = test.get("test_type_str")
+        if test_type_str:
+            if test_type_str == "single":
+                return "single"
+            elif test_type_str == "category":
+                # 유형별 테스트의 경우 문제 카테고리를 확인
+                problem_data = test.get("problem_data", {})
+                if str(problem_number) in problem_data:
+                    problem_category = problem_data[str(problem_number)].get("problem_category", "").lower()
+                    if "롤플레이" in problem_category or "roleplay" in problem_category:
+                        return "roleplaying"
+                    else:
+                        return "comboset"  # 기본값
+                return "comboset"  # 정보가 없으면 기본값
+            else:  # "full_test"
+                if problem_number == 1:
+                    return "self_introduction"
+                elif 2 <= problem_number <= 10:
+                    return "comboset"
+                elif 11 <= problem_number <= 13:
+                    return "roleplaying"
+                else:  # 14~15
+                    return "unexpected"
+        
+        # 기존 bool 필드로 폴백
+        test_type = test.get("test_type", False)
+        
+        if test_type:  # True는 Half 테스트
+            if len(test.get("problem_data", {})) == 1:
+                return "single"  # 문제가 1개면 single
+            elif 1 <= problem_number <= 3:
+                return "comboset"
+            elif 4 <= problem_number <= 5:
+                return "roleplaying"
+            else:  # 6~7
+                return "unexpected"
+        else:  # False는 Full 테스트
             if problem_number == 1:
                 return "self_introduction"
             elif 2 <= problem_number <= 10:
@@ -424,13 +461,6 @@ class ResponseEvaluator:
             elif 11 <= problem_number <= 13:
                 return "roleplaying"
             else:  # 14~15
-                return "unexpected"
-        else:  # Half 테스트
-            if 1 <= problem_number <= 3:
-                return "comboset"
-            elif 4 <= problem_number <= 5:
-                return "roleplaying"
-            else:  # 6~7
                 return "unexpected"
     
 
@@ -515,3 +545,7 @@ class ResponseEvaluator:
                 logger.warning(f"피드백 항목 '{field}'가 없거나 유효하지 않습니다.")
         
         return result
+    
+
+
+

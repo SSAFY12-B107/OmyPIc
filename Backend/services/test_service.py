@@ -1,18 +1,18 @@
-import asyncio
-import uuid
 import logging
 import traceback
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, Union
 from datetime import datetime
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase as Database
 from bson import ObjectId
-import random
 
-from models.test import TestModel, ProblemDetail
+from models.test import TestModel, TestTypeEnum
 from services.audio_processor import AudioProcessor, FastAudioProcessor
 from services.evaluator import ResponseEvaluator
-from services.test_generator import generate_short_test, generate_full_test
+from services.test_generator import get_random_single_problem, generate_full_test, generate_comboset_test, generate_roleplay_test, generate_unexpected_test
+
+from core.config import settings
+from schemas.test import RandomProblemEvaluationResponse
 
 # 로깅 설정
 logger = logging.getLogger(__name__)
@@ -77,19 +77,22 @@ async def create_test(
     db: Database, 
     test_type: int, 
     user_id: str
-) -> str:
+) -> Union[str, Dict]:
     """
     테스트 생성 서비스 함수
-    - test_type 0: 7문제 (콤보셋 3, 롤플레잉 2, 돌발 2)
     - test_type 1: 15문제 (자기소개 1, 콤보셋 9, 롤플레잉 3, 돌발 2)
+    - test_type 2: 랜덤 1문제
+    - test_type 3: 콤보셋 3문제
+    - test_type 4: 롤플레잉 3문제
+    - test_type 5: 돌발 3문제
     
     Args:
         db: MongoDB 데이터베이스
-        test_type: 테스트 유형 (0: Half, 1: Full)
+        test_type: 테스트 유형
         user_id: 사용자 ID
         
     Returns:
-        str: 생성된 테스트 ID (MongoDB ObjectId 문자열)
+        Union[str, Dict]: 생성된 테스트 ID (MongoDB ObjectId 문자열) 또는 랜덤 문제 정보(test_type이 2인 경우)
     """
     try:
         logger.info(f"테스트 생성 시작 - 유형: {test_type}, 사용자: {user_id}")
@@ -106,22 +109,39 @@ async def create_test(
         user_topics = user.get("background_survey", {}).get("info", [])
         logger.info(f"사용자 관심 주제: {user_topics}")
         
-        # 테스트 모델 생성
+        # test_type이 2인 경우 랜덤 단일 문제 반환 (DB에 저장하지 않음)
+        if test_type == 2:
+            return await get_random_single_problem(db, user_id)
+        
+        # test_type을 열거형으로 변환
+        test_type_enum = get_test_type_enum(test_type)
+
+        # 기존 bool 값 계산
+        is_half_test = test_type != 1  # 1번만 전체 테스트, 나머지는 half로 처리
+
+        # 그 외의 경우 테스트 모델 생성 및 DB에 저장
         test_data = TestModel(
-            test_type=bool(test_type),  # 0 -> False, 1 -> True
+            test_type=is_half_test,  # 기존 bool 필드 설정
+            test_type_str=test_type_enum,  # 새 열거형 필드 설정
             problem_data={},
             user_id=str(user_object_id),
             test_date=datetime.now()
         )
         
         # 테스트 타입에 따라 문제 생성
-        if test_type == 0:
-            # 7문제 테스트 생성
-            await generate_short_test(db, test_data, user_topics)
-        else:  # test_type == 1
+        if test_type == 1:
             # 15문제 테스트 생성
             await generate_full_test(db, test_data, user_topics)
-        
+        elif test_type == 3:
+            # 콤보셋 3문제 테스트 생성
+            await generate_comboset_test(db, test_data, user_topics)
+        elif test_type == 4:
+            # 롤플레잉 3문제 테스트 생성
+            await generate_roleplay_test(db, test_data, user_topics)
+        elif test_type == 5:
+            # 돌발 3문제 테스트 생성
+            await generate_unexpected_test(db, test_data, user_topics)
+
         # Test 모델을 MongoDB에 저장하기 위해 변환
         data_to_insert = test_data.model_dump(by_alias=True)
         
@@ -140,82 +160,22 @@ async def create_test(
         logger.error(f"테스트 생성 중 오류: {str(e)}", exc_info=True)
         raise
 
-
-async def get_random_single_problem(
-    db: Database, 
-    user_id: str
-) -> Dict:
+def get_test_type_enum(test_type: int) -> TestTypeEnum:
     """
-    랜덤으로 하나의 문제만 선택하여 반환합니다.
-    이 함수는 테스트를 데이터베이스에 저장하지 않습니다.
+    정수형 test_type을 TestTypeEnum으로 변환
     
     Args:
-        db: MongoDB 데이터베이스
-        user_id: 사용자 ID
+        test_type: 테스트 유형 정수 (1-5)
         
     Returns:
-        Dict: 랜덤 선택된 문제 정보
+        TestTypeEnum: 열거형 테스트 유형
     """
-    logger.info(f"랜덤 단일 문제 선택 - 사용자: {user_id}")
-    
-    # 사용자 정보 가져오기
-    user_object_id = ObjectId(user_id)
-    user = await db.users.find_one({"_id": user_object_id})
-    
-    if not user:
-        logger.error(f"사용자 ID {user_id}에 해당하는 사용자를 찾을 수 없습니다.")
-        raise ValueError(f"사용자 ID {user_id}에 해당하는 사용자를 찾을 수 없습니다.")
-    
-    # 사용자의 배경 정보 가져오기
-    user_topics = user.get("background_survey", {}).get("info", [])
-    logger.info(f"사용자 관심 주제: {user_topics}")
-    
-    # 사용자 관심 주제가 있으면 해당 주제에서 우선 선택
-    pipeline = []
-    if user_topics:
-        pipeline.append({
-            "$match": {
-                "topic_category": {"$in": user_topics}
-            }
-        })
-    
-    # 랜덤으로 하나의 문제 선택
-    pipeline.extend([
-        {"$sample": {"size": 1}}
-    ])
-    
-    # 집계 쿼리 실행
-    problems = await db.problems.aggregate(pipeline).to_list(length=1)
-    
-    # 문제가 없으면 모든 문제에서 랜덤으로 하나 선택
-    if not problems:
-        logger.info("관심 주제에 맞는 문제가 없어 전체 문제에서 랜덤 선택합니다")
-        problems = await db.problems.aggregate([
-            {"$sample": {"size": 1}}
-        ]).to_list(length=1)
-    
-    # 선택된 문제가 있으면 반환
-    if problems:
-        problem = problems[0]
-        problem_id = str(problem["_id"])
-        
-        # 반환할 문제 데이터 구성
-        response_data = {
-            "problem_id": problem_id,
-            "problem_category": problem.get("problem_category", ""),
-            "topic_category": problem.get("topic_category", ""),
-            "content": problem.get("content", ""),
-            "audio_s3_url": problem.get("audio_s3_url", None),
-            "high_grade_kit": problem.get("high_grade_kit", False),
-            "user_id": user_id
-        }
-        
-        logger.info(f"랜덤 단일 문제 선택 완료: {problem_id}, 카테고리: {problem.get('problem_category', '')}")
-        return response_data
-    else:
-        logger.warning("선택할 수 있는 문제가 없습니다.")
-        raise ValueError("선택할 수 있는 문제가 없습니다.")
-    
+    if test_type == 1:
+        return TestTypeEnum.FULL_TEST
+    elif test_type == 2:
+        return TestTypeEnum.SINGLE_PROBLEM
+    else:  # 3, 4, 5 (유형별 테스트)
+        return TestTypeEnum.CATEGORICAL_TEST
 
 async def process_audio_and_evaluate(
     db: Database,
@@ -602,3 +562,129 @@ async def evaluate_overall_test_background(db: Database, test_id: str):
             "timestamp": datetime.now(),
             "source": "evaluate_overall_test_background"
         })
+
+
+async def get_audio_content(test, audio_file):
+    if audio_file:
+        return await audio_file.read()
+    
+    audio_content = test.get("cached_audio_content")
+    if not audio_content:
+        raise HTTPException(
+            status_code=400,
+            detail="오디오 파일을 찾을 수 없습니다."
+        )
+    return audio_content
+
+# 각 검증 및 처리 함수들
+async def validate_user(current_user):
+    return str(current_user.id)
+
+async def validate_test(db, test_id):
+    test = await db.tests.find_one({"_id": ObjectId(test_id)})
+    if not test:
+        raise HTTPException(status_code=404, detail="해당 테스트를 찾을 수 없습니다.")
+    return test
+
+async def get_problem_id(db, test_id):
+    test = await db.tests.find_one({"_id": ObjectId(test_id)})
+    problem_id = test.get("problem_data", {}).get("1", {}).get("problem_id")
+    if not problem_id:
+        raise HTTPException(status_code=404, detail="테스트의 문제를 찾을 수 없습니다.")
+    return problem_id
+
+async def validate_problem(db, test_id):
+    test = await db.tests.find_one({"_id": ObjectId(test_id)})
+    problem_id = test.get("problem_data", {}).get("1", {}).get("problem_id")
+    problem = await db.problems.find_one({"_id": ObjectId(problem_id)})
+    if not problem:
+        raise HTTPException(status_code=404, detail="해당 문제를 찾을 수 없습니다.")
+    return problem
+
+async def validate_audio_file(audio_file):
+    audio_filename = audio_file.filename
+    file_extension = audio_filename.split(".")[-1].lower() if audio_filename else ""
+    if file_extension not in ["mp3", "wav", "webm", "m4a"]:
+        raise HTTPException(status_code=400, detail="지원되지 않는 파일 형식입니다.")
+    
+    # 파일 크기 제한
+    max_size = 10 * 1024 * 1024  # 10MB
+    audio_content = await audio_file.read()
+    if len(audio_content) > max_size:
+        raise HTTPException(status_code=400, detail=f"파일 크기가 너무 큽니다.")
+
+async def transcribe_audio(audio_content, user_id):
+    try:
+        if not audio_content:
+            raise ValueError("오디오 파일이 비어있습니다.")
+        
+        logger.info(f"음성 변환 시작 - 파일 크기: {len(audio_content)} 바이트")
+        
+        transcribed_text = fast_audio_processor.process_audio_fast(audio_content)
+        
+        logger.info(f"음성 변환 성공: {transcribed_text[:50]}...")
+        return transcribed_text
+    
+    except Exception as e:
+        logger.error(f"음성 변환 중 오류 발생: {str(e)}")
+        raise
+
+
+async def evaluate_response(transcribed_text, problem_category, topic_category, problem_content):
+    try:
+        # 평가 수행
+        evaluator_instance = ResponseEvaluator()
+        return await evaluator_instance.evaluate_response(
+            user_response=transcribed_text,
+            problem_category=problem_category,
+            topic_category=topic_category,
+            problem=problem_content
+        )
+    except Exception as e:
+        logger.error(f"응답 평가 중 오류 발생: {str(e)}")
+        raise
+
+async def save_script(db, user_id, problem_id, transcribed_text):
+    script_data = {
+        "user_id": user_id,
+        "problem_id": problem_id,
+        "content": transcribed_text,
+        "is_script": False,
+        "created_at": datetime.now()
+    }
+    await db.scripts.insert_one(script_data)
+
+async def update_test_document(db, test_id, transcribed_text, evaluation_result):
+    await db.tests.update_one(
+        {"_id": ObjectId(test_id)},
+        {"$set": {
+            "random_problem.score": evaluation_result.get("score", ""),
+            "random_problem.feedback": evaluation_result.get("feedback", {}),
+            "random_problem.user_response": transcribed_text,
+            "random_problem.processing_status": "completed",
+            "random_problem.processing_completed_at": datetime.now()
+        }}
+    )
+
+def create_evaluation_response(problem, user_id, transcribed_text, evaluation_result):
+    return RandomProblemEvaluationResponse(**{
+        "problem_id": str(problem["_id"]),
+        "user_id": user_id,
+        "problem_category": problem.get("problem_category", ""),
+        "topic_category": problem.get("topic_category", ""),
+        "problem_content": problem.get("content", ""),
+        "transcribed_text": transcribed_text,
+        "score": evaluation_result.get("score", ""),
+        "feedback": evaluation_result.get("feedback", {}),
+        "evaluated_at": datetime.now().isoformat()
+    })
+
+async def log_error(db, test_id, problem_id, error):
+    await db.errors.insert_one({
+        "test_id": test_id,
+        "problem_id": problem_id,
+        "error": str(error),
+        "traceback": traceback.format_exc(),
+        "timestamp": datetime.now(),
+        "source": "evaluate_random_problem"
+    })
