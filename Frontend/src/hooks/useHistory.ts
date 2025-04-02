@@ -14,7 +14,7 @@ export interface TestHistory {
   id: string;
   overall_feedback_status: string;
   test_date: string;
-  test_type: boolean;
+  test_type: number;
   test_score: Scores | null;
 }
 
@@ -38,7 +38,13 @@ export interface UserHistoryResponse {
       used: number;
       limit: number;
       remaining: number;
-    }
+    },
+    categorical_test_count: {
+      used: number;
+      limit: number;
+      remaining: number;
+    },
+
   }
 }
 // 사용자 히스토리 조회 함수
@@ -82,7 +88,7 @@ export const useUserHistory = (options?: {
     queryKey: ['userHistory'],
     queryFn: fetchUserHistory,
     refetchInterval: isPolling ? pollingInterval : false,
-    staleTime: isPolling ? 0 : 60 * 60 * 1000, // 1시간 동안 캐시 데이터 사용// 3초 후 다시 받아오겠다  
+    staleTime: 0, // 1시간 동안 캐시 데이터 사용// 3초 후 다시 받아오겠다  
   });
 
   // 데이터 변경 감지
