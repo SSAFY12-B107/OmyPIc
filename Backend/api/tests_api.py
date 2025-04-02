@@ -64,14 +64,19 @@ async def get_test_history(
         logger.info(f"사용자 limits 필드: {getattr(current_user, 'limits', None)}")
         
         # 사용자의 테스트 생성 횟수 정보 가져오기 (limits 필드 사용)
-        limits = getattr(current_user, 'limits', {"test_count": 0, "random_problem": 0, "script_count": 0})
+        limits = getattr(current_user, 'limits', {"test_count": 0, "categorical_test_count": 0, "random_problem": 0, "script_count": 0})
         
         # 남은 횟수 계산 (테스트와 랜덤 문제 모두 limits 필드에서 가져옴)
         test_counts = {
             "test_count": {
                 "used": limits.get("test_count", 0),
+                "limit": 1,
+                "remaining": max(0, 1 - limits.get("test_count", 0))
+            },
+            "categorical_test_count": {
+                "used": limits.get("categorical_test_count", 0),
                 "limit": 2,
-                "remaining": max(0, 2 - limits.get("test_count", 0))
+                "remaining": max(0, 2 - limits.get("categorical_test_count", 0))
             },
             "random_problem": {
                 "used": limits.get("random_problem", 0),

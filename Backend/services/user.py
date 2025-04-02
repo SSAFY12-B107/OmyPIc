@@ -45,9 +45,10 @@ async def create_user(
     
     # 테스트 제한 설정
     limits = {
-        "script_count": 0,
         "test_count": 0,        # 기본 테스트 횟수
-        "random_problem": 0     # 기본 랜덤 문제 수
+        "categorical_test_count": 0,
+        "random_problem": 0,
+        "script_count": 0
     }
     
     # 사용자 문서 생성

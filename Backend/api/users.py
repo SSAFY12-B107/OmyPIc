@@ -54,9 +54,10 @@ async def create_user(user_data: UserCreate = Body(...), db = Depends(get_mongod
         
         # 테스트 제한 설정
         limits = {
-            "script_count": 0,
             "test_count": 0,
-            "random_problem": 0
+            "categorical_test_count": 0,
+            "random_problem": 0,
+            "script_count": 0
         }
         
         # 날짜 데이터 처리 - MongoDB에 저장 가능한 형식으로 변환
