@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
     # MongoDB 연결 종료
     await close_mongo_connection()
     
-    print("Shutting down...")
+    print("앱 종료됨")
 
 async def setup_mongo_indexes():
     """필요한 MongoDB 인덱스를 설정합니다."""
