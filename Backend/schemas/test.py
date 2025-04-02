@@ -1,6 +1,7 @@
 from typing import List, Optional, Dict
 from pydantic import BaseModel, Field
 from datetime import datetime
+from models.test import TestTypeEnum
 
 
 # 테스트 히스토리 응답 모델
@@ -18,6 +19,7 @@ class TestHistoryItem(BaseModel):
     overall_feedback_status: Optional[str] = None
     test_date: datetime
     test_type: bool
+    test_type_str: Optional[TestTypeEnum] = None  # 새 필드 추가
     test_score: Optional[TestScoreInfo] = None
 
 class TestCountInfo(BaseModel):
@@ -80,6 +82,7 @@ class TestDetailResponse(BaseModel):
     id: str = Field(..., alias="_id")
     user_id: Optional[str] = None
     test_type: bool
+    test_type_str: Optional[TestTypeEnum] = None  # 새 필드 추가
     test_date: datetime
     test_score: Optional[ScoreDetailResponse] = None
     test_feedback: Optional[FeedbackDetailResponse] = None
@@ -123,6 +126,7 @@ class TestCreationResponse(BaseModel):
     id: str = Field(..., alias="_id")
     user_id: Optional[str] = None
     test_type: bool
+    test_type_str: Optional[TestTypeEnum] = None  # 새 필드 추가
     test_date: datetime
     problem_data: Dict[str, TestCreationProblemDetail] = {}
     
@@ -135,6 +139,7 @@ class TestCreationResponse(BaseModel):
 
 class SingleProblemResponse(BaseModel):
     """랜덤 단일 문제 응답 모델"""
+    test_id: str
     problem_id: str
     problem_category: str
     topic_category: str
@@ -146,6 +151,7 @@ class SingleProblemResponse(BaseModel):
     model_config = {
         "json_schema_extra": {
             "example": {
+                "test_id": "507f1f77bcf86cd799439033",
                 "problem_id": "507f1f77bcf86cd799439011",
                 "problem_category": "short_conversation",
                 "topic_category": "listening",

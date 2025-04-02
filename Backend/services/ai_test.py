@@ -242,18 +242,23 @@ class OverallEvaluationResponseParser(JsonOutputParser):
 
 
 # 각 문제 유형 분류 함수
-def get_problem_type(problem_number: int, test_type: bool) -> str:
+def get_problem_type(problem_number: int, test_type_str: str) -> str:
     """
     문제 번호와 테스트 유형에 따라 문제 유형(자기소개/콤보셋/롤플레잉/돌발)을 결정하는 함수
     
     Args:
         problem_number: 문제 번호 (1부터 시작)
-        test_type: 테스트 유형(True: Half, False: Full)
+        test_type_str: 테스트 유형 문자열
         
     Returns:
-        문제 유형 문자열: "self_introduction", "comboset", "roleplaying", "unexpected" 중 하나
+        문제 유형 문자열: "self_introduction", "comboset", "roleplaying", "unexpected", "single" 중 하나
     """
-    if test_type:  # Full 테스트 (test_type=1)
+    if test_type_str == "single":
+        return "single"
+    elif test_type_str == "category":
+        # 카테고리 테스트에서는 기본적으로 콤보셋으로 처리
+        return "comboset"
+    elif test_type_str == "full_test":
         if problem_number == 1:
             return "self_introduction"
         elif 2 <= problem_number <= 10:
@@ -262,13 +267,16 @@ def get_problem_type(problem_number: int, test_type: bool) -> str:
             return "roleplaying"
         else:  # 14~15
             return "unexpected"
-    else:  # Half 테스트 (test_type=0)
+    elif test_type_str == "half_test":
         if 1 <= problem_number <= 3:
             return "comboset"
         elif 4 <= problem_number <= 5:
             return "roleplaying"
         else:  # 6~7
             return "unexpected"
+        
+    # 알 수 없거나 지원되지 않는 테스트 유형의 경우 예외 발생
+    raise ValueError(f"지원되지 않는 테스트 유형입니다: {test_type_str}")
 
 
 # 개별 문제 응답 평가 함수
