@@ -502,34 +502,44 @@ async def generate_opic_script(problem_pk: str, answers: Dict[str, Any]) -> str:
            - NO Korean or other languages allowed
            - Translate any Korean input into natural English
         
-        2. Structure:
+        2. Content Relevance:
+           - MUST directly address the given question/topic
+           - Stay focused on the specific details mentioned in the problem
+           - Do not deviate from the original question's context
+           - Include specific examples and details from the user's answers
+        
+        3. Structure:
            - Each paragraph MUST start with a basic answer in <strong> tags
            - Follow with detailed explanations in regular text
            - Exactly 3 paragraphs total
+           - Each paragraph MUST be relevant to its corresponding question
         
-        3. Style:
+        4. Style:
            - Use casual, natural English
            - Include conversation fillers (like, you know, um)
            - Use contractions (I'm, don't, it's)
            - Aim for IH level vocabulary and expressions
         
-        4. Format:
+        5. Format:
         <div>
             <p>
-            <strong>[Translated basic answer as a simple statement]</strong>
-            [Detailed explanation with natural flow...]
+            <strong>[Direct answer to Question 1]</strong>
+            [Detailed explanation specifically addressing Question 1...]
             </p>
             <p>
-            <strong>[Translated basic answer as a simple statement]</strong>
-            [Detailed explanation with natural flow...]
+            <strong>[Direct answer to Question 2]</strong>
+            [Detailed explanation specifically addressing Question 2...]
             </p>
             <p>
-            <strong>[Translated basic answer as a simple statement]</strong>
-            [Detailed explanation with natural flow...]
+            <strong>[Direct answer to Question 3]</strong>
+            [Detailed explanation specifically addressing Question 3...]
             </p>
         </div>
 
-        Remember: ANY non-English text in the output is considered a critical error.
+        Remember: 
+        - ANY non-English text in the output is considered a critical error
+        - Each response MUST directly relate to its specific question
+        - Do not include generic or irrelevant information
         """
 
         human_template = """
