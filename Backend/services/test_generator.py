@@ -4,7 +4,8 @@ import logging
 from typing import Dict, List, Any, Set, Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase as Database
 from bson import ObjectId
-from models.test import TestModel, ProblemDetail
+from models.test import TestModel, ProblemDetail, TestTypeEnum
+from datetime import datetime
 
 # 로깅 설정
 logger = logging.getLogger(__name__)
@@ -15,14 +16,14 @@ async def get_random_single_problem(
 ) -> Dict:
     """
     랜덤으로 하나의 문제만 선택하여 반환합니다.
-    이 함수는 테스트를 데이터베이스에 저장하지 않습니다.
+    선택된 문제를 test 컬렉션에 저장합니다.
     
     Args:
         db: MongoDB 데이터베이스
         user_id: 사용자 ID
         
     Returns:
-        Dict: 랜덤 선택된 문제 정보
+        Dict: 랜덤 선택된 문제 정보 (SingleProblemResponse에 사용될 형식)
     """
     logger.info(f"랜덤 단일 문제 선택 - 사용자: {user_id}")
     
@@ -66,9 +67,37 @@ async def get_random_single_problem(
     if problems:
         problem = problems[0]
         problem_id = str(problem["_id"])
+
+        # 테스트 데이터 생성
+        test_data = TestModel(
+            test_type=True,  # 기존 필드: 단일 문제는 Half로 간주
+            test_type_str=TestTypeEnum.SINGLE_PROBLEM,  # 새 필드: 명시적으로 SINGLE_PROBLEM으로 설정
+            problem_data={
+                "1": create_problem_detail(problem)
+            },
+            user_id=user_id,
+            test_date=datetime.now()
+        )
+        
+        # Test 모델을 MongoDB에 저장하기 위해 변환
+        data_to_insert = test_data.model_dump(by_alias=True)
+
+        # _id 필드가 없거나 None일 경우 제거하여 MongoDB가 자동으로 생성하도록 함
+        if "_id" in data_to_insert and data_to_insert["_id"] is None:
+            del data_to_insert["_id"]
+        
+        # MongoDB에 테스트 저장
+        try:
+            result = await db.tests.insert_one(data_to_insert)
+            test_id = str(result.inserted_id)
+            logger.info(f"랜덤 단일 문제 테스트 저장 완료 - ID: {test_id}")
+        except Exception as e:
+            logger.error(f"테스트 저장 중 오류: {str(e)}")
+            # 저장 실패해도 문제는 반환
         
         # 반환할 문제 데이터 구성
         response_data = {
+            "test_id": str(result.inserted_id),  # 정확히 'test_id'로 키 지정
             "problem_id": problem_id,
             "problem_category": problem.get("problem_category", ""),
             "topic_category": problem.get("topic_category", ""),

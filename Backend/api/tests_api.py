@@ -1,7 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends, Path, status, Query, Response, UploadFile, File, BackgroundTasks, Body, Form
-from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
-import traceback
-from typing import Any, Dict, Union
+from fastapi import APIRouter, HTTPException, Depends, Path, status, Response, UploadFile, File, BackgroundTasks, Body, Form
+from fastapi.responses import JSONResponse, HTMLResponse
+from typing import Any, Dict, Union, Optional
 from bson import ObjectId, errors as bson_errors
 from motor.motor_asyncio import AsyncIOMotorDatabase as Database
 
@@ -12,7 +11,7 @@ from models.user import User
 
 import base64
 import os
-import io
+import asyncio
 from gtts import gTTS
 import logging
 
@@ -20,7 +19,22 @@ from schemas.test import TestHistoryResponse, TestDetailResponse, TestCreationRe
 from services.audio_processor import AudioProcessor, FastAudioProcessor
 
 from services.evaluator import ResponseEvaluator
-from services.test_service import create_test, process_audio_background, get_random_single_problem
+from services.test_service import (
+    create_test,
+    process_audio_background,
+    validate_user,
+    validate_test,
+    get_problem_id,
+    validate_problem,
+    get_audio_content,
+    transcribe_audio,
+    save_script,
+    evaluate_response,
+    update_test_document,
+    create_evaluation_response,
+    log_error
+)
+
 
 # 로깅 설정
 logger = logging.getLogger(__name__)
@@ -84,6 +98,7 @@ async def get_test_history(
                 "overall_feedback_status": test.get("overall_feedback_status", "미평가"),
                 "test_date": test["test_date"],
                 "test_type": test["test_type"],
+                "test_type_str": test["test_type_str"],
                 "test_score": test.get("test_score", None)
             })
 
@@ -619,127 +634,57 @@ async def record_answer(
 
 @router.post("/random-problem/evaluate", response_model=RandomProblemEvaluationResponse)
 async def evaluate_random_problem(
-    problem_id: str = Form(..., description="문제 ID"),
-    audio_file: UploadFile = File(..., description="녹음된.mp3 파일"),
+    test_id: str = Form(..., description="테스트 ID"),
+    audio_file: Optional[UploadFile] = File(None),
     current_user: User = Depends(get_current_user_for_multipart),
     db: Database = Depends(get_mongodb)
 ) -> RandomProblemEvaluationResponse:
-    """
-    랜덤 단일 문제 평가 API
-    
-    현재 로그인한 사용자의 녹음을 받아 해당 문제에 대한 즉시 피드백을 제공합니다.
-    이 API는 데이터베이스에 결과를 저장하지 않습니다.
-    """
     try:
-        # 현재 사용자 ID 사용
-        user_id = str(current_user.id)
+        # 사용자 및 테스트 정보 병렬 검증
+        user_id, test, problem_id, problem = await asyncio.gather(
+            asyncio.create_task(validate_user(current_user)),
+            asyncio.create_task(validate_test(db, test_id)),
+            asyncio.create_task(get_problem_id(db, test_id)),
+            asyncio.create_task(validate_problem(db, test_id))
+        )
         
-        # ObjectId 유효성 검사
-        if not ObjectId.is_valid(problem_id):
-            return JSONResponse(
-                status_code=400,
-                content={"detail": "유효하지 않은 문제 ID 형식입니다."}
-            )
+        # 오디오 콘텐츠 결정 (새 파일 또는 캐시된 파일)
+        audio_content = await get_audio_content(test, audio_file)
         
-        # 문제 존재 확인
-        problem = await db.problems.find_one({"_id": ObjectId(problem_id)})
-        if not problem:
-            return JSONResponse(
-                status_code=404,
-                content={"detail": "해당 문제를 찾을 수 없습니다."}
-            )
+        # 음성 변환 (순차적)
+        transcribed_text = await transcribe_audio(audio_content, user_id)
         
-        # 파일 내용 읽기
-        audio_content = await audio_file.read()
-        audio_filename = audio_file.filename
+        # 스크립트 저장 (순차적)
+        await save_script(db, user_id, problem_id, transcribed_text)
         
-        # 파일 유형 검사
-        file_extension = audio_filename.split(".")[-1].lower() if audio_filename else ""
-        if file_extension not in ["mp3", "wav", "webm", "m4a"]:
-            return JSONResponse(
-                status_code=400, 
-                content={"detail": "지원되지 않는 파일 형식입니다. MP3, WAV, WEBM, M4A 형식만 지원합니다."}
-            )
+        # 응답 평가 (순차적)
+        evaluation_result = await evaluate_response(
+            transcribed_text, 
+            problem.get("problem_category", ""),
+            problem.get("topic_category", ""),
+            problem.get("content", "")
+        )
         
-        # 파일 크기 제한 (10MB)
-        max_size = 10 * 1024 * 1024  # 10MB
-        if len(audio_content) > max_size:
-            return JSONResponse(
-                status_code=400, 
-                content={"detail": f"파일 크기가 너무 큽니다. 최대 10MB까지만 지원합니다. (현재 크기: {len(audio_content)/1024/1024:.2f}MB)"}
-            )
+        # 테스트 문서 업데이트
+        await update_test_document(
+            db, 
+            test_id, 
+            transcribed_text, 
+            evaluation_result
+        )
         
-        # 문제 정보 가져오기
-        problem_category = problem.get("problem_category", "")
-        topic_category = problem.get("topic_category", "")
-        problem_content = problem.get("content", "")
-        
-        # AudioProcessor를 사용하여 오디오 텍스트 변환
-        try:
-            start_time = datetime.now()
-            logger.info(f"사용자 {user_id}의 랜덤 문제 응답 변환 시작 (경량 모델)...")
-            
-            # 경량 모델과 최적화 설정 사용
-            transcribed_text = fast_audio_processor.process_audio_fast(audio_content)
-            
-            processing_time = (datetime.now() - start_time).total_seconds()
-            logger.info(f"경량 음성 변환 완료: {transcribed_text[:50]}... (소요 시간: {processing_time:.2f}초)")
-        except Exception as e:
-            logger.error(f"경량 음성 변환 중 오류: {str(e)}", exc_info=True)
-            return JSONResponse(
-                status_code=500,
-                content={"detail": "음성 변환 중 오류가 발생했습니다. 녹음을 다시 시도해 주세요."}
-            )
-        
-        # 스크립트는 저장하지 않음, 단 응답이 너무 짧으면 평가 생략
-        if len(transcribed_text.split()) < 5:
-            evaluation_result = {
-                "score": "NL",
-                "feedback": {
-                    "paragraph": "응답이 너무 짧아 평가할 수 없습니다. 최소 한 문장 이상의 응답이 필요합니다.",
-                    "vocabulary": "응답이 너무 짧아 어휘력을 평가할 수 없습니다.",
-                    "spoken_amount": "발화량이 매우 부족합니다. 질문에 대해 충분한 길이로 답변해야 합니다."
-                }
-            }
-        else:
-            # 매번 새로운 API 키로 평가기 생성
-            evaluator_instance = ResponseEvaluator()
-            
-            # LangChain 평가 모델 호출
-            evaluation_result = await evaluator_instance.evaluate_response(
-                user_response=transcribed_text,
-                problem_category=problem_category,
-                topic_category=topic_category,
-                problem=problem_content
-            )
-        
-        score = evaluation_result.get("score", "IM2")
-        feedback = evaluation_result.get("feedback", {})
-        
-        # 결과 응답 구성
-        response = {
-            "problem_id": problem_id,
-            "user_id": user_id,
-            "problem_category": problem_category,
-            "topic_category": topic_category,
-            "problem_content": problem_content,
-            "transcribed_text": transcribed_text,
-            "score": score,
-            "feedback": feedback,
-            "evaluated_at": datetime.now().isoformat()
-        }
-        
-        logger.info(f"랜덤 문제 평가 완료 - 사용자: {user_id}, 점수: {score}")
-        return RandomProblemEvaluationResponse(**response)
+        # 응답 구성
+        return create_evaluation_response(
+            problem, 
+            user_id, 
+            transcribed_text, 
+            evaluation_result
+        )
         
     except Exception as e:
-        logger.error(f"랜덤 문제 평가 중 오류 발생: {str(e)}", exc_info=True)
-        # 오류 로깅 (DB에 저장하지 않고 로그만 남김)
-        logger.error(traceback.format_exc())
-        return JSONResponse(
-            status_code=500,
-            content={"detail": f"오류가 발생했습니다: {str(e)}"}
-        )
+        await log_error(db, test_id, problem_id, e)
+        raise HTTPException(status_code=500, detail=f"오류가 발생했습니다: {str(e)}")
+
 
 
 # 모의고사 점수, 피드백 생성 비동기 처리를 위한 상태 확인 엔드포인트 - 개별 문제
