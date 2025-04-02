@@ -9,139 +9,81 @@ from models.test import TestModel, ProblemDetail
 # 로깅 설정
 logger = logging.getLogger(__name__)
 
-async def generate_short_test(db: Database, test_data: TestModel, user_topics: List[str]):
+async def get_random_single_problem(
+    db: Database,
+    user_id: str
+) -> Dict:
     """
-    7문제 테스트 생성 (콤보셋 3, 롤플레잉 2, 돌발 2)
+    랜덤으로 하나의 문제만 선택하여 반환합니다.
+    이 함수는 테스트를 데이터베이스에 저장하지 않습니다.
     
     Args:
         db: MongoDB 데이터베이스
-        test_data: 테스트 모델 인스턴스
-        user_topics: 사용자 관심 주제 목록
+        user_id: 사용자 ID
+        
+    Returns:
+        Dict: 랜덤 선택된 문제 정보
     """
-    problem_counter = 1
-    used_topics = set()
-    used_problem_ids = set()  # 문제 중복 방지를 위한 사용된 문제 ID 집합
+    logger.info(f"랜덤 단일 문제 선택 - 사용자: {user_id}")
     
-    logger.info(f"7문제 테스트 생성 시작 - 사용자 주제: {user_topics}")
+    # 사용자 정보 가져오기
+    user_object_id = ObjectId(user_id)
+    user = await db.users.find_one({"_id": user_object_id})
     
-    # 1. 콤보셋 3문제 생성
-    try:
-        # 콤보셋 시작 문제 선택 (묘사 카테고리에서)
-        first_combo_problem = await get_first_combo_problem(db, user_topics, used_topics, used_problem_ids)
-        
-        if first_combo_problem:
-            logger.info(f"콤보셋 첫 문제 선택: {first_combo_problem.get('_id')} - {first_combo_problem.get('problem_category')}")
-            
-            test_data.problem_data[str(problem_counter)] = create_problem_detail(first_combo_problem)
-            problem_counter += 1
-            used_topic = first_combo_problem.get("topic_category")
-            used_topics.add(used_topic)
-            used_problem_ids.add(str(first_combo_problem.get('_id')))
-            
-            # 콤보셋 나머지 2문제 (동일 topic_category에서 랜덤 선택)
-            combo_problems = await get_combo_problems(db, used_topic, 2, used_problem_ids)
-            logger.info(f"콤보셋 추가 문제 {len(combo_problems)}개 선택")
-            
-            for problem in combo_problems:
-                test_data.problem_data[str(problem_counter)] = create_problem_detail(problem)
-                problem_counter += 1
-                used_problem_ids.add(str(problem.get('_id')))
-        else:
-            logger.warning(f"콤보셋 첫 문제를 찾지 못함. 대체 문제 선택")
-            # 콤보셋을 찾지 못한 경우 - 랜덤한 비롤플레이 문제 3개를 사용
-            query = {
-                "problem_category": {"$nin": ["롤플레이"]},
-                "_id": {"$nin": [ObjectId(id) for id in used_problem_ids if ObjectId.is_valid(id)]}
+    if not user:
+        logger.error(f"사용자 ID {user_id}에 해당하는 사용자를 찾을 수 없습니다.")
+        raise ValueError(f"사용자 ID {user_id}에 해당하는 사용자를 찾을 수 없습니다.")
+    
+    # 사용자의 배경 정보 가져오기
+    user_topics = user.get("background_survey", {}).get("info", [])
+    logger.info(f"사용자 관심 주제: {user_topics}")
+    
+    # 사용자 관심 주제가 있으면 해당 주제에서 우선 선택
+    pipeline = []
+    if user_topics:
+        pipeline.append({
+            "$match": {
+                "topic_category": {"$in": user_topics}
             }
-            random_problems = await db.problems.find(query).limit(3).to_list(length=3)
-            
-            for problem in random_problems:
-                test_data.problem_data[str(problem_counter)] = create_problem_detail(problem)
-                problem_counter += 1
-                used_problem_ids.add(str(problem.get('_id')))
-                logger.info(f"대체 콤보셋 문제 추가: {problem.get('_id')} - {problem.get('problem_category')}")
+        })
     
-    except Exception as e:
-        logger.error(f"콤보셋 문제 생성 중 오류: {str(e)}", exc_info=True)
-        # 오류 발생 시 랜덤 문제로 대체
-        await add_random_problems(db, test_data, problem_counter, 3, used_problem_ids)
-        problem_counter += 3
+    # 랜덤으로 하나의 문제 선택
+    pipeline.extend([
+        {"$sample": {"size": 1}}
+    ])
     
-    logger.info(f"롤플레이 문제 생성 시작 - 현재 문제 카운터: {problem_counter}")
+    # 집계 쿼리 실행
+    problems = await db.problems.aggregate(pipeline).to_list(length=1)
     
-    # 2. 롤플레잉 문제 생성 - 정확히 2문제만
-    try:
-        roleplay_count = 1  # 첫 번째 그룹만 선택
-        roleplay_problems = await get_roleplay_problems(db, roleplay_count, used_problem_ids)
-        logger.info(f"롤플레이 문제 그룹: {len(roleplay_problems)}개 선택")
+    # 문제가 없으면 모든 문제에서 랜덤으로 하나 선택
+    if not problems:
+        logger.info("관심 주제에 맞는 문제가 없어 전체 문제에서 랜덤 선택합니다")
+        problems = await db.problems.aggregate([
+            {"$sample": {"size": 1}}
+        ]).to_list(length=1)
+    
+    # 선택된 문제가 있으면 반환
+    if problems:
+        problem = problems[0]
+        problem_id = str(problem["_id"])
         
-        if roleplay_problems:
-            for problem in roleplay_problems:
-                # 첫 번째 문제 추가
-                test_data.problem_data[str(problem_counter)] = create_problem_detail(problem)
-                problem_counter += 1
-                used_problem_ids.add(str(problem.get('_id')))
-                
-                # 그룹 ID가 있으면 두 번째 문제만 추가 (총 2문제)
-                if problem.get("problem_group_id"):
-                    group_id = problem.get("problem_group_id")
-                    query = {
-                        "problem_group_id": group_id,
-                        "problem_order": 2  # 정확히 두 번째 문제만
-                    }
-                    next_problem = await db.problems.find_one(query)
-                    
-                    if next_problem:
-                        test_data.problem_data[str(problem_counter)] = create_problem_detail(next_problem)
-                        problem_counter += 1
-                        used_problem_ids.add(str(next_problem.get('_id')))
-                        logger.info(f"롤플레이 연속 문제 추가: {next_problem.get('_id')}")
-                    else:
-                        logger.warning(f"롤플레이 두 번째 문제를 찾지 못함 (그룹 ID: {group_id})")
-                        # 대체 문제 추가
-                        await add_random_problems(db, test_data, problem_counter, 1, used_problem_ids)
-                        problem_counter += 1
-        else:
-            logger.warning("롤플레이 문제를 찾지 못함. 대체 문제 추가")
-            await add_random_problems(db, test_data, problem_counter, 2, used_problem_ids)
-            problem_counter += 2
-    
-    except Exception as e:
-        logger.error(f"롤플레이 문제 생성 중 오류: {str(e)}", exc_info=True)
-        # 오류 발생 시 랜덤 문제로 대체
-        await add_random_problems(db, test_data, problem_counter, 2, used_problem_ids)
-        problem_counter += 2
-    
-    logger.info(f"돌발 문제 생성 시작 - 현재 문제 카운터: {problem_counter}")
-    
-    # 3. 돌발 2문제 생성 (롤플레잉 카테고리 제외, 동일 topic_category)
-    try:
-        unexpected_problems = await get_unexpected_problems(db, user_topics, 2, used_problem_ids)
-        logger.info(f"돌발 문제 {len(unexpected_problems)}개 선택")
+        # 반환할 문제 데이터 구성
+        response_data = {
+            "problem_id": problem_id,
+            "problem_category": problem.get("problem_category", ""),
+            "topic_category": problem.get("topic_category", ""),
+            "content": problem.get("content", ""),
+            "audio_s3_url": problem.get("audio_s3_url", None),
+            "high_grade_kit": problem.get("high_grade_kit", False),
+            "user_id": user_id
+        }
         
-        if unexpected_problems:
-            for problem in unexpected_problems:
-                test_data.problem_data[str(problem_counter)] = create_problem_detail(problem)
-                problem_counter += 1
-                used_problem_ids.add(str(problem.get('_id')))
-                topic = problem.get("topic_category", "없음")
-                logger.info(f"돌발 문제 추가: {problem.get('_id')} - 주제: {topic}")
-        else:
-            logger.warning("돌발 문제를 찾지 못함. 대체 문제 추가")
-            await add_random_problems(db, test_data, problem_counter, 2, used_problem_ids)
-            problem_counter += 2
-    
-    except Exception as e:
-        logger.error(f"돌발 문제 생성 중 오류: {str(e)}", exc_info=True)
-        # 오류 발생 시 랜덤 문제로 대체
-        await add_random_problems(db, test_data, problem_counter, 2, used_problem_ids)
-        problem_counter += 2
-    
-    logger.info(f"테스트 생성 완료 - 총 문제 수: {len(test_data.problem_data)}, 고유 문제 수: {len(used_problem_ids)}")
-    
-    # 문제 번호 순서대로 로깅
-    for num, prob in sorted(test_data.problem_data.items(), key=lambda x: int(x[0])):
-        logger.info(f"문제 {num}: 카테고리 {prob.problem_category}, ID {prob.problem_id}")
+        logger.info(f"랜덤 단일 문제 선택 완료: {problem_id}, 카테고리: {problem.get('problem_category', '')}")
+        return response_data
+    else:
+        logger.warning("선택할 수 있는 문제가 없습니다.")
+        raise ValueError("선택할 수 있는 문제가 없습니다.")
+
 
 async def generate_full_test(db: Database, test_data: TestModel, user_topics: List[str]):
     """
@@ -301,6 +243,184 @@ async def generate_full_test(db: Database, test_data: TestModel, user_topics: Li
     logger.info(f"테스트 생성 완료 - 총 문제 수: {len(test_data.problem_data)}, 고유 문제 수: {len(used_problem_ids)}")
     
     # 결과 확인용
+    for num, prob in sorted(test_data.problem_data.items(), key=lambda x: int(x[0])):
+        logger.info(f"문제 {num}: 카테고리 {prob.problem_category}, ID {prob.problem_id}")
+
+async def generate_comboset_test(db: Database, test_data: TestModel, user_topics: List[str]):
+    """
+    콤보셋 3문제 테스트 생성
+    
+    Args:
+        db: MongoDB 데이터베이스
+        test_data: 테스트 모델 인스턴스
+        user_topics: 사용자 관심 주제 목록
+    """
+    problem_counter = 1
+    used_problem_ids = set()  # 문제 중복 방지를 위한 사용된 문제 ID 집합
+    
+    logger.info(f"콤보셋 3문제 테스트 생성 시작 - 사용자 주제: {user_topics}")
+    
+    # 콤보셋 시작 문제 선택 (묘사 카테고리에서)
+    try:
+        first_combo_problem = await get_first_combo_problem(db, user_topics, set(), used_problem_ids)
+        
+        if first_combo_problem:
+            logger.info(f"콤보셋 첫 문제 선택: {first_combo_problem.get('_id')} - {first_combo_problem.get('problem_category')}")
+            
+            test_data.problem_data[str(problem_counter)] = create_problem_detail(first_combo_problem)
+            problem_counter += 1
+            used_topic = first_combo_problem.get("topic_category")
+            used_problem_ids.add(str(first_combo_problem.get('_id')))
+            
+            # 콤보셋 나머지 2문제 (동일 topic_category에서 랜덤 선택)
+            combo_problems = await get_combo_problems(db, used_topic, 2, used_problem_ids)
+            logger.info(f"콤보셋 추가 문제 {len(combo_problems)}개 선택")
+            
+            for problem in combo_problems:
+                test_data.problem_data[str(problem_counter)] = create_problem_detail(problem)
+                problem_counter += 1
+                used_problem_ids.add(str(problem.get('_id')))
+        else:
+            logger.warning(f"콤보셋 첫 문제를 찾지 못함. 대체 문제 선택")
+            # 콤보셋을 찾지 못한 경우 - 랜덤한 비롤플레이 문제 3개를 사용
+            query = {
+                "problem_category": {"$nin": ["롤플레이"]},
+                "_id": {"$nin": [ObjectId(id) for id in used_problem_ids if ObjectId.is_valid(id)]}
+            }
+            random_problems = await db.problems.find(query).limit(3).to_list(length=3)
+            
+            for problem in random_problems:
+                test_data.problem_data[str(problem_counter)] = create_problem_detail(problem)
+                problem_counter += 1
+                used_problem_ids.add(str(problem.get('_id')))
+                logger.info(f"대체 콤보셋 문제 추가: {problem.get('_id')} - {problem.get('problem_category')}")
+    
+    except Exception as e:
+        logger.error(f"콤보셋 문제 생성 중 오류: {str(e)}", exc_info=True)
+        # 오류 발생 시 랜덤 문제로 대체
+        await add_random_problems(db, test_data, problem_counter, 3, used_problem_ids)
+    
+    logger.info(f"콤보셋 테스트 생성 완료 - 총 문제 수: {len(test_data.problem_data)}, 고유 문제 수: {len(used_problem_ids)}")
+    
+    # 문제 번호 순서대로 로깅
+    for num, prob in sorted(test_data.problem_data.items(), key=lambda x: int(x[0])):
+        logger.info(f"문제 {num}: 카테고리 {prob.problem_category}, ID {prob.problem_id}")
+
+async def generate_roleplay_test(db: Database, test_data: TestModel, user_topics: List[str]):
+    """
+    롤플레잉 3문제 테스트 생성
+    
+    Args:
+        db: MongoDB 데이터베이스
+        test_data: 테스트 모델 인스턴스
+        user_topics: 사용자 관심 주제 목록
+    """
+    problem_counter = 1
+    used_problem_ids = set()  # 문제 중복 방지를 위한 사용된 문제 ID 집합
+    
+    logger.info(f"롤플레잉 테스트 생성 시작 - 사용자 주제: {user_topics}")
+    
+    try:
+        roleplay_count = 1  # 첫 번째 그룹만 선택
+        roleplay_problems = await get_roleplay_problems(db, roleplay_count, used_problem_ids)
+        logger.info(f"롤플레이 문제 그룹: {len(roleplay_problems)}개 선택")
+        
+        if roleplay_problems:
+            for problem in roleplay_problems:
+                # 첫 번째 문제 추가
+                test_data.problem_data[str(problem_counter)] = create_problem_detail(problem)
+                problem_counter += 1
+                used_problem_ids.add(str(problem.get('_id')))
+                
+                # 그룹 ID가 있으면 두 번째, 세 번째 문제 추가 (총 3문제)
+                if problem.get("problem_group_id"):
+                    group_id = problem.get("problem_group_id")
+                    
+                    # 두 번째 문제(order=2)
+                    query_2 = {
+                        "problem_group_id": group_id,
+                        "problem_order": 2
+                    }
+                    second_problem = await db.problems.find_one(query_2)
+                    
+                    if second_problem:
+                        test_data.problem_data[str(problem_counter)] = create_problem_detail(second_problem)
+                        problem_counter += 1
+                        used_problem_ids.add(str(second_problem.get('_id')))
+                        logger.info(f"롤플레이 두 번째 문제 추가: {second_problem.get('_id')}")
+                        
+                        # 세 번째 문제(order=3)
+                        query_3 = {
+                            "problem_group_id": group_id,
+                            "problem_order": 3
+                        }
+                        third_problem = await db.problems.find_one(query_3)
+                        
+                        if third_problem:
+                            test_data.problem_data[str(problem_counter)] = create_problem_detail(third_problem)
+                            problem_counter += 1
+                            used_problem_ids.add(str(third_problem.get('_id')))
+                            logger.info(f"롤플레이 세 번째 문제 추가: {third_problem.get('_id')}")
+                        else:
+                            logger.warning(f"롤플레이 세 번째 문제를 찾지 못함 (그룹 ID: {group_id})")
+                            await add_random_problems(db, test_data, problem_counter, 1, used_problem_ids)
+                            problem_counter += 1
+                    else:
+                        logger.warning(f"롤플레이 두 번째 문제를 찾지 못함 (그룹 ID: {group_id})")
+                        await add_random_problems(db, test_data, problem_counter, 2, used_problem_ids)
+                        problem_counter += 2
+        else:
+            logger.warning("롤플레이 문제를 찾지 못함. 랜덤 문제 추가")
+            await add_random_problems(db, test_data, problem_counter, 3, used_problem_ids)
+    
+    except Exception as e:
+        logger.error(f"롤플레이 문제 생성 중 오류: {str(e)}", exc_info=True)
+        # 오류 발생 시 랜덤 문제로 대체
+        await add_random_problems(db, test_data, problem_counter, 3, used_problem_ids)
+    
+    logger.info(f"롤플레이 테스트 생성 완료 - 총 문제 수: {len(test_data.problem_data)}, 고유 문제 수: {len(used_problem_ids)}")
+    
+    # 문제 번호 순서대로 로깅
+    for num, prob in sorted(test_data.problem_data.items(), key=lambda x: int(x[0])):
+        logger.info(f"문제 {num}: 카테고리 {prob.problem_category}, ID {prob.problem_id}")
+
+async def generate_unexpected_test(db: Database, test_data: TestModel, user_topics: List[str]):
+    """
+    돌발 3문제 테스트 생성
+    
+    Args:
+        db: MongoDB 데이터베이스
+        test_data: 테스트 모델 인스턴스
+        user_topics: 사용자 관심 주제 목록
+    """
+    problem_counter = 1
+    used_problem_ids = set()  # 문제 중복 방지를 위한 사용된 문제 ID 집합
+    
+    logger.info(f"돌발 테스트 생성 시작 - 사용자 주제: {user_topics}")
+    
+    try:
+        unexpected_problems = await get_unexpected_problems(db, user_topics, 3, used_problem_ids)
+        logger.info(f"돌발 문제 {len(unexpected_problems)}개 선택")
+        
+        if unexpected_problems:
+            for problem in unexpected_problems:
+                test_data.problem_data[str(problem_counter)] = create_problem_detail(problem)
+                problem_counter += 1
+                used_problem_ids.add(str(problem.get('_id')))
+                topic = problem.get("topic_category", "없음")
+                logger.info(f"돌발 문제 추가: {problem.get('_id')} - 주제: {topic}")
+        else:
+            logger.warning("돌발 문제를 찾지 못함. 대체 문제 추가")
+            await add_random_problems(db, test_data, problem_counter, 3, used_problem_ids)
+    
+    except Exception as e:
+        logger.error(f"돌발 문제 생성 중 오류: {str(e)}", exc_info=True)
+        # 오류 발생 시 랜덤 문제로 대체
+        await add_random_problems(db, test_data, problem_counter, 3, used_problem_ids)
+    
+    logger.info(f"돌발 테스트 생성 완료 - 총 문제 수: {len(test_data.problem_data)}, 고유 문제 수: {len(used_problem_ids)}")
+    
+    # 문제 번호 순서대로 로깅
     for num, prob in sorted(test_data.problem_data.items(), key=lambda x: int(x[0])):
         logger.info(f"문제 {num}: 카테고리 {prob.problem_category}, ID {prob.problem_id}")
 

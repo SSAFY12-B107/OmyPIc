@@ -156,18 +156,21 @@ async def get_test_detail(
             detail=f"테스트 상세 조회 중 오류 발생: {str(e)}"
         )
 
-# 
+
 @router.post("/{test_type}", response_model=Union[TestCreationResponse, SingleProblemResponse])
 async def make_test(
-    test_type: int = Path(..., ge=0, le=2, description="테스트 유형: 0은 7문제, 1은 15문제, 2는 랜덤 1문제"),
+    test_type: int = Path(..., ge=1, le=5, description="테스트 유형: 1은 15문제, 2는 1문제, 3~5는 유형별 문제"),
     current_user: User = Depends(get_current_user),
     db: Database = Depends(get_mongodb)
 ) -> Union[TestCreationResponse, SingleProblemResponse]:
     """
     모의고사 생성 API
-    - test_type 0: 7문제 (콤보셋 3, 롤플레잉 2, 돌발 2) - 속성, 실전 모의고사 도합 최대 3회
-    - test_type 1: 15문제 (자기소개 1, 콤보셋 9, 롤플레잉 3, 돌발 2) 
-    - test_type 2: 랜덤 1문제 (전체 문제 풀에서 랜덤 선택, DB에 저장하지 않음) - 최대 5회
+    - test_type 1: 실전 15문제 (자기소개 1, 콤보셋 9, 롤플레잉 3, 돌발 2) - 최대 1회
+    - test_type 2: 랜덤 1문제 (전체 문제 풀에서 랜덤 선택. 자기소개 제외) - 최대 3회
+    - 유형 별 문제 : 최대 2회
+        - test_type 3: 콤보셋 3 문제
+        - test_type 4: 롤플레잉 3 문제
+        - test_type 5: 돌발 3 문제
     
     현재 로그인한 사용자의 배경 정보(background_survey.info)를 기반으로
     관심사에 맞는 문제들로 테스트를 구성합니다.
@@ -194,20 +197,21 @@ async def make_test(
     limits = user_obj.limits
     
     # 테스트 타입에 따른 제한 확인
-    if test_type == 0 or test_type == 1:  # 7문제 또는 15문제 테스트 (통합 카운트)
+    if test_type == 1:  # 15문제 테스트
         test_count = limits.get("test_count", 0)
         logger.info(f"현재 test_count: {test_count}")
-        if test_count >= 2:
+        if test_count >= 1:
             # 로깅 추가
-            logger.warning(f"사용자 {user_id}의 test_count({test_count})가 제한(2)을 초과했습니다")
+            logger.warning(f"사용자 {user_id}의 test_count({test_count})가 제한(1)을 초과했습니다")
             return JSONResponse(
                 status_code=403,
-                content={"detail": "속성 모의고사와 실전 모의고사는 합산하여 최대 2회까지만 생성 가능합니다"}
+                content={"detail": "실전 모의고사는 최대 1회까지만 생성 가능합니다"}
             )
         
         # 무조건 limits 필드 사용
         limit_field = "limits.test_count"
-    else:  # 랜덤 1문제
+
+    elif test_type == 2: # 랜덤 1문제
         random_problem_count = limits.get("random_problem", 0)
         logger.info(f"현재 random_problem_count: {random_problem_count}")
         if random_problem_count >= 3:
@@ -220,6 +224,20 @@ async def make_test(
         
         # 무조건 limits 필드 사용
         limit_field = "limits.random_problem"
+
+    else: # 유형별 문제 (3, 4, 5)
+        categorical_test_count = limits.get('categorical_test_count', 0)
+        logger.info(f"현재 categorical_test_count: {categorical_test_count}")
+        if categorical_test_count >= 2:
+            # 로깅 추가
+            logger.warning(f"사용자 {user_id}의 categorical_test_count({categorical_test_count})가 제한(2)을 초과했습니다")
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "유형별 문제는 최대 2회까지만 생성 가능합니다"}
+            )
+        
+        # 무조건 limits 필드 사용
+        limit_field = "limits.categorical_test_count"
 
     # 로깅 추가 - 업데이트 필드
     logger.info(f"테스트 카운트 업데이트 필드: {limit_field}")
@@ -238,33 +256,40 @@ async def make_test(
         updated_user = await db.users.find_one({"_id": ObjectId(user_id)})
         logger.info(f"업데이트 후 사용자 데이터: {updated_user}")
 
-        # 랜덤 단일 문제 요청인 경우 (test_type == 2)
-        if test_type == 2:
-            # 별도 함수로 랜덤 문제 하나만 가져옴 (DB에 저장하지 않음)
-            random_problem = await get_random_single_problem(db, user_id)
-            return SingleProblemResponse(**random_problem)
-        else:
-            # 기존 테스트 생성 로직 (DB에 저장)
-            test_id = await create_test(db, test_type, user_id)
+        try:
+            # 통합된 create_test 함수 호출
+            result = await create_test(db, test_type, user_id)
             
-            # 생성된 테스트 정보 조회
-            test_data = await db.tests.find_one({"_id": ObjectId(test_id)})
-            if not test_data:
-                # 테스트 횟수 롤백
-                await db.users.update_one(
-                    {"_id": ObjectId(user_id)},
-                    {"$inc": {limit_field: -1}}
-                )
-                return JSONResponse(
-                    status_code=404,
-                    content={"detail": "생성된 테스트를 찾을 수 없습니다"}
-                )
-            
-            # ObjectId를 문자열로 변환
-            test_data["_id"] = str(test_data["_id"])
-            
-            # TestCreationResponse 모델로 변환하여 반환
-            return TestCreationResponse(**test_data)
+            # 랜덤 단일 문제 요청인 경우 (test_type == 2)
+            if test_type == 2:
+                return SingleProblemResponse(**result)
+            else:
+                # 생성된 테스트 정보 조회
+                test_data = await db.tests.find_one({"_id": ObjectId(result)})
+                if not test_data:
+                    # 테스트 횟수 롤백
+                    await db.users.update_one(
+                        {"_id": ObjectId(user_id)},
+                        {"$inc": {limit_field: -1}}
+                    )
+                    return JSONResponse(
+                        status_code=404,
+                        content={"detail": "생성된 테스트를 찾을 수 없습니다"}
+                    )
+                
+                # ObjectId를 문자열로 변환
+                test_data["_id"] = str(test_data["_id"])
+                
+                # TestCreationResponse 모델로 변환하여 반환
+                return TestCreationResponse(**test_data)
+        
+        except Exception as e:
+            # 테스트 생성 중 오류 발생 시 카운트 롤백
+            await db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$inc": {limit_field: -1}}
+            )
+            raise e
         
     except bson_errors.InvalidId as e:
         # ObjectId 변환 오류
@@ -273,7 +298,6 @@ async def make_test(
             content={"detail": f"잘못된 ID 형식: {str(e)}"}
         )
     except Exception as e:
-        # 로깅 추가
         logger.error(f"테스트 생성 중 오류 발생: {str(e)}", exc_info=True)
         
         # 테스트 생성이 실패한 경우, 카운트 원복
@@ -291,7 +315,6 @@ async def make_test(
         )
 
 
-    
 
 @router.delete("/{test_id}")
 async def delete_test(

@@ -62,8 +62,8 @@ class User(BaseModel):
                 }
             else:
                 # categorical_test_limit이 없으면 추가
-                if "categorical_test_limit" not in mongo_doc["limits"]:
-                    mongo_doc["limits"]["categorical_test_limit"] = 0
+                if "categorical_test_count" not in mongo_doc["limits"]:
+                    mongo_doc["limits"]["categorical_test_count"] = 0
                 
                 # 기존 필드가 없으면 추가 (안전을 위해)
                 if "test_count" not in mongo_doc["limits"]:
