@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import "./App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HeaderProvider } from "./contexts/HeaderContext";
 import ReactGA from "react-ga4";
 import {
@@ -89,7 +89,11 @@ function App() {
           <Routes>
             {/* 로그인, 온보딩 완료된 사용자만 접근 가능 */}
             <Route element={<PrivateRoute />}>
-              <Route path="/" element={<Home />} />
+              {/* 루트 경로를 모의고사 페이지로 변경 */}
+              <Route path="/" element={<Navigate to="/tests" replace />} />
+              
+              {/* 기존 홈페이지를 /home 경로로 이동 */}
+              <Route path="/home" element={<Home />} />
 
               {/* Test 관련 라우트 */}
               <Route path="/tests" element={<TestMain />} />
