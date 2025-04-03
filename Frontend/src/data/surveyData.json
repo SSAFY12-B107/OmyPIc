@@ -87,7 +87,7 @@
               { "label": "해변 가기", "value": "해변 가기", "recommended": true },
               { "label": "스포츠 관람", "value": "스포츠 관람" },
               { "label": "요리 관련 프로그램 시청", "value": "요리하기" },
-              { "label": "공연보기", "value": "공연보기", "recommended": true },
+              { "label": "공연보기", "value": "공연콘서트보기", "recommended": true },
               { "label": "게임하기", "value": "게임하기" },
               { "label": "캠핑하기", "value": "캠핑하기" },
               { "label": "SNS 글 올리기", "value": "SNS 글 올리기" },
@@ -101,7 +101,7 @@
               { "label": "뉴스 보거나 듣기", "value": "뉴스 보거나 듣기" },
               { "label": "카페/커피 전문점 가기", "value": "식당카페 가기", "recommended": true },
               { "label": "체스", "value": "체스" },
-              { "label": "콘서트 보기", "value": "콘서트 보기", "recommended": true },
+              { "label": "콘서트 보기", "value": "공연콘서트보기", "recommended": true },
               { "label": "TV 시청", "value": "TV 시청" },
               { "label": "쇼핑하기", "value": "쇼핑하기", "recommended": true },
               { "label": "리얼리티 쇼 보기", "value": "리얼리티 쇼 보기" }
