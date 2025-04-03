@@ -3,6 +3,7 @@ import "./App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HeaderProvider } from "./contexts/HeaderContext";
 import ReactGA from "react-ga4";
+import { hotjar } from 'react-hotjar';
 import {
   PrivateRoute,
   PublicRoute,
@@ -33,6 +34,18 @@ function App() {
     // GA 초기화
     initGA();
 
+    // Hotjar 초기화 - 개발 환경에서는 실행하지 않음
+    if (import.meta.env.MODE !== 'development') {
+      const hotjarId = import.meta.env.VITE_HOTJAR_ID;
+      
+      if (hotjarId) {
+        hotjar.initialize({
+          id: Number(hotjarId),
+          sv: 6
+        });
+      }
+    }
+    
     // 브라우저 종료/탭 닫기 추적
     const win = window as any;
     const doc = document as any;
