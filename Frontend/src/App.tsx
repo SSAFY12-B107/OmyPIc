@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import "./App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HeaderProvider } from "./contexts/HeaderContext";
 import ReactGA from "react-ga4";
+import { hotjar } from 'react-hotjar';
 import {
   PrivateRoute,
   PublicRoute,
@@ -33,6 +34,18 @@ function App() {
     // GA 초기화
     initGA();
 
+    // Hotjar 초기화 - 개발 환경에서는 실행하지 않음
+    if (import.meta.env.MODE !== 'development') {
+      const hotjarId = import.meta.env.VITE_HOTJAR_ID;
+      
+      if (hotjarId) {
+        hotjar.initialize({
+          id: Number(hotjarId),
+          sv: 6
+        });
+      }
+    }
+    
     // 브라우저 종료/탭 닫기 추적
     const win = window as any;
     const doc = document as any;
@@ -89,7 +102,11 @@ function App() {
           <Routes>
             {/* 로그인, 온보딩 완료된 사용자만 접근 가능 */}
             <Route element={<PrivateRoute />}>
-              <Route path="/" element={<Home />} />
+              {/* 루트 경로를 모의고사 페이지로 변경 */}
+              <Route path="/" element={<Navigate to="/tests" replace />} />
+              
+              {/* 기존 홈페이지를 /home 경로로 이동 */}
+              <Route path="/home" element={<Home />} />
 
               {/* Test 관련 라우트 */}
               <Route path="/tests" element={<TestMain />} />

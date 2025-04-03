@@ -9,8 +9,15 @@ import React, {
 
 import { useLocation, useNavigate } from "react-router-dom";
 
-// 헤더가 필요없는 경로 목록
-const NO_HEADER_PATHS = ["/", "/auth/login"];
+// 헤더가 필요한 경로 목록 (여기에 헤더가 표시되어야 하는 경로만 나열)
+const HEADER_VISIBLE_PATHS = [
+  "/tests", 
+  "/tests/practice", 
+  "/tests/feedback", 
+  "/scripts",
+  "/auth/survey",
+  "/auth/profile"
+];
 
 interface HeaderContextType {
   title: string;
@@ -45,11 +52,13 @@ export const HeaderProvider: React.FC<HeaderProviderProps> = ({ children }) => {
 
   // 경로가 변경될 때 자동으로 헤더 상태 초기화
   useEffect(() => {
-    // 헤더가 필요없는 경로인지 확인
-    const shouldHideHeader = NO_HEADER_PATHS.some(
-      (path) => location.pathname === path
+    // 현재 경로가 헤더가 필요한 경로 목록에 포함되어 있는지 확인
+    const isHeaderVisible = HEADER_VISIBLE_PATHS.some(
+      (path) => location.pathname.startsWith(path)
     );
-    setHideHeader(shouldHideHeader);
+    
+    // 헤더가 필요한 경로가 아니면 숨김
+    setHideHeader(!isHeaderVisible);
 
     // 뒤로가기 버튼이 필요없는 경로인지 확인
     const paths = ["/auth/survey", "/auth/profile", "/tests", "/scripts"];
@@ -61,36 +70,36 @@ export const HeaderProvider: React.FC<HeaderProviderProps> = ({ children }) => {
     // 커스텀 백 액션 초기화 및 설정
     const pathParts = location.pathname.split("/");
 
-  if (pathParts.length === 5 && pathParts[4] === "write") {
-    setCustomBackAction(null);
-  } else if (pathParts[1] === "scripts") {
-    let backPath = "/scripts"; // 기본적으로 /scripts로 이동
+    if (pathParts.length === 5 && pathParts[4] === "write") {
+      setCustomBackAction(null);
+    } else if (pathParts[1] === "scripts") {
+      let backPath = "/scripts"; // 기본적으로 /scripts로 이동
 
-    if (pathParts.length === 3) {
-      // /scripts/:category → 뒤로 가면 /scripts
-      backPath = "/scripts";
-    } else if (pathParts.length === 4) {
-      // /scripts/:category/:problemId → 뒤로 가면 /scripts/:category
-      backPath = `/scripts/${pathParts[2]}`;
-    } else if (pathParts.length === 5 && pathParts[4] === "write") {
-      // /scripts/:category/:problemId/write → 뒤로 가면 /scripts/:category/:problemId
-      backPath = `/scripts/${pathParts[2]}/${pathParts[3]}`;
+      if (pathParts.length === 3) {
+        // /scripts/:category → 뒤로 가면 /scripts
+        backPath = "/scripts";
+      } else if (pathParts.length === 4) {
+        // /scripts/:category/:problemId → 뒤로 가면 /scripts/:category
+        backPath = `/scripts/${pathParts[2]}`;
+      } else if (pathParts.length === 5 && pathParts[4] === "write") {
+        // /scripts/:category/:problemId/write → 뒤로 가면 /scripts/:category/:problemId
+        backPath = `/scripts/${pathParts[2]}/${pathParts[3]}`;
+      }
+
+      setCustomBackAction(() => () => navigate(backPath));
+    } else {
+      setCustomBackAction(null);
     }
-
-    setCustomBackAction(() => () => navigate(backPath));
-  } else {
-    setCustomBackAction(null);
-  }
 
     // 경로에 따라 기본 타이틀 설정
     let defaultTitle = "";
 
     if (location.pathname.includes("/tests/feedback")) {
-      defaultTitle = "모의고사 피드백";
+      defaultTitle = "실전 연습 피드백";
     } else if (location.pathname.includes("/tests/practice")) {
-      defaultTitle = "모의고사 응시";
+      defaultTitle = "실전 연습";
     } else if (location.pathname.includes("/tests")) {
-      defaultTitle = "모의고사";
+      defaultTitle = "실전 연습";
     } else if (location.pathname.includes("/scripts")) {
       defaultTitle = "나만의 스크립트 만들기";
     } else if (location.pathname.includes("/auth/survey")) {
@@ -185,7 +194,7 @@ export const useHeaderVisibility = (hide: boolean = false) => {
   }, [hide, setHideHeader]);
 };
 
-// HeaderContext.tsx 154번 라인 근처에 수정할 부분
+// 테스트 종료 액션 설정 훅
 export const useTestEndAction = (action: () => void) => {
   const { setTestEndAction } = useHeader();
 
