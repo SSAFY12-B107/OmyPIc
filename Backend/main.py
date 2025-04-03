@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from scripts.scheduler import setup_scheduler
+from prometheus_client import make_asgi_app
 
 import time
 import logging
@@ -10,6 +11,7 @@ from api import problems_api, tests_api
 from api import auth, users
 from core.config import settings
 from db.mongodb import connect_to_mongo, close_mongo_connection
+from core.metrics import PrometheusMiddleware  # 프로메테우스 추가
 
 # 요청 본문 크기 제한 설정
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -76,6 +78,14 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Error-Type"]  # 커스텀 헤더 노출 설정 추가
 )
+
+# Prometheus 미들웨어 추가
+app.add_middleware(PrometheusMiddleware)
+
+# Prometheus 메트릭 엔드포인트 추가
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+
 
 # 요청 시간 로깅
 @app.middleware("http")
