@@ -8,6 +8,7 @@ import { useDispatch } from "react-redux";
 import { testActions } from "@/store/testSlice";
 import { useEffect, useState } from "react";
 import { useUserHistory } from "@/hooks/useHistory";
+import FeedbackNotification from "@/components/test/FeedbackNotification";
 import Navbar from "@/components/common/Navbar";
 
 function TestMain() {
@@ -19,6 +20,11 @@ function TestMain() {
   const { recentTestId, feedbackReady } = location.state || {};
 
   console.log("recenttestId", recentTestId);
+
+  // 알림 표시 상태 관리
+  const [showNotification, setShowNotification] = useState(
+    !!recentTestId && !feedbackReady
+  );
 
   // 폴링 활성화 여부 결정 - feedbackReady가 true면 폴링 비활성화
   const shouldPoll = recentTestId && !feedbackReady;
@@ -109,18 +115,11 @@ function TestMain() {
         setLoadingTestType(test_type);
         const response = await apiClient.post(`/tests/${test_type}`);
 
-        // 응답 데이터를 Redux에 저장 (test_type에 관계없이 동일한 액션 사용)
         dispatch(testActions.setCurrentTest(response.data));
 
         console.log("테스트 생성완료!", response.data);
 
-        // 페이지 이동
-        // test_id를 쿼리 파라미터로 전달 (test_type이 2인 경우)
-        if (test_type === 2 && "test_id" in response.data) {
-          navigate(`/tests/practice?test_id=${response.data.test_id}`);
-        } else {
-          navigate("/tests/practice");
-        }
+        navigate("/tests/practice");
       } catch (error) {
         console.error("테스트 생성 오류:", error);
         // 에러 처리 로직
@@ -140,11 +139,16 @@ function TestMain() {
     <div className={styles.container}>
       {/* 테스트 배포 : 3회 응시 횟수 제한 추가 필요 */}
       <main className={styles.main}>
+        {/* 알림 컴포넌트 추가 */}
+        <FeedbackNotification
+          visible={showNotification}
+          onClose={() => setShowNotification(false)}
+        />
         <section className={styles.section1}>
-          <h2>유형별 집중공략하고 피드백받기</h2>
+          <h2>유형별 집중 공략하기</h2>
           <div className={styles.testTypes}>
             <span className={styles.countLimit}>
-              오늘의 응시권 {categoryRemaining}/{categoryLimit}회🐧
+              오늘의 응시권 {randomRemaining}/{randomLimit}회🐧
             </span>
             <TestTypeButton
               onClick={() => handleCreateTest(2)}
@@ -154,7 +158,7 @@ function TestMain() {
               isLoading={loadingTestType === 2}
             />
             <span className={styles.countLimit}>
-              오늘의 응시권 {testRemaining}/{testLimit}회🐟
+              오늘의 응시권 {categoryRemaining}/{categoryLimit}회🐟
             </span>
             <div className={styles.miniTestType}>
               <TestTypeButton
@@ -207,20 +211,26 @@ function TestMain() {
             <div>로딩 중...</div>
           ) : historyData && historyData.test_history?.length > 0 ? (
             <div className={styles.records}>
-              {historyData.test_history.map((record) => {
-                const testDate = new Date(record.test_date);
-                const formattedDate = `${testDate.getFullYear()}년 ${
-                  testDate.getMonth() + 1
-                }월 ${testDate.getDate()}일`;
+              {[...historyData.test_history]
+                .sort(
+                  (a, b) =>
+                    new Date(b.test_date).getTime() -
+                    new Date(a.test_date).getTime()
+                )
+                .map((record) => {
+                  const testDate = new Date(record.test_date);
+                  const formattedDate = `${testDate.getFullYear()}년 ${
+                    testDate.getMonth() + 1
+                  }월 ${testDate.getDate()}일`;
 
-                return (
-                  <RecordItem
-                    key={record.id}
-                    date={formattedDate}
-                    record={record}
-                  />
-                );
-              })}
+                  return (
+                    <RecordItem
+                      key={record.id}
+                      date={formattedDate}
+                      record={record}
+                    />
+                  );
+                })}
             </div>
           ) : (
             !isLoading && (

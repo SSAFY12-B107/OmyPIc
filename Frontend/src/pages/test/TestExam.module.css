@@ -253,3 +253,16 @@
   cursor: not-allowed !important;
   opacity: 0.7;
 }
+
+.recordingTime {
+  margin-left: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #e74c3c;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}

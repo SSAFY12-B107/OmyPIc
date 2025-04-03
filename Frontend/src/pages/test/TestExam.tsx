@@ -17,18 +17,29 @@ function TestExam() {
 
   // 문제 모음 가져오기(리덕스)
   const currentTest = useSelector((state: RootState) =>
-    state && state.tests ? state.tests.currentTest : undefined
+    state && state.tests ? state.tests.currentTest : null
+  );
+
+  // 단일 랜덤 문제 가져오기(리덕스)
+  const currentSingleProblem = useSelector((state: RootState) =>
+    state && state.tests ? state.tests.currentSingleProblem : null
+  );
+
+  // 랜덤 문제 여부 확인
+  const isRandomProblem = useSelector((state: RootState) =>
+    state && state.tests ? state.tests.isRandomProblem : false
   );
 
   const state = useSelector((state: RootState) => state);
 
   console.log("전체 Redux 상태:", state);
-  console.log("전체 currentTest 상태:", currentTest);
+  console.log("currentTest 상태:", currentTest);
+  console.log("currentSingleProblem 상태:", currentSingleProblem);
+  console.log("isRandomProblem 상태:", isRandomProblem);
   console.log("audioCache입니다", audioCache);
 
   // 테스트 타입에 따른 최대 문제 수 설정
-  const maxValue =
-    currentTest?.test_type == 1 ? 15 : currentTest?.test_type == 0 ? 7 : 1;
+  const maxValue = isRandomProblem ? 1 : currentTest?.test_type === 1 ? 15 : 3;
 
   // 문제번호 관리(ui)
   const [currentProblem, setCurrentProblem] = useState<number>(1);
@@ -47,6 +58,9 @@ function TestExam() {
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [recordedFile, setRecordedFile] = useState<File | null>(null);
 
+  // 녹음 타이머 관련 상태 추가
+  const [recordingTime, setRecordingTime] = useState<number>(0);
+  const timerRef = useRef<number | null>(null);
   // 랜덤문제 모달창
   const [isOpen, setIsOpen] = useState<boolean>(false);
 
@@ -64,14 +78,19 @@ function TestExam() {
   // 테스트 종료 처리 함수를 useCallback으로 메모이제이션
   const handleEndTest = useCallback(async () => {
     try {
-      if (!currentTest?._id) {
+      // 랜덤 문제와 일반 테스트 구분
+      const testId = isRandomProblem
+        ? currentSingleProblem?.test_id
+        : currentTest?._id;
+
+      if (!testId) {
         console.error("테스트 ID가 없습니다.");
         navigate("/tests");
         return;
       }
 
       // 테스트 종료 API 호출
-      await apiClient.delete(`/tests/${currentTest._id}`);
+      await apiClient.delete(`/tests/${testId}`);
 
       // 성공적으로 API 호출 후 테스트 목록 페이지로 이동
       navigate("/tests");
@@ -80,7 +99,12 @@ function TestExam() {
       // 오류가 발생하더라도 페이지 이동
       navigate("/tests");
     }
-  }, [currentTest?._id, navigate]);
+  }, [
+    currentTest?._id,
+    currentSingleProblem?.test_id,
+    isRandomProblem,
+    navigate,
+  ]);
 
   // 테스트 종료 함수 등록
   useTestEndAction(handleEndTest);
@@ -88,19 +112,22 @@ function TestExam() {
   //응시 페이지 진입 시 Audio 객체 미리 생성
   useEffect(() => {
     console.log("currentTest", currentTest);
+    console.log("currentSingleProblem", currentSingleProblem);
 
-    if (currentTest?.audio_s3_url) {
-      if (currentTest.audio_s3_url) {
-        const correctedUrl = currentTest.audio_s3_url.replace(
+    // 랜덤 문제인 경우
+    if (isRandomProblem && currentSingleProblem?.audio_s3_url) {
+      if (!audioCache[currentProblem]) {
+        const correctedUrl = currentSingleProblem.audio_s3_url.replace(
           "ap-northeast-2",
           "us-east-2"
         );
         const audioObj = new Audio(correctedUrl);
         audioCache[currentProblem] = audioObj;
-        console.log(`오디오 객체 생성됨:`, audioObj);
+        console.log(`랜덤 문제 오디오 객체 생성됨:`, audioObj);
       }
-    } else if (currentTest?.problem_data) {
-      // test_type이 1 또는 0일 때 기존 방식으로 처리
+    }
+    // 일반 테스트인 경우
+    else if (currentTest?.problem_data) {
       for (
         let i = currentProblem;
         i < Math.min(currentProblem + 3, maxValue + 1);
@@ -121,7 +148,13 @@ function TestExam() {
         }
       }
     }
-  }, [currentProblem, currentTest]);
+  }, [
+    currentProblem,
+    currentTest,
+    currentSingleProblem,
+    isRandomProblem,
+    maxValue,
+  ]);
 
   useEffect(() => {
     // 문제 번호가 변경될 때 재생 상태 초기화
@@ -168,7 +201,7 @@ function TestExam() {
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("pause", handlePause);
     };
-  }, [currentProblem]);
+  }, [currentProblem, audioCache]);
 
   // 컴포넌트 언마운트 시에만 오디오 정리
   useEffect(() => {
@@ -181,9 +214,20 @@ function TestExam() {
           audio.currentTime = 0;
         }
       });
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
     };
   }, []); // 빈 의존성 배열: 마운트/언마운트 시에만 실행
 
+  // 시간 형식 변환 함수 (초 -> MM:SS)
+  const formatTime = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, "0")}:${remainingSeconds
+      .toString()
+      .padStart(2, "0")}`;
+  };
   // 오디오 재생/일시정지 핸들러
   const handleAudioControl = useCallback(() => {
     const audio = audioCache[currentProblem];
@@ -211,7 +255,14 @@ function TestExam() {
         })
         .catch((err) => console.error("오디오 재생 오류:", err));
     }
-  }, [isPlaying, isPaused, hasPlayed, hasListenedAgain]);
+  }, [
+    isPlaying,
+    isPaused,
+    hasPlayed,
+    hasListenedAgain,
+    audioCache,
+    currentProblem,
+  ]);
 
   // 녹음 제어 함수
   const toggleRecording = async () => {
@@ -219,6 +270,11 @@ function TestExam() {
       if (!recorder) return;
 
       try {
+        // 타이머 중지
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
         const [buffer, blob] = await recorder.stop().getMp3();
         const file = new File(buffer, `answer_${currentProblem}.mp3`, {
           type: blob.type,
@@ -243,6 +299,12 @@ function TestExam() {
         await mp3Recorder.start();
         setRecorder(mp3Recorder);
         setIsRecording(true);
+
+        // 녹음 시작 시 타이머 초기화 및 시작
+        setRecordingTime(0);
+        timerRef.current = window.setInterval(() => {
+          setRecordingTime((prevTime) => prevTime + 1);
+        }, 1000);
       } catch (error) {
         console.error("녹음 시작 오류:", error);
         alert("마이크 접근 권한이 필요합니다.");
@@ -260,22 +322,21 @@ function TestExam() {
 
     try {
       const isLastProblem = currentProblem === maxValue;
-      let random = 1;
       const formData = new FormData();
       formData.append("audio_file", recordedFile);
 
       let response;
 
-      // currentTest.problem_id가 있는 경우 (랜덤 문제)
-      if (currentTest?.problem_id) {
-        console.log("currentTest?.problem_id", currentTest?.problem_id);
+      // 랜덤 문제인 경우
+      if (isRandomProblem && currentSingleProblem) {
+        console.log("랜덤 문제 제출:", currentSingleProblem.test_id);
 
         // 랜덤 문제일 때만 로딩 상태 설정 및 모달 열기
         setRandomEvaluationLoading(true);
         setIsOpen(true); // 모달 먼저 열기
 
-        // params 대신 FormData에 직접 추가
-        formData.append("problem_id", currentTest.problem_id);
+        // 수정된 부분: problem_id 대신 test_id 사용
+        formData.append("test_id", currentSingleProblem.test_id);
 
         response = await apiClient.post(
           "tests/random-problem/evaluate",
@@ -291,10 +352,8 @@ function TestExam() {
           setRandomProblemResult(response.data);
         }
       }
-      // 기존 로직 (일반 문제)
-      else {
-        random = 0;
-
+      // 일반 테스트 문제
+      else if (currentTest) {
         // 현재 문제 ID 가져오기
         const currentProblemId =
           currentTest?.problem_data[currentProblem]?.problem_id;
@@ -315,16 +374,17 @@ function TestExam() {
       }
 
       if (response?.data) {
-        // 모의고사 문제일 때 고려
-        if (isLastProblem && random === 0) {
+        // 랜덤 문제가 아니고 마지막 문제인 경우
+        if (!isRandomProblem && isLastProblem && currentTest) {
           // 메인 페이지로 이동하면서 폴링 시작을 위한 상태 전달
+          alert("시험 응시 완료!🐧");
           navigate("/tests", {
             state: {
               recentTestId: currentTest._id,
               feedbackReady: false, // 아직 피드백이 준비되지 않았음
             },
           });
-        } else if (!isLastProblem && random === 0) {
+        } else if (!isRandomProblem && !isLastProblem) {
           confirm("녹음 전달에 성공했어요! 다음 문제를 풀어볼까요?");
           setCurrentProblem((prev) => prev + 1);
         }
@@ -332,8 +392,8 @@ function TestExam() {
     } catch (error) {
       console.error("녹음 제출 오류:", error);
     } finally {
-      // test_type에 따른 로딩 상태 해제
-      if (currentTest?.problem_id) {
+      // 랜덤 문제 상태 설정 해제
+      if (isRandomProblem) {
         setRandomEvaluationLoading(false);
       }
       setIsSubmitting(false);
@@ -364,7 +424,8 @@ function TestExam() {
       />
 
       <div className={styles.resize}>
-        {currentTest?.problem_data ? (
+        {/* 프로그레스 바는 랜덤 문제가 아닐 때만 표시 */}
+        {!isRandomProblem && (
           <>
             <div className={styles.numBox}>
               <span className={styles.currentNum}>{currentProblem}</span>
@@ -376,7 +437,7 @@ function TestExam() {
               max={maxValue}
             ></progress>
           </>
-        ) : null}
+        )}
 
         <img className={styles.avatarImg} src={avatar} alt="아바타" />
 
@@ -399,6 +460,11 @@ function TestExam() {
             <span className={styles.micIcon}>🎤</span>
           </div>
           <span className={styles.answerText}>내 답변</span>
+
+          {/* 녹음 시간 표시 추가 */}
+          <span className={styles.recordingTime}>
+            {formatTime(recordingTime)}
+          </span>
         </div>
 
         <div className={styles.animationBox}>
@@ -418,7 +484,9 @@ function TestExam() {
             onClick={toggleRecording}
             disabled={isPlaying || isSubmitting} // 오디오 재생 중이거나 제출 중일 때 비활성화
           >
-            {isRecording ? "눌러서 녹음 종료" : "눌러서 녹음 시작"}
+            {isRecording
+              ? "눌러서 녹음 종료"
+              : "눌러서 녹음 시작"}
           </button>
         </div>
       </div>

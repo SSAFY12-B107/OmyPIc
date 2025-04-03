@@ -18,7 +18,7 @@ function RecordItem({ record, date }: RecordItemProps) {
   // 테스트 타입 매핑 함수
   const getTestTypeName = (testType: number | undefined): string => {
     switch (testType) {
-      case 1: return "실전모의고사";
+      case 1: return "실전 연습";
       case 3: return "콤보셋";
       case 4: return "롤플레잉";
       case 5: return "돌발질문";
@@ -47,7 +47,7 @@ function RecordItem({ record, date }: RecordItemProps) {
   const testTypeName = getTestTypeName(testType);
 
   return (
-    <div className={styles.container}>
+    <div className={`${styles.container} ${!isLoaded ? styles.evaluating : ''}`}>
       {isLoaded ? (
         <>
           <div className={styles.header}>
