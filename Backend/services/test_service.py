@@ -13,6 +13,8 @@ from services.test_generator import get_random_single_problem, generate_full_tes
 
 from core.config import settings
 from schemas.test import RandomProblemEvaluationResponse
+from core.metrics import BACKGROUND_TASK_DURATION, ACTIVE_TASKS, track_time_async, ERROR_COUNTER
+
 
 # 로깅 설정
 logger = logging.getLogger(__name__)
@@ -268,7 +270,7 @@ async def process_audio_and_evaluate(
         
         raise ValueError(f"오디오 처리 시작 중 오류가 발생했습니다: {str(e)}")
 
-
+@track_time_async(BACKGROUND_TASK_DURATION, {"task_type": "audio_processing"})
 async def process_audio_background(
     db: Database,
     test_id: str,

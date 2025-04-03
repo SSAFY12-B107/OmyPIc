@@ -7,6 +7,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 from api.deps import get_next_groq_key, get_next_gemini_key
 
+import time
+
 # 로깅 설정
 logger = logging.getLogger(__name__)
 
@@ -146,6 +148,9 @@ OVERALL_EVALUATION_PROMPT_TEMPLATE = """
 }}
 """
 
+
+from core.metrics import LLM_API_DURATION, track_time_async, track_problem_evaluation_time
+
 class ResponseEvaluator:
     """OPIC 응답 평가 클래스"""
     
@@ -207,7 +212,7 @@ class ResponseEvaluator:
             convert_system_message_to_human=True
         )
 
-    
+    @track_time_async(LLM_API_DURATION, {"model": "gemini-1.5-pro", "operation": "evaluate_response"})
     async def evaluate_response(
         self, 
         user_response: str, 
@@ -227,6 +232,9 @@ class ResponseEvaluator:
         Returns:
             평가 결과 딕셔너리
         """
+        start_time = time.time()
+        status = "success"
+
         try:
             logger.info(f"응답 평가 시작 - 문제 카테고리: {problem_category}, 토픽: {topic_category}")
             
@@ -263,6 +271,7 @@ class ResponseEvaluator:
             return result
             
         except Exception as e:
+            status = "error"
             logger.error(f"응답 평가 중 오류 발생: {str(e)}", exc_info=True)
             # 오류 발생 시 점수를 제공하지 않고 오류 정보만 반환
             return {
@@ -274,7 +283,14 @@ class ResponseEvaluator:
                 },
                 "error": True  # 평가 오류 플래그 추가
             }
+        finally:
+            # 평가 시간 측정 추가
+            duration = time.time() - start_time
+            track_problem_evaluation_time(problem_category, duration, status)
     
+
+
+    @track_time_async(LLM_API_DURATION, {"model": "gemini-1.5-pro", "operation": "evaluate_overall_test"})
     async def evaluate_overall_test(
         self,
         test_data: Dict[str, Any],
@@ -405,6 +421,7 @@ class ResponseEvaluator:
                 }
             }
     
+
     def _get_problem_type(self, problem_number: int, test: Dict[str, Any]) -> str:
         """
         문제 번호와 테스트 정보에 따라 문제 유형 결정
