@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from scripts.scheduler import setup_scheduler
+from prometheus_client import make_asgi_app
 
 import time
 import logging
@@ -10,11 +11,14 @@ from api import problems_api, tests_api
 from api import auth, users
 from core.config import settings
 from db.mongodb import connect_to_mongo, close_mongo_connection
+from core.metrics import PrometheusMiddleware  # 프로메테우스 추가
+
+# 요청 본문 크기 제한 설정
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 
 @asynccontextmanager
@@ -42,7 +46,7 @@ async def lifespan(app: FastAPI):
     # MongoDB 연결 종료
     await close_mongo_connection()
     
-    print("Shutting down...")
+    print("앱 종료됨")
 
 async def setup_mongo_indexes():
     """필요한 MongoDB 인덱스를 설정합니다."""
@@ -57,6 +61,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+
+class MaxBodySizeMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        request._body_size_limit = 15 * 1024 * 1024  # 15MB
+        response = await call_next(request)
+        return response
+
+app.add_middleware(MaxBodySizeMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins(),
@@ -65,6 +78,13 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Error-Type"]  # 커스텀 헤더 노출 설정 추가
 )
+
+# Prometheus 미들웨어 추가
+app.add_middleware(PrometheusMiddleware)
+
+# Prometheus 메트릭 엔드포인트 추가
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
 
 
 # 요청 시간 로깅

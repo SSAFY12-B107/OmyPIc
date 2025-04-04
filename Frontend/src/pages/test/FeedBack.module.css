@@ -1,6 +1,6 @@
 .container {
     background-color: hsl(0, 0%, 98%);
-    padding: 2rem;
+    padding: 1rem;
   }
   
 
@@ -8,7 +8,7 @@
     display: flex;
     justify-content: center;
     justify-content: space-evenly;
-    margin: 77px 0 24px;
+    margin: 1 2.4rem;
   }
   
   .stepCircle {

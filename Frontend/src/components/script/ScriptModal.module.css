@@ -36,6 +36,7 @@
   height: 9.5rem;
   margin-bottom: 6rem;
   object-fit: contain;
+  animation: spin 1.5s linear infinite; /* 1.5초마다 계속 회전 */
 }
 
 /* 스크립트 생성된 경우 이미지 */
@@ -80,9 +81,9 @@
   font-size: 1.4rem;
 }
 
-/* 스크립트 생생된 경우 */
+/* 스크립트 생성된 경우 */
 .scriptBox {
-  margin-bottom: 2.5rem;
+  margin-bottom: 5rem;
   padding: 1.5rem 2rem;
   border-radius: 1rem;
   font-size: 1.5rem;
@@ -100,36 +101,34 @@
   letter-spacing: 0;
 }
 
-.additionalQ {
-  text-align: center;
-}
-
-.additionalQ p {
-  margin-bottom: 1rem;
-  font-size: 1.2rem;
-  color: #888;
-}
-
 .btnBox {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 1.5rem;
+  gap: 0.8rem;
+  width: 100%;
+  margin-bottom: 1.5rem;
+  letter-spacing: -1px;
 }
 
 .btnBox button {
-  width: 10rem;
-  height: 3rem;
-  border-radius: 1rem;
+  width: 100%;
+  max-width: 280px;
+  height: 3.5rem;
+  border-radius: 0.8rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
 }
 
-.yesBtn {
+.purpleBtn {
   color: #fff;
   font-weight: 700;
   background-color: #9466E9;
 }
 
-.noBtn {
+.grayBtn {
   color: #565656;
   background-color: #E4E4E4;
 }
@@ -146,4 +145,14 @@
   margin-top: 1rem;
   font-size: 0.9rem;
   color: #565656;
+}
+
+/* 회전 애니메이션 정의 */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

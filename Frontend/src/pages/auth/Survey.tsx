@@ -148,6 +148,23 @@ const Survey = () => {
         }
       });
 
+      // 마지막 단계에서 다중 선택 항목 총 개수가 12개 미만인 경우 추가 검증
+    if (currentStep === steps.length - 1) {
+      const totalSelectedItems = getTotalSelectedItems();
+      if (totalSelectedItems < 12) {
+        // 모든 다중 선택 문항에 대한 에러 메시지 추가
+        const multiChoiceQuestionIds = pages
+          .filter((page) => page.type === "multiple")
+          .flatMap((page) => page.questions.map((q) => q.id));
+          
+        // 현재 화면에 표시된 다중 선택 문항에만 에러 표시
+        currentStepData.questions?.forEach((question) => {
+          newErrors[question.id] = "총 12개 이상의 항목을 선택해주세요!";
+        });
+        
+        hasError = true;
+      }
+    }
       // 에러 상태 업데이트
       setErrors(newErrors);
 

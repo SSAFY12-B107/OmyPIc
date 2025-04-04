@@ -1,7 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends, Path, status, Query, Response, UploadFile, File, BackgroundTasks, Body, Form
-from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
-import traceback
-from typing import Any, Dict, Union
+from fastapi import APIRouter, HTTPException, Depends, Path, status, Response, UploadFile, File, BackgroundTasks, Body, Form
+from fastapi.responses import JSONResponse, HTMLResponse
+from typing import Any, Dict, Union, Optional
 from bson import ObjectId, errors as bson_errors
 from motor.motor_asyncio import AsyncIOMotorDatabase as Database
 
@@ -12,7 +11,7 @@ from models.user import User
 
 import base64
 import os
-import io
+import asyncio
 from gtts import gTTS
 import logging
 
@@ -20,7 +19,22 @@ from schemas.test import TestHistoryResponse, TestDetailResponse, TestCreationRe
 from services.audio_processor import AudioProcessor, FastAudioProcessor
 
 from services.evaluator import ResponseEvaluator
-from services.test_service import create_test, process_audio_background, get_random_single_problem
+from services.test_service import (
+    create_test,
+    process_audio_background,
+    validate_user,
+    validate_test,
+    get_problem_id,
+    validate_problem,
+    get_audio_content,
+    transcribe_audio,
+    save_script,
+    evaluate_response,
+    update_test_document,
+    create_evaluation_response,
+    log_error
+)
+
 
 # 로깅 설정
 logger = logging.getLogger(__name__)
@@ -50,14 +64,19 @@ async def get_test_history(
         logger.info(f"사용자 limits 필드: {getattr(current_user, 'limits', None)}")
         
         # 사용자의 테스트 생성 횟수 정보 가져오기 (limits 필드 사용)
-        limits = getattr(current_user, 'limits', {"test_count": 0, "random_problem": 0, "script_count": 0})
+        limits = getattr(current_user, 'limits', {"test_count": 0, "categorical_test_count": 0, "random_problem": 0, "script_count": 0})
         
         # 남은 횟수 계산 (테스트와 랜덤 문제 모두 limits 필드에서 가져옴)
         test_counts = {
             "test_count": {
                 "used": limits.get("test_count", 0),
+                "limit": 1,
+                "remaining": max(0, 1 - limits.get("test_count", 0))
+            },
+            "categorical_test_count": {
+                "used": limits.get("categorical_test_count", 0),
                 "limit": 2,
-                "remaining": max(0, 2 - limits.get("test_count", 0))
+                "remaining": max(0, 2 - limits.get("categorical_test_count", 0))
             },
             "random_problem": {
                 "used": limits.get("random_problem", 0),
@@ -84,6 +103,7 @@ async def get_test_history(
                 "overall_feedback_status": test.get("overall_feedback_status", "미평가"),
                 "test_date": test["test_date"],
                 "test_type": test["test_type"],
+                "test_type_str": test["test_type_str"],
                 "test_score": test.get("test_score", None)
             })
 
@@ -159,15 +179,18 @@ async def get_test_detail(
 
 @router.post("/{test_type}", response_model=Union[TestCreationResponse, SingleProblemResponse])
 async def make_test(
-    test_type: int = Path(..., ge=0, le=2, description="테스트 유형: 0은 7문제, 1은 15문제, 2는 랜덤 1문제"),
+    test_type: int = Path(..., ge=1, le=5, description="테스트 유형: 1은 15문제, 2는 1문제, 3~5는 유형별 문제"),
     current_user: User = Depends(get_current_user),
     db: Database = Depends(get_mongodb)
 ) -> Union[TestCreationResponse, SingleProblemResponse]:
     """
     모의고사 생성 API
-    - test_type 0: 7문제 (콤보셋 3, 롤플레잉 2, 돌발 2) - 속성, 실전 모의고사 도합 최대 3회
-    - test_type 1: 15문제 (자기소개 1, 콤보셋 9, 롤플레잉 3, 돌발 2) 
-    - test_type 2: 랜덤 1문제 (전체 문제 풀에서 랜덤 선택, DB에 저장하지 않음) - 최대 5회
+    - test_type 1: 실전 15문제 (자기소개 1, 콤보셋 9, 롤플레잉 3, 돌발 2) - 최대 1회
+    - test_type 2: 랜덤 1문제 (전체 문제 풀에서 랜덤 선택. 자기소개 제외) - 최대 3회
+    - 유형 별 문제 : 최대 2회
+        - test_type 3: 콤보셋 3 문제
+        - test_type 4: 롤플레잉 3 문제
+        - test_type 5: 돌발 3 문제
     
     현재 로그인한 사용자의 배경 정보(background_survey.info)를 기반으로
     관심사에 맞는 문제들로 테스트를 구성합니다.
@@ -194,20 +217,21 @@ async def make_test(
     limits = user_obj.limits
     
     # 테스트 타입에 따른 제한 확인
-    if test_type == 0 or test_type == 1:  # 7문제 또는 15문제 테스트 (통합 카운트)
+    if test_type == 1:  # 15문제 테스트
         test_count = limits.get("test_count", 0)
         logger.info(f"현재 test_count: {test_count}")
-        if test_count >= 2:
+        if test_count >= 1:
             # 로깅 추가
-            logger.warning(f"사용자 {user_id}의 test_count({test_count})가 제한(2)을 초과했습니다")
+            logger.warning(f"사용자 {user_id}의 test_count({test_count})가 제한(1)을 초과했습니다")
             return JSONResponse(
                 status_code=403,
-                content={"detail": "속성 모의고사와 실전 모의고사는 합산하여 최대 2회까지만 생성 가능합니다"}
+                content={"detail": "실전 모의고사는 최대 1회까지만 생성 가능합니다"}
             )
         
         # 무조건 limits 필드 사용
         limit_field = "limits.test_count"
-    else:  # 랜덤 1문제
+
+    elif test_type == 2: # 랜덤 1문제
         random_problem_count = limits.get("random_problem", 0)
         logger.info(f"현재 random_problem_count: {random_problem_count}")
         if random_problem_count >= 3:
@@ -220,6 +244,20 @@ async def make_test(
         
         # 무조건 limits 필드 사용
         limit_field = "limits.random_problem"
+
+    else: # 유형별 문제 (3, 4, 5)
+        categorical_test_count = limits.get('categorical_test_count', 0)
+        logger.info(f"현재 categorical_test_count: {categorical_test_count}")
+        if categorical_test_count >= 2:
+            # 로깅 추가
+            logger.warning(f"사용자 {user_id}의 categorical_test_count({categorical_test_count})가 제한(2)을 초과했습니다")
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "유형별 문제는 최대 2회까지만 생성 가능합니다"}
+            )
+        
+        # 무조건 limits 필드 사용
+        limit_field = "limits.categorical_test_count"
 
     # 로깅 추가 - 업데이트 필드
     logger.info(f"테스트 카운트 업데이트 필드: {limit_field}")
@@ -238,33 +276,40 @@ async def make_test(
         updated_user = await db.users.find_one({"_id": ObjectId(user_id)})
         logger.info(f"업데이트 후 사용자 데이터: {updated_user}")
 
-        # 랜덤 단일 문제 요청인 경우 (test_type == 2)
-        if test_type == 2:
-            # 별도 함수로 랜덤 문제 하나만 가져옴 (DB에 저장하지 않음)
-            random_problem = await get_random_single_problem(db, user_id)
-            return SingleProblemResponse(**random_problem)
-        else:
-            # 기존 테스트 생성 로직 (DB에 저장)
-            test_id = await create_test(db, test_type, user_id)
+        try:
+            # 통합된 create_test 함수 호출
+            result = await create_test(db, test_type, user_id)
             
-            # 생성된 테스트 정보 조회
-            test_data = await db.tests.find_one({"_id": ObjectId(test_id)})
-            if not test_data:
-                # 테스트 횟수 롤백
-                await db.users.update_one(
-                    {"_id": ObjectId(user_id)},
-                    {"$inc": {limit_field: -1}}
-                )
-                return JSONResponse(
-                    status_code=404,
-                    content={"detail": "생성된 테스트를 찾을 수 없습니다"}
-                )
-            
-            # ObjectId를 문자열로 변환
-            test_data["_id"] = str(test_data["_id"])
-            
-            # TestCreationResponse 모델로 변환하여 반환
-            return TestCreationResponse(**test_data)
+            # 랜덤 단일 문제 요청인 경우 (test_type == 2)
+            if test_type == 2:
+                return SingleProblemResponse(**result)
+            else:
+                # 생성된 테스트 정보 조회
+                test_data = await db.tests.find_one({"_id": ObjectId(result)})
+                if not test_data:
+                    # 테스트 횟수 롤백
+                    await db.users.update_one(
+                        {"_id": ObjectId(user_id)},
+                        {"$inc": {limit_field: -1}}
+                    )
+                    return JSONResponse(
+                        status_code=404,
+                        content={"detail": "생성된 테스트를 찾을 수 없습니다"}
+                    )
+                
+                # ObjectId를 문자열로 변환
+                test_data["_id"] = str(test_data["_id"])
+                
+                # TestCreationResponse 모델로 변환하여 반환
+                return TestCreationResponse(**test_data)
+        
+        except Exception as e:
+            # 테스트 생성 중 오류 발생 시 카운트 롤백
+            await db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$inc": {limit_field: -1}}
+            )
+            raise e
         
     except bson_errors.InvalidId as e:
         # ObjectId 변환 오류
@@ -273,7 +318,6 @@ async def make_test(
             content={"detail": f"잘못된 ID 형식: {str(e)}"}
         )
     except Exception as e:
-        # 로깅 추가
         logger.error(f"테스트 생성 중 오류 발생: {str(e)}", exc_info=True)
         
         # 테스트 생성이 실패한 경우, 카운트 원복
@@ -291,7 +335,6 @@ async def make_test(
         )
 
 
-    
 
 @router.delete("/{test_id}")
 async def delete_test(
@@ -596,127 +639,57 @@ async def record_answer(
 
 @router.post("/random-problem/evaluate", response_model=RandomProblemEvaluationResponse)
 async def evaluate_random_problem(
-    problem_id: str = Form(..., description="문제 ID"),
-    audio_file: UploadFile = File(..., description="녹음된.mp3 파일"),
+    test_id: str = Form(..., description="테스트 ID"),
+    audio_file: Optional[UploadFile] = File(None),
     current_user: User = Depends(get_current_user_for_multipart),
     db: Database = Depends(get_mongodb)
 ) -> RandomProblemEvaluationResponse:
-    """
-    랜덤 단일 문제 평가 API
-    
-    현재 로그인한 사용자의 녹음을 받아 해당 문제에 대한 즉시 피드백을 제공합니다.
-    이 API는 데이터베이스에 결과를 저장하지 않습니다.
-    """
     try:
-        # 현재 사용자 ID 사용
-        user_id = str(current_user.id)
+        # 사용자 및 테스트 정보 병렬 검증
+        user_id, test, problem_id, problem = await asyncio.gather(
+            asyncio.create_task(validate_user(current_user)),
+            asyncio.create_task(validate_test(db, test_id)),
+            asyncio.create_task(get_problem_id(db, test_id)),
+            asyncio.create_task(validate_problem(db, test_id))
+        )
         
-        # ObjectId 유효성 검사
-        if not ObjectId.is_valid(problem_id):
-            return JSONResponse(
-                status_code=400,
-                content={"detail": "유효하지 않은 문제 ID 형식입니다."}
-            )
+        # 오디오 콘텐츠 결정 (새 파일 또는 캐시된 파일)
+        audio_content = await get_audio_content(test, audio_file)
         
-        # 문제 존재 확인
-        problem = await db.problems.find_one({"_id": ObjectId(problem_id)})
-        if not problem:
-            return JSONResponse(
-                status_code=404,
-                content={"detail": "해당 문제를 찾을 수 없습니다."}
-            )
+        # 음성 변환 (순차적)
+        transcribed_text = await transcribe_audio(audio_content, user_id)
         
-        # 파일 내용 읽기
-        audio_content = await audio_file.read()
-        audio_filename = audio_file.filename
+        # 스크립트 저장 (순차적)
+        await save_script(db, user_id, problem_id, transcribed_text)
         
-        # 파일 유형 검사
-        file_extension = audio_filename.split(".")[-1].lower() if audio_filename else ""
-        if file_extension not in ["mp3", "wav", "webm", "m4a"]:
-            return JSONResponse(
-                status_code=400, 
-                content={"detail": "지원되지 않는 파일 형식입니다. MP3, WAV, WEBM, M4A 형식만 지원합니다."}
-            )
+        # 응답 평가 (순차적)
+        evaluation_result = await evaluate_response(
+            transcribed_text, 
+            problem.get("problem_category", ""),
+            problem.get("topic_category", ""),
+            problem.get("content", "")
+        )
         
-        # 파일 크기 제한 (10MB)
-        max_size = 10 * 1024 * 1024  # 10MB
-        if len(audio_content) > max_size:
-            return JSONResponse(
-                status_code=400, 
-                content={"detail": f"파일 크기가 너무 큽니다. 최대 10MB까지만 지원합니다. (현재 크기: {len(audio_content)/1024/1024:.2f}MB)"}
-            )
+        # 테스트 문서 업데이트
+        await update_test_document(
+            db, 
+            test_id, 
+            transcribed_text, 
+            evaluation_result
+        )
         
-        # 문제 정보 가져오기
-        problem_category = problem.get("problem_category", "")
-        topic_category = problem.get("topic_category", "")
-        problem_content = problem.get("content", "")
-        
-        # AudioProcessor를 사용하여 오디오 텍스트 변환
-        try:
-            start_time = datetime.now()
-            logger.info(f"사용자 {user_id}의 랜덤 문제 응답 변환 시작 (경량 모델)...")
-            
-            # 경량 모델과 최적화 설정 사용
-            transcribed_text = fast_audio_processor.process_audio_fast(audio_content)
-            
-            processing_time = (datetime.now() - start_time).total_seconds()
-            logger.info(f"경량 음성 변환 완료: {transcribed_text[:50]}... (소요 시간: {processing_time:.2f}초)")
-        except Exception as e:
-            logger.error(f"경량 음성 변환 중 오류: {str(e)}", exc_info=True)
-            return JSONResponse(
-                status_code=500,
-                content={"detail": "음성 변환 중 오류가 발생했습니다. 녹음을 다시 시도해 주세요."}
-            )
-        
-        # 스크립트는 저장하지 않음, 단 응답이 너무 짧으면 평가 생략
-        if len(transcribed_text.split()) < 5:
-            evaluation_result = {
-                "score": "NL",
-                "feedback": {
-                    "paragraph": "응답이 너무 짧아 평가할 수 없습니다. 최소 한 문장 이상의 응답이 필요합니다.",
-                    "vocabulary": "응답이 너무 짧아 어휘력을 평가할 수 없습니다.",
-                    "spoken_amount": "발화량이 매우 부족합니다. 질문에 대해 충분한 길이로 답변해야 합니다."
-                }
-            }
-        else:
-            # 매번 새로운 API 키로 평가기 생성
-            evaluator_instance = ResponseEvaluator()
-            
-            # LangChain 평가 모델 호출
-            evaluation_result = await evaluator_instance.evaluate_response(
-                user_response=transcribed_text,
-                problem_category=problem_category,
-                topic_category=topic_category,
-                problem=problem_content
-            )
-        
-        score = evaluation_result.get("score", "IM2")
-        feedback = evaluation_result.get("feedback", {})
-        
-        # 결과 응답 구성
-        response = {
-            "problem_id": problem_id,
-            "user_id": user_id,
-            "problem_category": problem_category,
-            "topic_category": topic_category,
-            "problem_content": problem_content,
-            "transcribed_text": transcribed_text,
-            "score": score,
-            "feedback": feedback,
-            "evaluated_at": datetime.now().isoformat()
-        }
-        
-        logger.info(f"랜덤 문제 평가 완료 - 사용자: {user_id}, 점수: {score}")
-        return RandomProblemEvaluationResponse(**response)
+        # 응답 구성
+        return create_evaluation_response(
+            problem, 
+            user_id, 
+            transcribed_text, 
+            evaluation_result
+        )
         
     except Exception as e:
-        logger.error(f"랜덤 문제 평가 중 오류 발생: {str(e)}", exc_info=True)
-        # 오류 로깅 (DB에 저장하지 않고 로그만 남김)
-        logger.error(traceback.format_exc())
-        return JSONResponse(
-            status_code=500,
-            content={"detail": f"오류가 발생했습니다: {str(e)}"}
-        )
+        await log_error(db, test_id, problem_id, e)
+        raise HTTPException(status_code=500, detail=f"오류가 발생했습니다: {str(e)}")
+
 
 
 # 모의고사 점수, 피드백 생성 비동기 처리를 위한 상태 확인 엔드포인트 - 개별 문제

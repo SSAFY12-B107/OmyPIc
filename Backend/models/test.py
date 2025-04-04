@@ -1,6 +1,14 @@
+from enum import Enum
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
+
+# 테스트 유형 열거형 정의
+class TestTypeEnum(str, Enum):
+    FULL_TEST = "full_test"        # 실전 모의고사 (15문제)
+    CATEGORICAL_TEST = "category"  # 유형별 테스트 (3문제)
+    SINGLE_PROBLEM = "single"      # 랜덤 1문제
+    HALF_TEST = "half_test"        # 기존 half_test 식별용
 
 class ScoreDetail(BaseModel):
     """점수 상세 정보 모델"""
@@ -39,6 +47,7 @@ class TestModel(BaseModel):
     """테스트(모의고사) 모델"""
     id: Optional[str] = Field(default=None, alias="_id")  # MongoDB의 _id를 문자열로 표현
     test_type: bool  # 테스트 유형 (False: Full, True: Half(속성))
+    test_type_str: Optional[TestTypeEnum] = None  # 새로운 열거형 필드 추가
     test_score: Optional[ScoreDetail] = None  # 테스트 점수 정보
     test_feedback: Optional[FeedbackDetail] = None  # 테스트 피드백 정보
     problem_data: Dict[str, ProblemDetail] = Field(default_factory=dict)  # 문제 번호를 키로 하는 문제 상세 정보 (문자열 키 사용)
@@ -54,6 +63,7 @@ class TestModel(BaseModel):
             "example": {
                 "_id": "507f1f77bcf86cd799439011",
                 "test_type": False,
+                "test_type_str": "full_test",
                 "test_score": {
                     "total_score": "IH",
                     "comboset_score": "AL",
@@ -87,3 +97,25 @@ class TestModel(BaseModel):
             }
         }
     }
+
+    def __init__(self, **data):
+        """
+        기존 test_type과 새 test_type_str 필드 간 일관성 유지
+        """
+        super().__init__(**data)
+        
+        # 초기화 시 test_type_str이 없고 test_type만 있으면 test_type_str 설정
+        if self.test_type_str is None and "test_type" in data:
+            self.test_type_str = self._bool_to_test_type(self.test_type)
+        
+        # 초기화 시 test_type이 없고 test_type_str만 있으면 test_type 설정
+        elif "test_type" not in data and self.test_type_str is not None:
+            self.test_type = self._test_type_to_bool(self.test_type_str)
+    
+    def _bool_to_test_type(self, test_type_bool: bool) -> TestTypeEnum:
+        """bool 값을 TestTypeEnum으로 변환"""
+        return TestTypeEnum.FULL_TEST if not test_type_bool else TestTypeEnum.CATEGORICAL_TEST
+    
+    def _test_type_to_bool(self, test_type_enum: TestTypeEnum) -> bool:
+        """TestTypeEnum을 bool 값으로 변환"""
+        return test_type_enum != TestTypeEnum.FULL_TEST

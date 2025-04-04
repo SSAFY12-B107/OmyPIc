@@ -28,7 +28,8 @@ export const PublicRoute = () => {
       return <Navigate to="/auth/profile" replace />;
     }
     
-    return <Navigate to="/" replace />;
+    // 홈(/)에서 모의고사 메인(/tests)으로 변경
+    return <Navigate to="/tests" replace />;
   }
 
   return <Outlet />;
@@ -44,7 +45,8 @@ export const OnboardingRoute = () => {
   }
 
   if (isOnboarded) {
-    return <Navigate to="/" replace />;
+    // 홈(/)에서 모의고사 메인(/tests)으로 변경
+    return <Navigate to="/tests" replace />;
   }
 
   return <Outlet />;

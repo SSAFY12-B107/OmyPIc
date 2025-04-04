@@ -7,6 +7,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 from api.deps import get_next_groq_key, get_next_gemini_key
 
+import time
+
 # 로깅 설정
 logger = logging.getLogger(__name__)
 
@@ -37,14 +39,9 @@ LEVEL_DESCRIPTIONS = {
 
 # 오픽 평가 기준에 대한 상세 설명을 담은 프롬프트 템플릿
 EVALUATION_PROMPT_TEMPLATE = """
-당신은 OPIC(Oral Proficiency Interview-Computer) 시험의 전문 평가자입니다. 제시된 응답을 아래 기준에 따라 평가해 주세요.
+당신은 OPIC(Oral Proficiency Interview-Computer) 시험의 전문 평가자입니다. 제시된 응답을 아래 기준에 따라 **한국어로** 평가해 주세요.
 피드백을 생성할 때는, 예상되는 등급보다 높은 등급의 레벨로 올라가기 위해서 어떤 것을 보완해야 하는지를 위주로 설명해주세요.
 또한, 질문과 연관있는 답변을 하고 있는지 필수적으로 확인해서 피드백해주세요.
-
-중요: 피드백을 HTML 형식으로 제공해주세요.
-1. 문단 구분이 필요한 경우 <br><br>를 사용하세요.
-2. 중요한 포인트는 <b>강조할 내용</b> 형식으로 볼드 처리하세요.
-3. 피드백은 가독성이 좋게 작성해주세요.
 
 ## 중요: 의미 없는 응답 감지
 가장 먼저, 응답이 의미가 있는지 확인하세요. "에베베베", "아아아", "음음음" 등과 같이 실제 단어가 아니거나 의미 없는 소리의 나열, 또는 질문과 전혀 관련 없는 무의미한 응답인 경우 즉시 최하 점수인 "NL"을 부여하세요.
@@ -83,13 +80,19 @@ EVALUATION_PROMPT_TEMPLATE = """
 3. 어휘력 피드백: 어휘 사용에 대한 구체적인 피드백. 문법을 잘 지키고 있는지도 판단해서 피드백한다.
 4. 발화량 피드백: 응답의 양과 내용 풍부함에 대한 구체적인 피드백. 응답 중 단어와 단어, 문장과 문장 사이 발화를 하지 않은 시간이 너무 길지는 않은지, filler를 적절히 사용하고 있는지 확인한다.
 
-평가 결과는 다음 JSON 형식으로 제공해 주세요:
+중요: 피드백을 작성할 때는 다음 사항을 지켜주세요.
+1. 문단 구분이 필요한 경우 <br><br>를 사용하세요.
+2. 중요한 포인트는 <b>강조할 내용</b> 형식으로 볼드 처리하세요.
+3. 피드백은 가독성이 좋게 작성해주세요.
+
+평가 결과는 반드시 다음 JSON 형식만으로 제공해 주세요:
+```json
 {{
   "score": "레벨(예: IM2, IH, AL 등)",
   "feedback": {{
-    "paragraph": "문단 구성력에 대한 구체적인 피드백",
-    "vocabulary": "어휘력에 대한 구체적인 피드백",
-    "spoken_amount": "발화량에 대한 구체적인 피드백"
+    "paragraph": "HTML 형식의 문단 구성력 피드백(예: <b>강조</b> 태그 사용 가능, <br><br>로 문단 구분)",
+    "vocabulary": "HTML 형식의 어휘력 피드백(예: <b>강조</b> 태그 사용 가능, <br><br>로 문단 구분)",
+    "spoken_amount": "HTML 형식의 발화량 피드백(예: <b>강조</b> 태그 사용 가능, <br><br>로 문단 구분)"
   }}
 }}
 """
@@ -97,14 +100,9 @@ EVALUATION_PROMPT_TEMPLATE = """
 # 전체 테스트 종합 평가를 위한 프롬프트 템플릿 - 수정됨
 OVERALL_EVALUATION_PROMPT_TEMPLATE = """
 당신은 OPIC(Oral Proficiency Interview-Computer) 시험의 전문 평가자입니다. 
-아래 제시된 개별 문제 응답들을 종합적으로 평가하여 전체 테스트에 대한 종합 평가를 제공해 주세요.
+아래 제시된 개별 문제 응답들을 종합적으로 평가하여 전체 테스트에 대한 종합 평가를 **한국어로** 제공해 주세요.
 평가를 할 때는, 예상되는 등급보다 높은 등급의 레벨로 올라가기 위해서 어떤 것을 보완해야 하는지를 위주로 설명해주세요.
 또한, 질문과 연관있는 답변을 하고 있는지 필수적으로 확인해서 평가해주세요.
-
-중요: 피드백을 HTML 형식으로 제공해주세요.
-1. 문단 구분이 필요한 경우 <br><br>를 사용하세요.
-2. 중요한 포인트는 <b>강조할 내용</b> 형식으로 볼드 처리하세요.
-3. 피드백은 가독성이 좋게 작성해주세요.
 
 ## 문제별 응답 및 평가 결과:
 {problem_responses}
@@ -127,7 +125,13 @@ OVERALL_EVALUATION_PROMPT_TEMPLATE = """
    - 어휘력: 전반적인 어휘 사용 능력 및 문법 준수 여부에 대한 피드백.
    - 발화량: 전반적인 발화량과 내용의 풍부함에 대한 피드백
 
-평가 결과는 다음 JSON 형식으로 제공해 주세요:
+중요: 피드백을 작성할 때는 다음 사항을 지켜주세요.
+1. 문단 구분이 필요한 경우 <br><br>를 사용하세요.
+2. 중요한 포인트는 <b>강조할 내용</b> 형식으로 볼드 처리하세요.
+3. 피드백은 가독성이 좋게 작성해주세요.
+   
+평가 결과는 반드시 다음 JSON 형식만으로 제공해 주세요:
+```json
 {{
   "test_score": {{
     "total_score": "종합 레벨(예: IM2, IH, AL 등)",
@@ -136,13 +140,16 @@ OVERALL_EVALUATION_PROMPT_TEMPLATE = """
     "unexpected_score": "돌발질문 평균 레벨(예: IM2, IH, AL 등)"
   }},
   "test_feedback": {{
-    "total_feedback": "전체 영어 구사력에 대한 종합적인 피드백",
-    "paragraph": "전반적인 문단 구성 능력에 대한 피드백",
-    "vocabulary": "전반적인 어휘 사용 능력에 대한 피드백",
-    "spoken_amount": "전반적인 발화량과 내용의 풍부함에 대한 피드백"
+    "total_feedback": "HTML 형식의 전체 영어 구사력 피드백(예: <b>강조</b> 태그 사용 가능, <br><br>로 문단 구분)",
+    "paragraph": "HTML 형식의 문단 구성력 피드백(예: <b>강조</b> 태그 사용 가능, <br><br>로 문단 구분)",
+    "vocabulary": "HTML 형식의 어휘력 피드백(예: <b>강조</b> 태그 사용 가능, <br><br>로 문단 구분)",
+    "spoken_amount": "HTML 형식의 발화량 피드백(예: <b>강조</b> 태그 사용 가능, <br><br>로 문단 구분)"
   }}
 }}
 """
+
+
+from core.metrics import LLM_API_DURATION, track_time_async, track_problem_evaluation_time
 
 class ResponseEvaluator:
     """OPIC 응답 평가 클래스"""
@@ -205,7 +212,7 @@ class ResponseEvaluator:
             convert_system_message_to_human=True
         )
 
-    
+    @track_time_async(LLM_API_DURATION, {"model": "gemini-1.5-pro", "operation": "evaluate_response"})
     async def evaluate_response(
         self, 
         user_response: str, 
@@ -225,6 +232,9 @@ class ResponseEvaluator:
         Returns:
             평가 결과 딕셔너리
         """
+        start_time = time.time()
+        status = "success"
+
         try:
             logger.info(f"응답 평가 시작 - 문제 카테고리: {problem_category}, 토픽: {topic_category}")
             
@@ -261,6 +271,7 @@ class ResponseEvaluator:
             return result
             
         except Exception as e:
+            status = "error"
             logger.error(f"응답 평가 중 오류 발생: {str(e)}", exc_info=True)
             # 오류 발생 시 점수를 제공하지 않고 오류 정보만 반환
             return {
@@ -272,7 +283,14 @@ class ResponseEvaluator:
                 },
                 "error": True  # 평가 오류 플래그 추가
             }
+        finally:
+            # 평가 시간 측정 추가
+            duration = time.time() - start_time
+            track_problem_evaluation_time(problem_category, duration, status)
     
+
+
+    @track_time_async(LLM_API_DURATION, {"model": "gemini-1.5-pro", "operation": "evaluate_overall_test"})
     async def evaluate_overall_test(
         self,
         test_data: Dict[str, Any],
@@ -403,18 +421,77 @@ class ResponseEvaluator:
                 }
             }
     
-    def _get_problem_type(self, problem_number: int, test_type: bool) -> str:
+
+    def _get_problem_type(self, problem_number: int, test: Dict[str, Any]) -> str:
         """
-        문제 번호와 테스트 유형에 따라 문제 유형 결정
+        문제 번호와 테스트 정보에 따라 문제 유형 결정
         
         Args:
             problem_number: 문제 번호 (1부터 시작)
-            test_type: 테스트 유형(True: Full, False: Half)
+            test: 테스트 정보 딕셔너리
             
         Returns:
             문제 유형 문자열
         """
-        if test_type:  # Full 테스트
+
+                # test가 bool 타입인지 확인
+        if isinstance(test, bool):
+            # True는 Half 테스트
+            if test:  # True는 Half 테스트
+                if problem_number <= 3:
+                    return "comboset"
+                elif 4 <= problem_number <= 5:
+                    return "roleplaying"
+                else:  # 6~7
+                    return "unexpected"
+            else:  # False는 Full 테스트
+                if problem_number == 1:
+                    return "self_introduction"
+                elif 2 <= problem_number <= 10:
+                    return "comboset"
+                elif 11 <= problem_number <= 13:
+                    return "roleplaying"
+                else:  # 14~15
+                    return "unexpected"
+    
+        # 새 필드를 우선 확인
+        test_type_str = test.get("test_type_str")
+        if test_type_str:
+            if test_type_str == "single":
+                return "single"
+            elif test_type_str == "category":
+                # 유형별 테스트의 경우 문제 카테고리를 확인
+                problem_data = test.get("problem_data", {})
+                if str(problem_number) in problem_data:
+                    problem_category = problem_data[str(problem_number)].get("problem_category", "").lower()
+                    if "롤플레이" in problem_category or "roleplay" in problem_category:
+                        return "roleplaying"
+                    else:
+                        return "comboset"  # 기본값
+                return "comboset"  # 정보가 없으면 기본값
+            else:  # "full_test"
+                if problem_number == 1:
+                    return "self_introduction"
+                elif 2 <= problem_number <= 10:
+                    return "comboset"
+                elif 11 <= problem_number <= 13:
+                    return "roleplaying"
+                else:  # 14~15
+                    return "unexpected"
+        
+        # 기존 bool 필드로 폴백
+        test_type = test.get("test_type", False)
+        
+        if test_type:  # True는 Half 테스트
+            if len(test.get("problem_data", {})) == 1:
+                return "single"  # 문제가 1개면 single
+            elif 1 <= problem_number <= 3:
+                return "comboset"
+            elif 4 <= problem_number <= 5:
+                return "roleplaying"
+            else:  # 6~7
+                return "unexpected"
+        else:  # False는 Full 테스트
             if problem_number == 1:
                 return "self_introduction"
             elif 2 <= problem_number <= 10:
@@ -422,13 +499,6 @@ class ResponseEvaluator:
             elif 11 <= problem_number <= 13:
                 return "roleplaying"
             else:  # 14~15
-                return "unexpected"
-        else:  # Half 테스트
-            if 1 <= problem_number <= 3:
-                return "comboset"
-            elif 4 <= problem_number <= 5:
-                return "roleplaying"
-            else:  # 6~7
                 return "unexpected"
     
 
@@ -513,3 +583,7 @@ class ResponseEvaluator:
                 logger.warning(f"피드백 항목 '{field}'가 없거나 유효하지 않습니다.")
         
         return result
+    
+
+
+

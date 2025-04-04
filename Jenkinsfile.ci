@@ -13,8 +13,7 @@ pipeline {
         )
 
         GIT_AUTHOR_ID = "${env.gitlabUserName}"
-
-        GIT_AUTHOR_EMAIL = "${env.gitlabUserEmail}"
+        GIT_AUTHOR_EMAIL = "${env.gitlabUserEmail ?: 'Not set'}"
     }
 
     stages {
@@ -34,6 +33,25 @@ pipeline {
                     if (env.gitlabTargetBranch != 'dev' && !env.GIT_BRANCH.endsWith('dev')) {
                         error("This pipeline only runs for pushes targeting the dev branch")
                     }
+                }
+            }
+        }
+
+        stage('Prepare Frontend Environment') {
+            when { changeset "Frontend/**" }
+            steps {
+                withCredentials([
+                    string(credentialsId: 'vite-api-url', variable: 'VITE_API_URL'),
+                    string(credentialsId: 'vite-ga-tracking-id', variable: 'VITE_GA_TRACKING_ID'),
+                    string(credentialsId: 'vite-hotjar-id', variable: 'VITE_HOTJAR_ID'),
+                ]) {
+                    sh '''
+                        cd Frontend
+                        cp .env.production.template .env
+                        sed -i "s|VITE_API_URL=|VITE_API_URL=${VITE_API_URL}|g" .env
+                        sed -i "s|VITE_GA_TRACKING_ID=|VITE_GA_TRACKING_ID=${VITE_GA_TRACKING_ID}|g" .env
+                        sed -i "s|VITE_HOTJAR_ID=|VITE_HOTJAR_ID=${VITE_HOTJAR_ID}|g" .env
+                    '''
                 }
             }
         }
