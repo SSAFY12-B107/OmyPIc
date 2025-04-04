@@ -596,6 +596,7 @@ async def listen_script(
         
         # 스크립트 내용 추출
         script_content = script.get('content', '')
+        logger.debug(f"4. 스크립트 내용 길이: {len(script_content)}")
         
         if not script_content:
             raise HTTPException(status_code=400, detail="No content available for TTS")
@@ -626,15 +627,18 @@ async def listen_script(
         temp_audio_path = f"./temp_script_audio_{script_pk}.mp3"
         tts.save(temp_audio_path)
         
-        # 파일 크기 계산
-        file_size = os.path.getsize(temp_audio_path)
-        
-        # 파일을 Base64로 인코딩
-        with open(temp_audio_path, 'rb') as audio_file:
-            encoded_audio = base64.b64encode(audio_file.read()).decode('utf-8')
-        
-        # 임시 파일 삭제
-        os.remove(temp_audio_path)
+        # 파일 처리
+        try:
+            file_size = os.path.getsize(temp_audio_path)
+            with open(temp_audio_path, 'rb') as audio_file:
+                encoded_audio = base64.b64encode(audio_file.read()).decode('utf-8')
+            os.remove(temp_audio_path)
+            logger.debug(f"9. 파일 처리 완료: {file_size} bytes")
+        except Exception as e:
+            logger.error(f"파일 처리 실패: {e}")
+            if os.path.exists(temp_audio_path):
+                os.remove(temp_audio_path)
+            raise HTTPException(status_code=500, detail=f"File processing failed: {str(e)}")
         
         return {
             "audio_base64": encoded_audio,
@@ -643,9 +647,11 @@ async def listen_script(
             "file_size_kb": round(file_size / 1024, 2)
         }
     
+    except HTTPException:
+        raise
     except Exception as e:
-        # 오류 처리
-        raise HTTPException(status_code=500, detail=f"Error generating script audio: {str(e)}")
+        logger.error(f"예상치 못한 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 # 테스트용 라우터
