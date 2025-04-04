@@ -5,9 +5,9 @@ type Props = {};
 
 function Navbar({}: Props) {
   const tabs = [
-    { to: "/tests", label: "모의고사" },
-    { to: "/", label: "홈" },
+    { to: "/tests", label: "실전 연습" },
     { to: "/scripts", label: "스크립트" },
+    { to: "/home", label: "마이페이지" },
   ];
 
   return (
