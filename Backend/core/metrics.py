@@ -169,9 +169,18 @@ def track_time_async(metric, labels_dict):
                 # 라벨 사전에 상태 추가
                 labels = {**labels_dict, "status": status}
                 
-                # 라벨이 메트릭의 라벨네임과 일치하는지 확인
-                valid_labels = {k: v for k, v in labels.items() if k in metric._labelnames}
-                metric.labels(**valid_labels).observe(duration)
+                # track_time_async 함수 수정 부분
+                safe_labels = {}
+                for k, v in labels.items():
+                    if k in metric._labelnames:
+                        # 모든 레이블 값 정규화
+                        safe_labels[k] = normalize_label_value(str(v))
+
+                try:
+                    metric.labels(**safe_labels).observe(duration)
+                except Exception as label_error:
+                    import logging
+                    logging.getLogger(__name__).error(f"메트릭 레이블 오류: {label_error}, 레이블: {safe_labels}")
                 
                 # 활성 작업 감소 (해당되는 경우)
                 if "task_type" in labels_dict and "task_type" in [label for label in ACTIVE_TASKS._labelnames]:
@@ -226,4 +235,54 @@ def track_audio_size(audio_content: bytes, processor: str = "standard"):
 # 문제 유형별 평가 시간 기록 함수
 def track_problem_evaluation_time(problem_category: str, duration: float, status: str = "success"):
     """문제 유형별 평가 시간 기록"""
-    PROBLEM_TYPE_EVALUATION_TIME.labels(problem_category=problem_category, status=status).observe(duration)
+    try:
+        # 카테고리 정규화
+        safe_category = normalize_category(problem_category)
+        PROBLEM_TYPE_EVALUATION_TIME.labels(problem_category=safe_category, status=status).observe(duration)
+    except Exception as e:
+        # 메트릭 기록 실패 시 로그만 남기고 계속 진행
+        import logging
+        logging.getLogger(__name__).error(f"메트릭 기록 중 오류: {str(e)}")
+
+
+def normalize_category(category: str) -> str:
+    """카테고리 이름을 프로메테우스 레이블로 사용 가능하게 정규화"""
+    if not category:
+        return "unknown"
+        
+    # 지원하는 카테고리 매핑
+    mapping = {
+        "과거 경험": "past_experience",
+        "과거경험": "past_experience",
+        "묘사": "description",
+        "롤플레이": "roleplay",
+        "롤플레잉": "roleplay",
+        "자기소개": "self_introduction",
+        "비교": "comparison",
+        "루틴": "routine",
+        "기술": "technology",
+        "영화보기": "watching_movies"
+    }
+    
+    # 매핑된 값이 있으면 반환
+    if category in mapping:
+        return mapping[category]
+    
+    # 없으면 영문자/숫자/언더스코어만 남기고 나머지는 _로 대체
+    import re
+    normalized = re.sub(r'[^a-zA-Z0-9_]', '_', category.lower())
+    
+    # 빈 문자열이 되면 unknown 반환
+    return normalized if normalized else "unknown"
+
+
+# 레이블 값 정규화 함수 추가
+def normalize_label_value(value: str) -> str:
+    """프로메테우스 레이블 값 정규화"""
+    if not value:
+        return "unknown"
+    
+    # 하이픈을 언더스코어로 변환하고 나머지는 영문자/숫자/언더스코어만 유지
+    import re
+    normalized = re.sub(r'[^a-zA-Z0-9_]', '_', str(value))
+    return normalized if normalized else "unknown"
