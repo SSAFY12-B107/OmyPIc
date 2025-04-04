@@ -433,6 +433,27 @@ class ResponseEvaluator:
         Returns:
             문제 유형 문자열
         """
+
+                # test가 bool 타입인지 확인
+        if isinstance(test, bool):
+            # True는 Half 테스트
+            if test:  # True는 Half 테스트
+                if problem_number <= 3:
+                    return "comboset"
+                elif 4 <= problem_number <= 5:
+                    return "roleplaying"
+                else:  # 6~7
+                    return "unexpected"
+            else:  # False는 Full 테스트
+                if problem_number == 1:
+                    return "self_introduction"
+                elif 2 <= problem_number <= 10:
+                    return "comboset"
+                elif 11 <= problem_number <= 13:
+                    return "roleplaying"
+                else:  # 14~15
+                    return "unexpected"
+    
         # 새 필드를 우선 확인
         test_type_str = test.get("test_type_str")
         if test_type_str:
