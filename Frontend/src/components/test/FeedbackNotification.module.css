@@ -3,7 +3,7 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  margin-bottom: 1.6rem;
+  /* margin-bottom: 1.6rem; */
   animation: slideDown 0.5s ease;
 
 }

@@ -9,6 +9,7 @@ interface RecordItemProps {
 
 function RecordItem({ record, date }: RecordItemProps) {
   const navigate = useNavigate();
+  console.log("record.test_type",record.test_type)
 
   // 상세 페이지로 이동
   const goToDetailHandler = () => {

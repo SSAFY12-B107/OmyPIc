@@ -39,7 +39,10 @@ function TestExam() {
   console.log("audioCache입니다", audioCache);
 
   // 테스트 타입에 따른 최대 문제 수 설정
-  const maxValue = isRandomProblem ? 1 : currentTest?.test_type === 1 ? 15 : 3;
+  const maxValue = isRandomProblem ? 1 : currentTest?.test_type == 0 ? 15 : 3;
+  console.log("maxValue", maxValue);
+  console.log("currentTest?.test_type", currentTest?.test_type);
+  console.log("currentTest", currentTest);
 
   // 문제번호 관리(ui)
   const [currentProblem, setCurrentProblem] = useState<number>(1);
@@ -59,8 +62,11 @@ function TestExam() {
   const [recordedFile, setRecordedFile] = useState<File | null>(null);
 
   // 녹음 타이머 관련 상태 추가
-  const [recordingTime, setRecordingTime] = useState<number>(0);
+  const recordingTimeRef = useRef<number>(0);
+  const timeDisplayRef = useRef<HTMLSpanElement>(null);
   const timerRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number>(0);
+
   // 랜덤문제 모달창
   const [isOpen, setIsOpen] = useState<boolean>(false);
 
@@ -300,11 +306,33 @@ function TestExam() {
         setRecorder(mp3Recorder);
         setIsRecording(true);
 
-        // 녹음 시작 시 타이머 초기화 및 시작
-        setRecordingTime(0);
+        // 녹음 시작 시간 저장
+        // 녹음 시작 시간 저장
+        startTimeRef.current = Date.now();
+        recordingTimeRef.current = 0;
+
+        // 시간 표시 초기화
+        if (timeDisplayRef.current) {
+          timeDisplayRef.current.textContent = "00:00";
+        }
+
+        // 타이머 시작 - DOM을 직접 업데이트
         timerRef.current = window.setInterval(() => {
-          setRecordingTime((prevTime) => prevTime + 1);
-        }, 1000);
+          const elapsedSeconds = Math.floor(
+            (Date.now() - startTimeRef.current) / 1000
+          );
+          recordingTimeRef.current = elapsedSeconds;
+
+          if (timeDisplayRef.current) {
+            const minutes = Math.floor(elapsedSeconds / 60);
+            const remainingSeconds = elapsedSeconds % 60;
+            timeDisplayRef.current.textContent = `${minutes
+              .toString()
+              .padStart(2, "0")}:${remainingSeconds
+              .toString()
+              .padStart(2, "0")}`;
+          }
+        }, 50);
       } catch (error) {
         console.error("녹음 시작 오류:", error);
         alert("마이크 접근 권한이 필요합니다.");
@@ -382,6 +410,7 @@ function TestExam() {
             state: {
               recentTestId: currentTest._id,
               feedbackReady: false, // 아직 피드백이 준비되지 않았음
+              testType: currentTest.test_type, // test_type도 함께 전달
             },
           });
         } else if (!isRandomProblem && !isLastProblem) {
@@ -397,6 +426,7 @@ function TestExam() {
         setRandomEvaluationLoading(false);
       }
       setIsSubmitting(false);
+
     }
   };
 
@@ -462,8 +492,7 @@ function TestExam() {
           <span className={styles.answerText}>내 답변</span>
 
           {/* 녹음 시간 표시 추가 */}
-          <span className={styles.recordingTime}>
-            {formatTime(recordingTime)}
+          <span ref={timeDisplayRef} className={styles.recordingTime}>
           </span>
         </div>
 
@@ -484,9 +513,7 @@ function TestExam() {
             onClick={toggleRecording}
             disabled={isPlaying || isSubmitting} // 오디오 재생 중이거나 제출 중일 때 비활성화
           >
-            {isRecording
-              ? "눌러서 녹음 종료"
-              : "눌러서 녹음 시작"}
+            {isRecording ? "눌러서 녹음 종료" : "눌러서 녹음 시작"}
           </button>
         </div>
       </div>

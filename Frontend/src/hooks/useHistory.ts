@@ -16,6 +16,8 @@ export interface TestHistory {
   test_date: string;
   test_type: number;
   test_score: Scores | null;
+  test_type_str?: string;  
+
 }
 
 export interface AverageScore {
@@ -68,7 +70,7 @@ export const useUserHistory = (options?: {
 }) => {
   const {
     enablePolling = false,
-    pollingInterval = 10000, // 1초 
+    pollingInterval = 5000, // 5초 
     recentTestId,
     onFeedbackReady
   } = options || {};

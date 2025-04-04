@@ -17,13 +17,14 @@ function TestMain() {
   const dispatch = useDispatch();
 
   // location.state에서 최근 테스트 정보 확인
-  const { recentTestId, feedbackReady } = location.state || {};
+  const { recentTestId, feedbackReady, testType } = location.state || {};
 
   console.log("recenttestId", recentTestId);
+  console.log("testType", testType);
 
   // 알림 표시 상태 관리
   const [showNotification, setShowNotification] = useState(
-    !!recentTestId && !feedbackReady
+    !!recentTestId && !feedbackReady && (testType == 1 || testType == 0)
   );
 
   // 폴링 활성화 여부 결정 - feedbackReady가 true면 폴링 비활성화
@@ -210,28 +211,47 @@ function TestMain() {
           {isLoading ? (
             <div>로딩 중...</div>
           ) : historyData && historyData.test_history?.length > 0 ? (
-            <div className={styles.records}>
-              {[...historyData.test_history]
-                .sort(
-                  (a, b) =>
-                    new Date(b.test_date).getTime() -
-                    new Date(a.test_date).getTime()
-                )
-                .map((record) => {
-                  const testDate = new Date(record.test_date);
-                  const formattedDate = `${testDate.getFullYear()}년 ${
-                    testDate.getMonth() + 1
-                  }월 ${testDate.getDate()}일`;
+            // 필터링된 배열 미리 생성
+            (() => {
+              const filteredRecords = historyData.test_history.filter(
+                (record) => record.test_type_str !== "single"
+              );
 
-                  return (
-                    <RecordItem
-                      key={record.id}
-                      date={formattedDate}
-                      record={record}
-                    />
-                  );
-                })}
-            </div>
+              // 필터링 후 배열이 비어 있는지 확인
+              if (filteredRecords.length === 0) {
+                return (
+                  <div className={styles.noData}>
+                    내 기록을 한눈에 볼 수 있어요 🤗
+                  </div>
+                );
+              }
+
+              // 필터링된 레코드가 있으면 정상적으로 표시
+              return (
+                <div className={styles.records}>
+                  {filteredRecords
+                    .sort(
+                      (a, b) =>
+                        new Date(b.test_date).getTime() -
+                        new Date(a.test_date).getTime()
+                    )
+                    .map((record) => {
+                      const testDate = new Date(record.test_date);
+                      const formattedDate = `${testDate.getFullYear()}년 ${
+                        testDate.getMonth() + 1
+                      }월 ${testDate.getDate()}일`;
+
+                      return (
+                        <RecordItem
+                          key={record.id}
+                          date={formattedDate}
+                          record={record}
+                        />
+                      );
+                    })}
+                </div>
+              );
+            })()
           ) : (
             !isLoading && (
               <div className={styles.noData}>
