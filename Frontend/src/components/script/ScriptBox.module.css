@@ -84,6 +84,13 @@
   text-align: center;
 }
 
+/* 기본 HTML Audio 플레이어 스타일 */
+.audio-player {
+  width: 100%;
+  margin-top: 1rem;
+  border-radius: 1rem;
+}
+
 /* 발음 듣기 로딩 스피너 */
 .spinner {
   width: 20px;
