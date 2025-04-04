@@ -14,7 +14,7 @@ function Login({}: Props) {
     const timer = setTimeout(() => {
       // 마지막 페이지라면 첫 페이지로, 아니면 다음 페이지로
       setCurrentStep((prev) => (prev >= totalSteps - 1 ? 0 : prev + 1));
-    }, 2500); // 2.5초 후 다음 페이지로
+    }, 1300); // 1.3초 후 다음 페이지로
 
     return () => clearTimeout(timer);
   }, [currentStep, totalSteps]);

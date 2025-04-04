@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import "./App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HeaderProvider } from "./contexts/HeaderContext";
+import NavigationInitializer from './components/common/NavigationInitializer';
 import ReactGA from "react-ga4";
 import { hotjar } from 'react-hotjar';
 import {
@@ -24,6 +25,7 @@ import ScriptList from "./pages/script/ScriptList";
 import ScriptDetail from "./pages/script/ScriptDetail";
 import ScriptWrite from "./pages/script/ScriptWrite";
 import AuthCallback from "./pages/auth/AuthCallback";
+import NotFound from "./pages/NotFound";
 import RouteTracker from "./components/common/RouteTracker";
 import { useAnalytics } from "./hooks/useAnalytics";
 
@@ -91,6 +93,9 @@ function App() {
 
   return (
     <BrowserRouter>
+      {/* API 클라이언트에서 사용할 네비게이션 함수를 설정하는 컴포넌트 */}
+      <NavigationInitializer />
+      
       <AndroidKakaoTalkRedirect>
         <HeaderProvider>
           {/* 헤더는 한 번만 선언하고, 모든 설정은 Context를 통해 관리됨 */}
@@ -139,7 +144,7 @@ function App() {
             </Route>
 
             {/* 404 페이지 */}
-            <Route path="*" element={<div>페이지를 찾을 수 없습니다.</div>} />
+            <Route path="*" element={<NotFound/>} />
           </Routes>
         </HeaderProvider>
       </AndroidKakaoTalkRedirect>
