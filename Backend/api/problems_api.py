@@ -586,23 +586,6 @@ async def listen_script(
 ) -> Dict[str, Any]:
     """
     스크립트 발음을 TTS로 변환하여 Base64 인코딩된 오디오 데이터 반환
-
-    Args:
-        script_pk (str): MongoDB에서 조회할 스크립트의 고유 ID
-        db (Database): MongoDB 데이터베이스 연결 세션
-
-    Returns:
-        Dict[str, Any]: 다음 키를 포함하는 딕셔너리
-        - audio_base64 (str): Base64로 인코딩된 MP3 오디오 데이터
-        - audio_type (str): 오디오 파일 유형 (mp3)
-        - file_size_bytes (int): 오디오 파일의 바이트 크기
-        - file_size_kb (float): 오디오 파일의 킬로바이트 크기
-
-    Raises:
-        HTTPException: 
-            - 404: 스크립트를 찾을 수 없는 경우
-            - 400: 스크립트 내용이 없는 경우
-            - 500: 오디오 생성 중 예상치 못한 오류 발생 시
     """
     try:
         # MongoDB에서 스크립트 조회
@@ -613,24 +596,49 @@ async def listen_script(
         
         # 스크립트 내용 추출
         script_content = script.get('content', '')
+        logger.debug(f"4. 스크립트 내용 길이: {len(script_content)}")
         
         if not script_content:
             raise HTTPException(status_code=400, detail="No content available for TTS")
         
+        # HTML 태그 제거 및 텍스트만 추출
+        from bs4 import BeautifulSoup
+        
+        # HTML 파싱
+        soup = BeautifulSoup(script_content, 'html.parser')
+        
+        # 텍스트만 추출 (HTML 태그 제거)
+        clean_text = soup.get_text(separator=' ', strip=True)
+        
+        # 추가적인 텍스트 정리 (여러 공백, 특수 문자 등 처리)
+        import re
+        clean_text = re.sub(r'\s+', ' ', clean_text)  # 여러 공백을 하나로 치환
+        clean_text = clean_text.strip()
+        
+        # 로깅을 통해 변환 전/후 내용 확인 (디버깅용)
+        print(f"Original content length: {len(script_content)}")
+        print(f"Cleaned text length: {len(clean_text)}")
+        
+        if not clean_text:
+            raise HTTPException(status_code=400, detail="No valid text content after HTML removal")
+        
         # 임시 오디오 파일 생성
-        tts = gTTS(text=script_content, lang='en')
+        tts = gTTS(text=clean_text, lang='en')
         temp_audio_path = f"./temp_script_audio_{script_pk}.mp3"
         tts.save(temp_audio_path)
         
-        # 파일 크기 계산
-        file_size = os.path.getsize(temp_audio_path)
-        
-        # 파일을 Base64로 인코딩
-        with open(temp_audio_path, 'rb') as audio_file:
-            encoded_audio = base64.b64encode(audio_file.read()).decode('utf-8')
-        
-        # 임시 파일 삭제
-        os.remove(temp_audio_path)
+        # 파일 처리
+        try:
+            file_size = os.path.getsize(temp_audio_path)
+            with open(temp_audio_path, 'rb') as audio_file:
+                encoded_audio = base64.b64encode(audio_file.read()).decode('utf-8')
+            os.remove(temp_audio_path)
+            logger.debug(f"9. 파일 처리 완료: {file_size} bytes")
+        except Exception as e:
+            logger.error(f"파일 처리 실패: {e}")
+            if os.path.exists(temp_audio_path):
+                os.remove(temp_audio_path)
+            raise HTTPException(status_code=500, detail=f"File processing failed: {str(e)}")
         
         return {
             "audio_base64": encoded_audio,
@@ -639,9 +647,11 @@ async def listen_script(
             "file_size_kb": round(file_size / 1024, 2)
         }
     
+    except HTTPException:
+        raise
     except Exception as e:
-        # 오류 처리
-        raise HTTPException(status_code=500, detail=f"Error generating script audio: {str(e)}")
+        logger.error(f"예상치 못한 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 # 테스트용 라우터
