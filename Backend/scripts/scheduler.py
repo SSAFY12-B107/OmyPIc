@@ -16,6 +16,7 @@ async def reset_user_limits():
             {}, 
             {"$set": {
                 "limits.test_count": 0,
+                "limits.categorical_test_count": 0,
                 "limits.random_problem": 0,
                 "limits.script_count": 0
             }}

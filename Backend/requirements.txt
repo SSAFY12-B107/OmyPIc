@@ -18,6 +18,7 @@ langchain_groq==0.3.1
 motor==3.7.0
 pymongo==4.11.3
 PyJWT==2.10.1
+beautifulsoup4==4.13.3
 
 # Data processing and validation
 numpy==2.2.4
