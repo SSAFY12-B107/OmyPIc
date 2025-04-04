@@ -16,6 +16,16 @@ export const setNavigateFunction = (customNavigate: NavigateFunction) => {
   navigateToLogin = customNavigate;
 };
 
+// 404 페이지로 리다이렉트하는 함수 추가
+let navigateTo404: NavigateFunction = () => {
+  console.error('404 Navigation function not set');
+};
+
+// 외부에서 404 네비게이션 함수 설정 기능
+export const setNavigateTo404Function = (customNavigate: NavigateFunction) => {
+  navigateTo404 = customNavigate;
+};
+
 // Access Token을 세션 스토리지에서 가져오는 함수
 const getAccessToken = (): string | null => {
   try {
@@ -78,6 +88,17 @@ apiClient.interceptors.response.use(
     }
     
     const originalRequest = error.config as RetryConfig;
+
+    // 404 에러 처리 부분
+    if (error.response?.status === 404) {
+      console.error('404 Error:', error.response.data);
+      
+      // 그냥 존재하지 않는 경로로 리다이렉트
+      // 이렇게 하면 자동으로 * 경로에 의해 NotFound 컴포넌트가 렌더링됨
+      navigateTo404();
+      
+      return Promise.reject(error);
+    }
     
     // 401 에러가 발생했을 때 및 재시도되지 않은 요청인 경우에만
     if (error.response?.status === 401 && !originalRequest._retry) {

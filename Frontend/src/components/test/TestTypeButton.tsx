@@ -5,9 +5,10 @@ interface TestTypeButtonProps {
   description: string;
   onClick: () => void;
   isLoading: boolean;
+  duration:string;
 }
 
-function TestTypeButton({title, description, onClick, isLoading}: TestTypeButtonProps) {
+function TestTypeButton({title, description, onClick, isLoading, duration}: TestTypeButtonProps) {
   return (
     <button className={styles["test-type-btn-box"]} onClick={onClick} disabled={isLoading}>
       <div className={styles["purple-bar"]}></div>
@@ -19,6 +20,7 @@ function TestTypeButton({title, description, onClick, isLoading}: TestTypeButton
           <div className={styles["content"]}>
             <div className={styles["header"]}>
               <h2>{title}</h2>
+              <span className={styles["duration"]}>{duration}</span>
             </div>
             <p className={styles["description"]}>{description}</p>
           </div>

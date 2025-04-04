@@ -3,6 +3,13 @@
   font-size: 1.8rem;
 }
 
+.chart-box {
+  padding: 1.5rem;
+  border-radius: 1rem;
+  background-color: #fff;
+  box-shadow: 1px 1px 6px 0 rgba(0, 0, 0, 0.07);
+}
+
 .chart-legend {
   display: flex;
   justify-content: flex-end;
