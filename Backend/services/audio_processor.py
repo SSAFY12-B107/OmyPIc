@@ -4,6 +4,8 @@ from pydub import AudioSegment
 from groq import Groq
 from api.deps import get_next_groq_key
 
+from core.metrics import AUDIO_PROCESS_DURATION, track_time, track_audio_size, AUDIO_SIZE_VS_PROCESS_TIME
+
 # 로깅 설정
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,7 @@ class AudioProcessor:
                 raise RuntimeError(f"Groq API 연결에 실패했습니다: {str(e)}")
         return self._client
     
+    @track_time(AUDIO_PROCESS_DURATION, {"processor": "groq"})
     def process_audio(self, audio_content: bytes) -> str:
         """
         오디오 바이트 데이터를 텍스트로 변환 (Groq API 활용)
@@ -50,7 +53,10 @@ class AudioProcessor:
         Returns:
             str: 추출된 텍스트
         """
-        try:
+        try:            
+            # 오디오 크기 메트릭 추가
+            track_audio_size(audio_content, "groq")
+
             # 임시 파일 생성 - 확장자를 명시적으로 지정
             temp_file_name = "temp_audio_file.mp3"
             
@@ -94,6 +100,7 @@ class FastAudioProcessor(AudioProcessor):
         """
         super().__init__(model_name)
     
+    @track_time(AUDIO_PROCESS_DURATION, {"processor": "groq_optimized"})
     def process_audio_fast(self, audio_content: bytes) -> str:
         """
         최적화된 설정으로 오디오 바이트 데이터를 텍스트로 변환
@@ -105,6 +112,11 @@ class FastAudioProcessor(AudioProcessor):
             str: 추출된 텍스트
         """
         try:
+
+            # 오디오 크기 메트릭 추가
+            track_audio_size(audio_content, "groq_optimized")
+
+
             # 1. 필요시 오디오 데이터 전처리
             processed_audio = self._preprocess_audio(audio_content)
             

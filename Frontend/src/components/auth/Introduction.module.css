@@ -62,7 +62,7 @@
 }
 
 .testContainer {
-  margin: 5.5rem 0;
+  margin: 6.5rem 0;
   width: 30rem;
 }
 
@@ -78,7 +78,7 @@
 
   .testContainer {
     width: 25rem;
-    margin: 3rem 0;
+    margin: 5rem 0;
   }
 }
 
@@ -92,8 +92,8 @@
     margin: 5rem 0;
   }
 
-  .chatContainer {
+  .testContainer {
     width: 25rem;
-    margin: 2rem 0; /* 작은 화면에서 여백 줄이기 */
+    margin: 4rem 0; /* 작은 화면에서 여백 줄이기 */
   }
 }

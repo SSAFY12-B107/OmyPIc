@@ -10,7 +10,7 @@ interface PronunciationAudioResponse {
 }
 
 // 발음 듣기 API 훅
-export const usePronunciationAudio = (scriptId: number) => {
+export const usePronunciationAudio = (scriptId: string | null) => { // number에서 string으로 변경
   return useQuery<PronunciationAudioResponse, Error>({
     queryKey: ['pronunciation-audio', scriptId],
     queryFn: async () => {

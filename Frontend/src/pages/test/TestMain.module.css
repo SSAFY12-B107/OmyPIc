@@ -43,6 +43,12 @@
   gap: 1rem;
 }
 
+.miniTestType {  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+
+}
 
 .countLimit {
   font-size: 1.3rem;

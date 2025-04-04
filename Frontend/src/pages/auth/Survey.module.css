@@ -1,8 +1,8 @@
 /* Survey.module.css */
 .surveyContainer {
   max-width: 768px;
-  margin: 0 auto;
-  padding: 1.5rem 1.5rem;
+  margin: 0 auto ;
+  /* padding: 1.5rem 1.5rem; */
 }
 
 .content {

@@ -211,9 +211,10 @@ async def google_callback(
                     "unexpected_score": None
                 },
                 "limits": {             # 초기 limits 구조
-                    "script_count": 0,
-                    "test_count": 0,         # 기본 테스트 횟수
-                    "random_problem": 0      # 기본 랜덤 문제 수
+                    "test_count": 0,
+                    "categorical_test_count": 0,
+                    "random_problem": 0,
+                    "script_count": 0
                 }
             }
             
@@ -778,6 +779,7 @@ async def naver_callback(
                 },
                 "limits": {
                     "test_count": 0,
+                    "categorical_test_count": 0,
                     "random_problem": 0,
                     "script_count": 0
                 }

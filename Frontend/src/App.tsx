@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import "./App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HeaderProvider } from "./contexts/HeaderContext";
+import NavigationInitializer from './components/common/NavigationInitializer';
 import ReactGA from "react-ga4";
+import { hotjar } from 'react-hotjar';
 import {
   PrivateRoute,
   PublicRoute,
@@ -23,6 +25,7 @@ import ScriptList from "./pages/script/ScriptList";
 import ScriptDetail from "./pages/script/ScriptDetail";
 import ScriptWrite from "./pages/script/ScriptWrite";
 import AuthCallback from "./pages/auth/AuthCallback";
+import NotFound from "./pages/NotFound";
 import RouteTracker from "./components/common/RouteTracker";
 import { useAnalytics } from "./hooks/useAnalytics";
 
@@ -33,6 +36,18 @@ function App() {
     // GA 초기화
     initGA();
 
+    // Hotjar 초기화 - 개발 환경에서는 실행하지 않음
+    if (import.meta.env.MODE !== 'development') {
+      const hotjarId = import.meta.env.VITE_HOTJAR_ID;
+      
+      if (hotjarId) {
+        hotjar.initialize({
+          id: Number(hotjarId),
+          sv: 6
+        });
+      }
+    }
+    
     // 브라우저 종료/탭 닫기 추적
     const win = window as any;
     const doc = document as any;
@@ -78,6 +93,9 @@ function App() {
 
   return (
     <BrowserRouter>
+      {/* API 클라이언트에서 사용할 네비게이션 함수를 설정하는 컴포넌트 */}
+      <NavigationInitializer />
+      
       <AndroidKakaoTalkRedirect>
         <HeaderProvider>
           {/* 헤더는 한 번만 선언하고, 모든 설정은 Context를 통해 관리됨 */}
@@ -89,7 +107,11 @@ function App() {
           <Routes>
             {/* 로그인, 온보딩 완료된 사용자만 접근 가능 */}
             <Route element={<PrivateRoute />}>
-              <Route path="/" element={<Home />} />
+              {/* 루트 경로를 모의고사 페이지로 변경 */}
+              <Route path="/" element={<Navigate to="/tests" replace />} />
+              
+              {/* 기존 홈페이지를 /home 경로로 이동 */}
+              <Route path="/home" element={<Home />} />
 
               {/* Test 관련 라우트 */}
               <Route path="/tests" element={<TestMain />} />
@@ -122,7 +144,7 @@ function App() {
             </Route>
 
             {/* 404 페이지 */}
-            <Route path="*" element={<div>페이지를 찾을 수 없습니다.</div>} />
+            <Route path="*" element={<NotFound/>} />
           </Routes>
         </HeaderProvider>
       </AndroidKakaoTalkRedirect>
