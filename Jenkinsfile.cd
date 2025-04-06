@@ -40,7 +40,7 @@ pipeline {
                     sshCommand("cd ${DEPLOY_DIR} && chmod +x health-check.sh switch-script.sh")
                     
                     // 현재 환경 확인
-                    def checkCmd = "cd ${DEPLOY_DIR}/nginx/conf.d && grep -q 'server omypic-blue-backend:8000;' upstream.conf && echo 'blue' || echo 'green'"
+                    def checkCmd = "cd ${DEPLOY_DIR}/nginx/conf.d && cat upstream.conf | grep -q 'blue' && echo 'blue' || echo 'green'"
                     CURRENT_ENV = sshCommand(checkCmd)
                     TARGET_ENV = CURRENT_ENV == "blue" ? "green" : "blue"
                     
