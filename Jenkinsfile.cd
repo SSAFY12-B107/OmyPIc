@@ -1,3 +1,12 @@
+def sshCommand(command) {
+    withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY')]) {
+        return sh(
+            script: "ssh -i \$SSH_KEY -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} '${command}'",
+            returnStdout: true
+        ).trim()
+    }
+}
+
 pipeline {
     agent any
     
@@ -8,14 +17,15 @@ pipeline {
         DOCKER_REGISTRY = "kst1040"
         BACKEND_IMAGE = "${DOCKER_REGISTRY}/omypic-backend"
         FRONTEND_IMAGE = "${DOCKER_REGISTRY}/omypic-frontend"
+        TARGET_ENV = ''
+        CURRENT_ENV = ''
+        DEPLOYMENT_SUCCESS = false
     }
     
     stages {
-        
         stage('Check MR Target') {
             steps {
                 script {
-                    // MR이 master 브랜치로 향하는 경우에만 진행
                     if(env.gitlabTargetBranch != 'master') {
                         error("This pipeline only runs for MRs targeting the master branch")
                     }
@@ -23,29 +33,32 @@ pipeline {
             }
         }
         
-        stage('Deploy') {
+        stage('Determine Target Environment') {
             steps {
                 script {
-                    withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY')]) {
-                        sh """
-                            ssh -i \$SSH_KEY -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} '
-                                cd ${DEPLOY_DIR}
-                                
-                                echo "Pulling latest images..."
-                                docker image pull ${BACKEND_IMAGE}:latest
-                                docker image pull ${FRONTEND_IMAGE}:latest
-
-                                echo "Stopping current containers..."
-                                docker compose -f docker-compose-blue.yml down
-                                
-                                echo "Starting new containers..."
-                                docker compose -p omypic -f docker-compose-blue.yml up -d
-                                
-                                echo "Cleaning up old images..."
-                                docker image prune -f
-                            '
-                        """
-                    }
+                    // 스크립트 실행 권한 부여
+                    sshCommand("cd ${DEPLOY_DIR} && chmod +x health-check.sh switch-script.sh")
+                    
+                    // 현재 환경 확인
+                    def checkCmd = "cd ${DEPLOY_DIR}/nginx/conf.d && grep -q 'server omypic-blue-backend:8000;' upstream.conf && echo 'blue' || echo 'green'"
+                    CURRENT_ENV = sshCommand(checkCmd)
+                    TARGET_ENV = CURRENT_ENV == "blue" ? "green" : "blue"
+                    
+                    echo "현재 활성 환경: ${CURRENT_ENV}, 배포 타겟 환경: ${TARGET_ENV}"
+                }
+            }
+        }
+        
+        stage('Deploy to Target') {
+            steps {
+                script {
+                    sshCommand("""
+                        cd ${DEPLOY_DIR}
+                        docker image pull ${BACKEND_IMAGE}:latest
+                        docker image pull ${FRONTEND_IMAGE}:latest
+                        docker compose -f docker-compose-${TARGET_ENV}.yml down
+                        docker compose -p omypic -f docker-compose-${TARGET_ENV}.yml up -d
+                    """)
                 }
             }
         }
@@ -53,48 +66,78 @@ pipeline {
         stage('Health Check') {
             steps {
                 script {
+                    // 배포 환경 안정화를 위한 대기
+                    echo "배포 환경이 안정화될 때까지 30초 대기 중..."
                     sleep(time: 30, unit: 'SECONDS')
-            
-                    withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY')]) {
-                        sh """
-                            ssh -i \$SSH_KEY -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} '
-                                cd ${DEPLOY_DIR}
-                                echo "Checking container status..."
-                                CONTAINERS=\$(docker compose -f docker-compose-blue.yml ps -q)
-                                if [ -z "\$CONTAINERS" ]; then
-                                    echo "No running containers found!"
-                                    exit 1
-                                fi
-                                docker inspect \$CONTAINERS --format "{{.Name}}: {{.State.Status}}"
-                            '
-                        """
+                    
+                    // 기존 health-check.sh 스크립트 활용
+                    def healthCheckStatus = sshCommand("cd ${DEPLOY_DIR} && ./health-check.sh ${TARGET_ENV}; echo \$?")
+                    
+                    // 스크립트 종료 코드 확인
+                    if (healthCheckStatus.trim() != "0") {
+                        error "대상 환경(${TARGET_ENV})의 헬스 체크가 실패했습니다. 트래픽 전환을 취소합니다."
                     }
+                    
+                    echo "헬스 체크 성공: 대상 환경(${TARGET_ENV})이 정상 작동합니다."
                 }
+            }
+        }
+        
+        stage('Switch Traffic') {
+            steps {
+                script {
+                    // 기존 switch-script.sh 스크립트 활용
+                    def switchStatus = sshCommand("cd ${DEPLOY_DIR} && ./switch-script.sh; echo \$?")
+                    
+                    // 스크립트 종료 코드 확인
+                    if (switchStatus.trim() != "0") {
+                        error "트래픽 전환에 실패했습니다. switch-script.sh에서 자동 롤백이 수행되었습니다."
+                    }
+                    
+                    echo "트래픽 전환 성공: ${TARGET_ENV} 환경으로 전환 완료"
+                    DEPLOYMENT_SUCCESS = true
+                }
+            }
+        }
+        
+        stage('Cleanup') {
+            steps {
+                sshCommand("docker image prune -f")
+            }
+        }
+        
+        stage('Update MR Status') {
+            steps {
+                updateGitlabCommitStatus name: 'build', state: 'success'
+                addGitLabMRComment comment: "📦 배포 완료: ${env.BUILD_URL}\n- 환경: ${TARGET_ENV}"
             }
         }
     }
     
     post {
         success {
-            echo 'Deployment successful!'
+            echo "배포 성공: ${TARGET_ENV} 환경으로 전환 완료"
+            updateGitlabCommitStatus name: 'build', state: 'success'
         }
+        
         failure {
-            echo 'Deployment failed!'
+            echo "배포 실패: 문제 발생"
+            updateGitlabCommitStatus name: 'build', state: 'failed'
             
             script {
-                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY')]) {
-                    sh """
-                        ssh -i \$SSH_KEY -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} '
-                            cd ${DEPLOY_DIR}
-                            
-                            echo "Rolling back to previous state..."
-                            docker compose -f docker-compose-blue.yml down
-                            docker compose -p omypic -f docker-compose-blue.yml up -d
-                        '
-                    """
+                if (TARGET_ENV && !DEPLOYMENT_SUCCESS) {
+                    echo "새로 배포된 ${TARGET_ENV} 환경에 문제가 발생했습니다."
+                    
+                    // 트래픽 전환 전에 실패한 경우만 대상 환경 컨테이너 정리
+                    // 전환 후 실패는 switch-script.sh에서 처리
+                    sshCommand("cd ${DEPLOY_DIR} && docker compose -f docker-compose-${TARGET_ENV}.yml down")
+                    echo "${TARGET_ENV} 환경을 중지했습니다."
                 }
+                
+                addGitLabMRComment comment: "❌ 배포 실패: ${env.BUILD_URL}\n원인을 확인하세요."
             }
         }
+        
         always {
             cleanWs()
         }
