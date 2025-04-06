@@ -53,4 +53,4 @@ export default tseslint.config({
 })
 ```
 
-blue/gree test 1
+blue/gree test 2
