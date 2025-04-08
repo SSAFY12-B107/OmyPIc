@@ -18,6 +18,7 @@ interface UserInfo {
   _id: string;
   name: string;
   email: string;
+  profile_image: string;
   current_opic_score: string;
   target_opic_score: string;
   target_exam_date: string;
