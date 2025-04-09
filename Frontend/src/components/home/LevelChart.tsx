@@ -58,32 +58,19 @@ function LevelChart({ testResult }: LevelChartProps) {
           const date = new Date(dateStr);
           if (isNaN(date.getTime())) return { date: new Date(0), formatted: '', index };
           
-          // 한국 시간으로 포맷팅 (timeZone 사용)
-          const koreaTime = date.toLocaleString('ko-KR', { 
-            timeZone: 'Asia/Seoul',
-            month: 'numeric', 
-            day: 'numeric', 
-            hour: 'numeric', 
-            hour12: false 
-          });
-          
-          // "월/일 시간시" 형식으로 변환
-          const formatted = koreaTime
-            .replace(/\. /g, '/')
-            .replace(/\./g, '')
-            .replace(' ', '\n')
-            .replace('시간', '');
+          // 한국 시간으로 변환 (+9시간)
+          const koreaDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
           
           return {
-            date,
-            formatted,
+            date: koreaDate, // 정렬을 위해 한국 시간 기준 저장
+            rawDate: koreaDate, // 포맷팅에 사용할 날짜 저장
             index
           };
         } catch (e) {
           console.error("Invalid date format:", dateStr);
-          return { date: new Date(0), formatted: '', index };
+          return { date: new Date(0), rawDate: new Date(0), formatted: '', index };
         }
-      }).filter(item => item.formatted !== '');
+      }).filter(item => item.date.getTime() > 0);
       
       // 날짜 오름차순 정렬 (과거 → 최근)
       datesWithIndices.sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -91,8 +78,17 @@ function LevelChart({ testResult }: LevelChartProps) {
       // 정렬된 인덱스 저장
       sortedIndices = datesWithIndices.map(item => item.index);
       
-      // 포맷된 날짜 반환
-      return datesWithIndices.map(item => item.formatted);
+      // 정렬 후 포맷팅 적용
+      return datesWithIndices.map(item => {
+        if (!item.rawDate) return '';
+        
+        const date = item.rawDate;
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        const hour = date.getHours();
+        
+        return `${month}/${day}\n${hour}시`;
+      });
     };
     
     const formatData = () => {
