@@ -118,6 +118,14 @@ async def generate_full_test(db: Database, test_data: TestModel, user_topics: Li
     """
     15문제 테스트 생성 (자기소개 1, 콤보셋 9, 롤플레잉 3, 돌발 2)
     
+    그룹 구성:
+    - 1번: 자기소개
+    - 2~4번: 동일 주제의 콤보셋 1
+    - 5~7번: 동일 주제의 콤보셋 2
+    - 8~10번: 동일 주제의 콤보셋 3
+    - 11~13번: 롤플레잉 (순서 1,2,3)
+    - 14~15번: 동일 주제의 돌발 문제
+    
     Args:
         db: MongoDB 데이터베이스
         test_data: 테스트 모델 인스턴스
@@ -188,53 +196,18 @@ async def generate_full_test(db: Database, test_data: TestModel, user_topics: Li
     # 3. 롤플레잉 1세트(3문제)
     try:
         logger.info(f"롤플레잉 문제 생성 시작 - 현재 문제 카운터: {problem_counter}")
-        roleplay_problems = await get_roleplay_problems(db, 1, used_problem_ids)
-        logger.info(f"롤플레잉 문제 그룹: {len(roleplay_problems)}개 선택")
+        roleplay_groups = await get_roleplay_problems(db, 1, used_problem_ids)
+        logger.info(f"롤플레잉 문제 그룹: {len(roleplay_groups)}개 선택")
         
-        if roleplay_problems:
-            for problem in roleplay_problems:
-                # 첫 번째 문제 추가
+        if roleplay_groups and len(roleplay_groups) > 0:
+            # 선택된 그룹의 3개 문제를 순서대로 추가
+            group = roleplay_groups[0]
+            
+            for problem in group:
                 test_data.problem_data[str(problem_counter)] = create_problem_detail(problem)
                 problem_counter += 1
                 used_problem_ids.add(str(problem.get('_id')))
-                
-                # 그룹 ID가 있으면 두 번째와 세 번째 문제 추가 (총 3문제)
-                if problem.get("problem_group_id"):
-                    group_id = problem.get("problem_group_id")
-                    
-                    # 두 번째 문제(order=2) 찾기
-                    query_2 = {
-                        "problem_group_id": group_id,
-                        "problem_order": 2
-                    }
-                    second_problem = await db.problems.find_one(query_2)
-                    
-                    if second_problem:
-                        test_data.problem_data[str(problem_counter)] = create_problem_detail(second_problem)
-                        problem_counter += 1
-                        used_problem_ids.add(str(second_problem.get('_id')))
-                        logger.info(f"롤플레이 두 번째 문제 추가: {second_problem.get('_id')}")
-                        
-                        # 세 번째 문제(order=3) 찾기
-                        query_3 = {
-                            "problem_group_id": group_id,
-                            "problem_order": 3
-                        }
-                        third_problem = await db.problems.find_one(query_3)
-                        
-                        if third_problem:
-                            test_data.problem_data[str(problem_counter)] = create_problem_detail(third_problem)
-                            problem_counter += 1
-                            used_problem_ids.add(str(third_problem.get('_id')))
-                            logger.info(f"롤플레이 세 번째 문제 추가: {third_problem.get('_id')}")
-                        else:
-                            logger.warning(f"롤플레이 세 번째 문제를 찾지 못함 (그룹 ID: {group_id})")
-                            await add_random_problems(db, test_data, problem_counter, 1, used_problem_ids)
-                            problem_counter += 1
-                    else:
-                        logger.warning(f"롤플레이 두 번째 문제를 찾지 못함 (그룹 ID: {group_id})")
-                        await add_random_problems(db, test_data, problem_counter, 2, used_problem_ids)
-                        problem_counter += 2
+                logger.info(f"롤플레이 문제 추가: 순서 {problem.get('problem_order')}, ID {problem.get('_id')}")
         else:
             logger.warning("롤플레이 문제를 찾지 못함. 랜덤 문제 추가")
             await add_random_problems(db, test_data, problem_counter, 3, used_problem_ids)
@@ -245,24 +218,88 @@ async def generate_full_test(db: Database, test_data: TestModel, user_topics: Li
         await add_random_problems(db, test_data, problem_counter, 3, used_problem_ids)
         problem_counter += 3
     
-    # 4. 돌발 2문제
+    # 4. 돌발 2문제 (동일 주제)
     try:
         logger.info(f"돌발 문제 생성 시작 - 현재 문제 카운터: {problem_counter}")
-        unexpected_problems = await get_unexpected_problems(db, user_topics, 2, used_problem_ids)
-        logger.info(f"돌발 문제 {len(unexpected_problems)}개 선택")
         
-        if unexpected_problems:
-            for problem in unexpected_problems:
-                test_data.problem_data[str(problem_counter)] = create_problem_detail(problem)
-                problem_counter += 1
-                used_problem_ids.add(str(problem.get('_id')))
-                # 문제 topic_category 확인 로깅
-                topic = problem.get("topic_category", "없음")
-                logger.info(f"돌발 문제 추가: {problem.get('_id')} - 주제: {topic}")
+        # 랜덤 주제 선택
+        random.seed(datetime.now().timestamp())
+        
+        # 단일 주제를 가진 돌발 문제 그룹 2개 찾기
+        topic_unexpected_pipeline = [
+            {"$match": {
+                "problem_category": {"$ne": "롤플레이"},
+                "$or": [
+                    {"high_grade_kit": True},
+                    {"topic_category": {"$nin": user_topics if user_topics else []}}
+                ]
+            }},
+            {"$group": {
+                "_id": "$topic_category",
+                "count": {"$sum": 1}
+            }},
+            {"$match": {
+                "count": {"$gte": 2}  # 최소 2개 이상 문제가 있는 주제
+            }},
+            {"$sample": {"size": 1}}  # 랜덤으로 하나의 주제 선택
+        ]
+        
+        topic_groups = await db.problems.aggregate(topic_unexpected_pipeline).to_list(length=1)
+        
+        if topic_groups and len(topic_groups) > 0:
+            selected_topic = topic_groups[0].get("_id")
+            logger.info(f"돌발 문제용 주제 선택됨: {selected_topic}")
+            
+            # 선택된 주제에서 2개 문제 찾기
+            topic_problems_pipeline = [
+                {"$match": {
+                    "topic_category": selected_topic,
+                    "problem_category": {"$ne": "롤플레이"},
+                    "_id": {"$nin": [ObjectId(id) for id in used_problem_ids if ObjectId.is_valid(id)]}
+                }},
+                {"$sample": {"size": 2}}
+            ]
+            
+            unexpected_problems = await db.problems.aggregate(topic_problems_pipeline).to_list(length=2)
+            
+            if unexpected_problems and len(unexpected_problems) == 2:
+                for problem in unexpected_problems:
+                    test_data.problem_data[str(problem_counter)] = create_problem_detail(problem)
+                    problem_counter += 1
+                    used_problem_ids.add(str(problem.get('_id')))
+                    logger.info(f"돌발 문제 추가: {problem.get('_id')} - 주제: {selected_topic}")
+            else:
+                # 기존 방식으로 대체 (주제 동일성 보장 못함)
+                logger.warning(f"동일 주제의 돌발 문제 2개를 찾지 못함. 일반 방식으로 대체")
+                unexpected_problems = await get_unexpected_problems(db, user_topics, 2, used_problem_ids)
+                
+                if unexpected_problems:
+                    for problem in unexpected_problems:
+                        test_data.problem_data[str(problem_counter)] = create_problem_detail(problem)
+                        problem_counter += 1
+                        used_problem_ids.add(str(problem.get('_id')))
+                        topic = problem.get("topic_category", "없음")
+                        logger.info(f"돌발 문제 추가: {problem.get('_id')} - 주제: {topic}")
+                else:
+                    logger.warning("돌발 문제를 찾지 못함. 랜덤 문제 추가")
+                    await add_random_problems(db, test_data, problem_counter, 2, used_problem_ids)
+                    problem_counter += 2
         else:
-            logger.warning("돌발 문제를 찾지 못함. 랜덤 문제 추가")
-            await add_random_problems(db, test_data, problem_counter, 2, used_problem_ids)
-            problem_counter += 2
+            # 기존 방식으로 대체 (주제 동일성 보장 못함)
+            logger.warning(f"돌발 문제에 적합한 주제 그룹을 찾지 못함. 일반 방식으로 대체")
+            unexpected_problems = await get_unexpected_problems(db, user_topics, 2, used_problem_ids)
+            
+            if unexpected_problems:
+                for problem in unexpected_problems:
+                    test_data.problem_data[str(problem_counter)] = create_problem_detail(problem)
+                    problem_counter += 1
+                    used_problem_ids.add(str(problem.get('_id')))
+                    topic = problem.get("topic_category", "없음")
+                    logger.info(f"돌발 문제 추가: {problem.get('_id')} - 주제: {topic}")
+            else:
+                logger.warning("돌발 문제를 찾지 못함. 랜덤 문제 추가")
+                await add_random_problems(db, test_data, problem_counter, 2, used_problem_ids)
+                problem_counter += 2
     except Exception as e:
         logger.error(f"돌발 문제 생성 중 오류: {str(e)}", exc_info=True)
         # 오류 발생 시 랜덤 문제로 대체
@@ -274,6 +311,7 @@ async def generate_full_test(db: Database, test_data: TestModel, user_topics: Li
     # 결과 확인용
     for num, prob in sorted(test_data.problem_data.items(), key=lambda x: int(x[0])):
         logger.info(f"문제 {num}: 카테고리 {prob.problem_category}, ID {prob.problem_id}")
+
 
 async def generate_comboset_test(db: Database, test_data: TestModel, user_topics: List[str]):
     """
@@ -350,56 +388,22 @@ async def generate_roleplay_test(db: Database, test_data: TestModel, user_topics
     logger.info(f"롤플레잉 테스트 생성 시작 - 사용자 주제: {user_topics}")
     
     try:
-        roleplay_count = 1  # 첫 번째 그룹만 선택
-        roleplay_problems = await get_roleplay_problems(db, roleplay_count, used_problem_ids)
-        logger.info(f"롤플레이 문제 그룹: {len(roleplay_problems)}개 선택")
+        # 한 개의 롤플레이 그룹 가져오기 (각 그룹은 3개의 문제로 구성)
+        roleplay_groups = await get_roleplay_problems(db, 1, used_problem_ids)
+        logger.info(f"롤플레이 문제 그룹: {len(roleplay_groups)}개 선택")
         
-        if roleplay_problems:
-            for problem in roleplay_problems:
-                # 첫 번째 문제 추가
+        if roleplay_groups and len(roleplay_groups) > 0:
+            # 첫 번째 그룹의 문제들을 테스트에 추가
+            group = roleplay_groups[0]
+            
+            for problem in group:
                 test_data.problem_data[str(problem_counter)] = create_problem_detail(problem)
                 problem_counter += 1
                 used_problem_ids.add(str(problem.get('_id')))
-                
-                # 그룹 ID가 있으면 두 번째, 세 번째 문제 추가 (총 3문제)
-                if problem.get("problem_group_id"):
-                    group_id = problem.get("problem_group_id")
-                    
-                    # 두 번째 문제(order=2)
-                    query_2 = {
-                        "problem_group_id": group_id,
-                        "problem_order": 2
-                    }
-                    second_problem = await db.problems.find_one(query_2)
-                    
-                    if second_problem:
-                        test_data.problem_data[str(problem_counter)] = create_problem_detail(second_problem)
-                        problem_counter += 1
-                        used_problem_ids.add(str(second_problem.get('_id')))
-                        logger.info(f"롤플레이 두 번째 문제 추가: {second_problem.get('_id')}")
-                        
-                        # 세 번째 문제(order=3)
-                        query_3 = {
-                            "problem_group_id": group_id,
-                            "problem_order": 3
-                        }
-                        third_problem = await db.problems.find_one(query_3)
-                        
-                        if third_problem:
-                            test_data.problem_data[str(problem_counter)] = create_problem_detail(third_problem)
-                            problem_counter += 1
-                            used_problem_ids.add(str(third_problem.get('_id')))
-                            logger.info(f"롤플레이 세 번째 문제 추가: {third_problem.get('_id')}")
-                        else:
-                            logger.warning(f"롤플레이 세 번째 문제를 찾지 못함 (그룹 ID: {group_id})")
-                            await add_random_problems(db, test_data, problem_counter, 1, used_problem_ids)
-                            problem_counter += 1
-                    else:
-                        logger.warning(f"롤플레이 두 번째 문제를 찾지 못함 (그룹 ID: {group_id})")
-                        await add_random_problems(db, test_data, problem_counter, 2, used_problem_ids)
-                        problem_counter += 2
+                logger.info(f"롤플레이 문제 추가: 순서 {problem.get('problem_order')}, ID {problem.get('_id')}")
         else:
-            logger.warning("롤플레이 문제를 찾지 못함. 랜덤 문제 추가")
+            # 완전한 그룹을 찾지 못한 경우, 랜덤 문제 3개로 대체
+            logger.warning("완전한 롤플레이 그룹을 찾지 못함. 랜덤 문제 추가")
             await add_random_problems(db, test_data, problem_counter, 3, used_problem_ids)
     
     except Exception as e:
@@ -499,7 +503,7 @@ async def get_first_combo_problem(
     used_problem_ids: Set[str]
 ) -> Optional[Dict[str, Any]]:
     """
-    콤보셋의 첫 번째 문제 가져오기 (주로 묘사 카테고리)
+    콤보셋의 첫 번째 문제 가져오기 (사용자 관심 주제에서 랜덤 선택)
     
     Args:
         db: MongoDB 데이터베이스
@@ -512,55 +516,68 @@ async def get_first_combo_problem(
     """
     logger.info(f"콤보셋 시작 문제 검색 - 유저 주제: {user_topics}, 사용된 주제: {used_topics}")
     
+    # 현재 시간으로 랜덤 시드 설정
+    random.seed(datetime.now().timestamp())
+    
     try:
         # 중복 방지를 위한 ObjectId 변환
         excluded_ids = [ObjectId(id) for id in used_problem_ids if ObjectId.is_valid(id)]
         
-        # 기본 쿼리: '묘사' 카테고리의 문제 중 사용자 주제에 해당하고 아직 사용하지 않은 주제
-        query = {
-            "problem_category": "묘사",
-            "topic_category": {"$in": user_topics, "$nin": list(used_topics) if used_topics else []},
-            "$or": [
-                {"problem_group_id": {"$exists": False}},
-                {"problem_order": 1}
+        # 사용 가능한 주제 목록 생성 (used_topics에 없는 user_topics)
+        available_topics = [topic for topic in user_topics if topic not in used_topics]
+        
+        # 관심 주제가 하나도 없거나 전부 사용된 경우 모든 주제 사용
+        if not available_topics:
+            logger.info("사용 가능한 관심 주제가 없습니다. 모든 주제에서 검색합니다.")
+            pipeline = [
+                {"$match": {
+                    "topic_category": {"$nin": list(used_topics) if used_topics else []},
+                    "problem_category": {"$ne": "롤플레이"}  # 롤플레이 제외
+                }}
             ]
-        }
+        else:
+            # 사용 가능한 관심 주제에서 랜덤 선택
+            pipeline = [
+                {"$match": {
+                    "topic_category": {"$in": available_topics},
+                    "problem_category": {"$ne": "롤플레이"}  # 롤플레이 제외
+                }}
+            ]
         
         # 중복 방지 조건 추가
         if excluded_ids:
-            query["_id"] = {"$nin": excluded_ids}
+            pipeline[0]["$match"]["_id"] = {"$nin": excluded_ids}
         
-        # 조건에 맞는 문제 조회
-        problems = await db.problems.find(query).to_list(length=10)
-        logger.info(f"묘사 카테고리 검색 결과: {len(problems)}개 문제 발견")
+        # 무작위 샘플링
+        pipeline.append({"$sample": {"size": 1}})
         
-        # 문제를 찾았으면 무작위로 하나 선택
-        if problems:
-            selected = random.choice(problems)
-            logger.info(f"선택된 콤보셋 시작 문제: {selected.get('_id')} - 카테고리: {selected.get('problem_category')}")
+        # 파이프라인 실행
+        problems = await db.problems.aggregate(pipeline).to_list(length=1)
+        
+        if problems and len(problems) > 0:
+            selected = problems[0]
+            logger.info(f"선택된 콤보셋 첫 문제: {selected.get('_id')} - 주제: {selected.get('topic_category')}")
             return selected
         
-        # 사용자 주제를 제외한 문제 검색 (대체 검색)
-        if not problems:
-            logger.warning("사용자 주제에서 콤보셋 시작 문제를 찾지 못함. 전체 주제에서 검색")
-            fallback_query = {
-                "problem_category": "묘사",
-                "topic_category": {"$nin": list(used_topics) if used_topics else []},
-                "$or": [
-                    {"problem_group_id": {"$exists": False}},
-                    {"problem_order": 1}
-                ]
-            }
+        # 대체 검색 - 모든 주제에서 검색
+        logger.warning("주제 제한 조건으로 문제를 찾지 못함. 모든 주제에서 검색합니다.")
+        fallback_pipeline = [
+            {"$match": {
+                "problem_category": {"$ne": "롤플레이"}  # 롤플레이 제외
+            }}
+        ]
+        
+        if excluded_ids:
+            fallback_pipeline[0]["$match"]["_id"] = {"$nin": excluded_ids}
             
-            if excluded_ids:
-                fallback_query["_id"] = {"$nin": excluded_ids}
-                
-            fallback_problems = await db.problems.find(fallback_query).to_list(length=10)
-            
-            if fallback_problems:
-                selected = random.choice(fallback_problems)
-                logger.info(f"대체 검색으로 콤보셋 시작 문제 선택: {selected.get('_id')}")
-                return selected
+        fallback_pipeline.append({"$sample": {"size": 1}})
+        
+        fallback_problems = await db.problems.aggregate(fallback_pipeline).to_list(length=1)
+        
+        if fallback_problems and len(fallback_problems) > 0:
+            selected = fallback_problems[0]
+            logger.info(f"대체 검색으로 콤보셋 첫 문제 선택: {selected.get('_id')}")
+            return selected
         
         # 문제를 찾지 못한 경우
         logger.warning("콤보셋 시작 문제를 찾을 수 없음!")
@@ -590,47 +607,62 @@ async def get_combo_problems(
         선택된 콤보 문제 목록
     """
     try:
+        # 랜덤 시드 설정
+        random.seed(datetime.now().timestamp())
+        
         # 중복 방지를 위한 ObjectId 변환
         excluded_ids = [ObjectId(id) for id in used_problem_ids if ObjectId.is_valid(id)]
         
-        # 같은 주제를 가진 비롤플레이 문제 쿼리
-        query = {
-            "problem_category": {"$ne": "롤플레이"},
-            "topic_category": topic_category
-        }
+        # 주제 카테고리가 동일한 문제만 선택하는 파이프라인
+        pipeline = [
+            {"$match": {
+                "problem_category": {"$ne": "롤플레이"},
+                "topic_category": topic_category,  # 동일한 주제만 선택
+            }}
+        ]
         
         # 중복 방지 조건 추가
         if excluded_ids:
-            query["_id"] = {"$nin": excluded_ids}
+            pipeline[0]["$match"]["_id"] = {"$nin": excluded_ids}
         
-        # 조건에 맞는 문제 조회
-        problems = await db.problems.find(query).to_list(length=count * 2)
+        # 무작위 요소 추가 (쿼리 캐시 방지)
+        import uuid
+        random_value = str(uuid.uuid4())[:8]
+        pipeline[0]["$match"]["__random"] = {"$exists": False}
         
-        # 필요한 수만큼 무작위로 선택
-        if len(problems) >= count:
-            selected_problems = random.sample(problems, count)
-        else:
-            # 부족한 경우 다른 주제에서 보완
-            selected_problems = problems
-            logger.warning(f"주제 '{topic_category}'에서 필요한 콤보 문제 수({count})가 부족함. {len(problems)}개만 선택")
+        # 무작위 샘플링
+        pipeline.append({"$sample": {"size": count}})
+        
+        # 파이프라인 실행
+        filtered_problems = await db.problems.aggregate(pipeline).to_list(length=count)
+        
+        # 필요한 문제 수에 도달하지 못한 경우 (이 부분을 수정)
+        if len(filtered_problems) < count:
+            remaining_count = count - len(filtered_problems)
+            logger.warning(f"주제 '{topic_category}'에서 필요한 콤보 문제 수({count})가 부족함. {len(filtered_problems)}개만 선택")
             
-            # 부족한 수만큼 다른 주제에서 추가 검색
-            remaining_count = count - len(problems)
-            if remaining_count > 0:
-                fallback_query = {
-                    "problem_category": {"$ne": "롤플레이"},
-                    "topic_category": {"$ne": topic_category}
-                }
-                
-                if excluded_ids:
-                    excluded_ids.extend([ObjectId(p["_id"]) for p in selected_problems])
-                    fallback_query["_id"] = {"$nin": excluded_ids}
-                
-                fallback_problems = await db.problems.find(fallback_query).limit(remaining_count).to_list(length=remaining_count)
-                selected_problems.extend(fallback_problems)
-                logger.info(f"콤보 문제 부족분 {len(fallback_problems)}개를 다른 주제에서 추가")
+            # 추가 문제가 필요하면 동일 주제에서 모든 문제를 검색 (이미 선택된 문제 제외)
+            additional_query = {
+                "problem_category": {"$ne": "롤플레이"},
+                "topic_category": topic_category,  # 여전히 동일 주제만 선택
+            }
+            
+            # 이미 선택된 문제의 ID를 제외 목록에 추가
+            additional_excluded_ids = [p.get('_id') for p in filtered_problems] + excluded_ids
+            additional_query["_id"] = {"$nin": additional_excluded_ids}
+            
+            # 추가 문제 쿼리 실행 (find 사용)
+            additional_problems = await db.problems.find(additional_query).to_list(length=remaining_count)
+            filtered_problems.extend(additional_problems)
+            
+            # 그래도 부족하면 경고만 기록하고 진행 (다른 주제에서 보완하지 않음)
+            if len(filtered_problems) < count:
+                logger.warning(f"주제 '{topic_category}'에서 총 {len(filtered_problems)}개 문제만 찾을 수 있습니다. (요청: {count}개)")
         
-        return selected_problems
+        # 문제 순서 랜덤하게 섞기
+        random.shuffle(filtered_problems)
+        
+        return filtered_problems
         
     except Exception as e:
         logger.error(f"콤보 문제 검색 중 오류: {str(e)}", exc_info=True)
@@ -644,6 +676,12 @@ async def get_roleplay_problems(
 ) -> List[Dict[str, Any]]:
     """
     롤플레이 문제 가져오기 - 문제 그룹 단위로 선택
+
+    규칙:
+    1. problem_category가 롤플레이인 문제 선택
+    2. 롤플레이 문제는 1번부터 3번까지 순서가 있음
+    3. 동일한 그룹의 롤플레이 문제는 동일한 problem_group_id를 가짐
+    4. 그룹 ID를 먼저 랜덤하게 선택한 후, 해당 그룹 내 순서에 맞는 문제들을 가져옴
     
     Args:
         db: MongoDB 데이터베이스
@@ -654,38 +692,92 @@ async def get_roleplay_problems(
         선택된 롤플레이 시작 문제 목록
     """
     try:
-        logger.info(f"롤플레이 문제 검색 시작, 필요 개수: {count}")
+        logger.info(f"롤플레이 문제 그룹 검색 시작, 필요 그룹 수: {count}")
+        
+        # 현재 시간으로 랜덤 시드 설정
+        random.seed(datetime.now().timestamp())
         
         # 중복 방지를 위한 ObjectId 변환
         excluded_ids = [ObjectId(id) for id in used_problem_ids if ObjectId.is_valid(id)]
         
-        # 롤플레이 첫 번째 문제(problem_order=1) 찾기
-        query = {
-            "problem_category": "롤플레이",
-            "problem_order": 1
-        }
+        # 1. 롤플레이 문제의 고유 그룹 ID 목록 가져오기
+        import uuid
+        random_seed = str(uuid.uuid4())[:8]
+        
+        group_pipeline = [
+            {"$match": {
+                "problem_category": "롤플레이",
+                "problem_order": 1,  # 첫 번째 문제만 그룹 선택에 사용
+                "__seed": {"$exists": False}  # 캐시 방지용 (항상 True)
+            }},
+        ]
         
         # 중복 방지 조건 추가
         if excluded_ids:
-            query["_id"] = {"$nin": excluded_ids}
+            group_pipeline[0]["$match"]["_id"] = {"$nin": excluded_ids}
         
-        # 롤플레이 시작 문제(order=1) 조회
-        roleplay_starters = await db.problems.find(query).to_list(length=count * 3)
-        logger.info(f"롤플레이 시작 문제: {len(roleplay_starters)}개 발견")
+        # 그룹 ID 그룹화 및 랜덤 샘플링
+        group_pipeline.extend([
+            {"$group": {"_id": "$problem_group_id"}},
+            {"$match": {"_id": {"$ne": None}}},  # null 그룹 ID 제외
+            {"$sample": {"size": count * 2}}  # 필요한 수의 2배 가져오기
+        ])
         
-        # 필요한 개수만큼 랜덤 선택
-        if roleplay_starters:
-            if len(roleplay_starters) >= count:
-                return random.sample(roleplay_starters, count)
-            else:
-                logger.warning(f"롤플레이 문제 부족: 필요 {count}개, 발견 {len(roleplay_starters)}개")
-                return roleplay_starters
-        else:
-            logger.warning("롤플레이 문제를 찾지 못했습니다")
+        group_results = await db.problems.aggregate(group_pipeline).to_list(length=count * 2)
+        
+        # 그룹 ID 목록 추출
+        group_ids = [result["_id"] for result in group_results if result["_id"]]
+        
+        if not group_ids:
+            logger.warning("롤플레이 그룹 ID를 찾지 못했습니다")
             return []
+        
+        # 그룹 ID 목록을 섞어서 랜덤성 더하기
+        random.shuffle(group_ids)
+        logger.info(f"롤플레이 그룹 후보: {len(group_ids)}개 그룹 ID")
+        
+        # 2. 각 그룹별로 문제 전체 가져오기
+        all_groups = []
+        
+        for group_id in group_ids:
+            # 그룹의 모든 문제 가져오기
+            group_problems_pipeline = [
+                {"$match": {
+                    "problem_category": "롤플레이",
+                    "problem_group_id": group_id
+                }},
+                {"$sort": {"problem_order": 1}}  # 문제 순서대로 정렬
+            ]
             
+            group_problems = await db.problems.aggregate(group_problems_pipeline).to_list(length=3)
+            
+            # 그룹에 3개의 문제가 있고, 순서가 1,2,3인지 확인
+            if len(group_problems) == 3:
+                # 문제 순서가 1,2,3인지 확인
+                orders = [p.get("problem_order") for p in group_problems]
+                if set(orders) == {1, 2, 3}:
+                    # 순서대로 정렬
+                    group_problems.sort(key=lambda p: p.get("problem_order", 0))
+                    
+                    # 첫 번째 문제 ID가 이미 사용된 ID인지 확인
+                    first_problem_id = str(group_problems[0].get("_id"))
+                    if first_problem_id not in used_problem_ids:
+                        all_groups.append(group_problems)
+                        logger.info(f"완전한 롤플레이 그룹 추가: 그룹 ID {group_id}")
+                        
+                        # 필요한 그룹 수에 도달하면 종료
+                        if len(all_groups) >= count:
+                            break
+            else:
+                logger.warning(f"불완전한 롤플레이 그룹 제외: 그룹 ID {group_id}, 문제 수 {len(group_problems)}")
+        
+        # 그룹을 최종 섞기 (추가 랜덤성)
+        random.shuffle(all_groups)
+        
+        return all_groups[:count]  # 필요한 수만큼만 반환
+    
     except Exception as e:
-        logger.error(f"롤플레이 문제 검색 중 오류: {str(e)}", exc_info=True)
+        logger.error(f"롤플레이 문제 그룹 검색 중 오류: {str(e)}", exc_info=True)
         return []
 
 
@@ -710,67 +802,66 @@ async def get_unexpected_problems(
     try:
         logger.info(f"돌발 문제 검색 시작, 필요 개수: {count}")
         
+        # 시드 랜덤화
+        random.seed(datetime.now().timestamp())
+        
         # 중복 방지를 위한 ObjectId 변환
         excluded_ids = [ObjectId(id) for id in used_problem_ids if ObjectId.is_valid(id)]
         
-        # 돌발 문제 기본 쿼리 - 롤플레이가 아닌 high_grade_kit 문제 또는 사용자 관심 영역 외 문제
-        query = {
-            "$or": [
-                {"high_grade_kit": True},
-                {"topic_category": {"$nin": user_topics if user_topics else []}}
-            ],
-            "problem_category": {"$ne": "롤플레이"}
-        }
+        # 모든 돌발 문제 후보 찾기 (전체 개수를 더 많이 가져옴)
+        pipeline = [
+            {"$match": {
+                "$or": [
+                    {"high_grade_kit": True},
+                    {"topic_category": {"$nin": user_topics if user_topics else []}}
+                ],
+                "problem_category": {"$ne": "롤플레이"}
+            }}
+        ]
         
         # 중복 방지 조건 추가
         if excluded_ids:
-            query["_id"] = {"$nin": excluded_ids}
+            pipeline[0]["$match"]["_id"] = {"$nin": excluded_ids}
         
-        # 첫 번째 돌발 문제 선택
-        first_problems = await db.problems.find(query).to_list(length=10)
+        # 첫 단계에서 랜덤 샘플링 (더 많은 문제 샘플링)
+        pipeline.append({"$sample": {"size": count * 3}})
         
-        if not first_problems:
+        # 파이프라인 실행
+        candidate_problems = await db.problems.aggregate(pipeline).to_list(length=None)
+        
+        if not candidate_problems:
             logger.warning("돌발 문제를 찾지 못했습니다")
             return []
         
-        # 첫 번째 문제 랜덤 선택
-        first_problem = random.choice(first_problems)
-        result = [first_problem]
+        # 후보 문제를 섞어서 결과에 추가
+        random.shuffle(candidate_problems)
+        result = candidate_problems[:count]
         
-        # 첫 번째 문제와 동일한 topic_category에서 나머지 문제 선택 (count-1개)
-        if count > 1:
-            topic_category = first_problem.get("topic_category")
-            logger.info(f"선택된 돌발 문제 주제: {topic_category}")
+        # 같은 주제의 문제가 너무 많으면 다양성을 높이기 위해 필터링
+        topic_counts = {}
+        for problem in result:
+            topic = problem.get("topic_category", "기타")
+            topic_counts[topic] = topic_counts.get(topic, 0) + 1
+        
+        # 같은 주제의 문제가 2개 이상이고, 후보 문제가 충분히 있으면 교체
+        if len(candidate_problems) > count and any(count > 1 for count in topic_counts.values()):
+            # 주제 다양성을 위해 결과 재구성
+            final_result = []
+            used_topics = set()
             
-            # 첫 번째 문제 ID를 제외 목록에 추가
-            updated_excluded_ids = excluded_ids + [first_problem.get("_id")]
+            # 각 주제별로 최대 1개까지만 선택
+            for problem in candidate_problems:
+                topic = problem.get("topic_category", "기타")
+                if topic not in used_topics:
+                    final_result.append(problem)
+                    used_topics.add(topic)
+                    
+                    if len(final_result) >= count:
+                        break
             
-            # 같은 주제의 추가 문제 쿼리
-            same_topic_query = {
-                "topic_category": topic_category,
-                "problem_category": {"$ne": "롤플레이"},
-                "_id": {"$nin": updated_excluded_ids}
-            }
-            
-            same_topic_problems = await db.problems.find(same_topic_query).to_list(length=(count - 1) * 3)
-            
-            # 같은 주제의 추가 문제가 있으면 선택
-            if same_topic_problems:
-                additional_problems = random.sample(same_topic_problems, min(count - 1, len(same_topic_problems)))
-                result.extend(additional_problems)
-                logger.info(f"같은 주제({topic_category})에서 추가 돌발 문제 {len(additional_problems)}개 선택")
-            else:
-                # 같은 주제의 문제가 없으면 다른 돌발 문제 선택
-                logger.warning(f"주제({topic_category})에서 추가 문제를 찾지 못함, 다른 돌발 문제를 선택합니다")
-                other_problems = await db.problems.find(query).to_list(length=(count - 1) * 3)
-                
-                if other_problems:
-                    # 이미 선택된 문제 제외
-                    other_problems = [p for p in other_problems if str(p["_id"]) != str(first_problem["_id"])]
-                    if other_problems:
-                        additional_problems = random.sample(other_problems, min(count - 1, len(other_problems)))
-                        result.extend(additional_problems)
-                        logger.info(f"다른 주제에서 추가 돌발 문제 {len(additional_problems)}개 선택")
+            # 충분한 다양성을 얻지 못했으면 원래 결과 사용
+            if len(final_result) >= count:
+                result = final_result
         
         logger.info(f"최종 선택된 돌발 문제: {len(result)}개")
         return result
@@ -798,16 +889,59 @@ async def add_random_problems(
         used_problem_ids: 이미 사용된 문제 ID 집합
     """
     try:
+        # 랜덤 시드 설정
+        random.seed(datetime.now().timestamp())
+        
         # 중복 방지를 위한 ObjectId 변환
         excluded_ids = [ObjectId(id) for id in used_problem_ids if ObjectId.is_valid(id)]
         
-        # 사용되지 않은 문제 중에서 랜덤 선택
-        query = {}
+        # 랜덤 변수 추가로 캐시 방지
+        import uuid
+        random_value = str(uuid.uuid4())
+        
+        # MongoDB 집계 파이프라인을 사용한 랜덤 선택
+        pipeline = [
+            {"$match": {"__random": {"$exists": False}}}  # 항상 true 조건이지만 쿼리 캐시 회피용
+        ]
+        
+        # 중복 제외 조건 추가
         if excluded_ids:
-            query["_id"] = {"$nin": excluded_ids}
+            pipeline[0]["$match"]["_id"] = {"$nin": excluded_ids}
         
-        random_problems = await db.problems.find(query).limit(count).to_list(length=count)
+        # 먼저 대량 샘플링 후 필요한 만큼만 가져오기
+        pipeline.append({"$sample": {"size": count * 3}})
+        pipeline.append({"$limit": count})
         
+        random_problems = await db.problems.aggregate(pipeline).to_list(length=count)
+        
+        # 충분한 문제를 찾지 못한 경우 대안으로 find 사용
+        if len(random_problems) < count:
+            logger.warning(f"집계 파이프라인으로 충분한 문제를 찾지 못함. find 메서드 사용")
+            query = {}
+            if excluded_ids:
+                query["_id"] = {"$nin": excluded_ids}
+            
+            # 최대 100개 문제 가져와서 Python에서 랜덤 선택
+            all_problems = await db.problems.find(query).to_list(length=100)
+            
+            # 중복 제거 (이미 선택된 문제 제외)
+            selected_ids = {str(p.get("_id")) for p in random_problems}
+            additional_problems = [
+                p for p in all_problems 
+                if str(p.get("_id")) not in selected_ids and str(p.get("_id")) not in used_problem_ids
+            ]
+            
+            # 추가 문제 랜덤 선택
+            if additional_problems:
+                random.shuffle(additional_problems)
+                additional_count = min(count - len(random_problems), len(additional_problems))
+                random_problems.extend(additional_problems[:additional_count])
+        
+        # 문제가 없는 경우 처리
+        if not random_problems:
+            logger.error("랜덤 문제를 찾을 수 없습니다")
+            return
+            
         # 문제 추가
         for i, problem in enumerate(random_problems):
             problem_number = start_number + i
