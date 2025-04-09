@@ -9,6 +9,9 @@ from db.mongodb import get_mongodb
 from api.deps import get_current_user, get_current_user_for_multipart
 from models.user import User
 
+from celery_worker import celery_app
+from tasks.audio_tasks import process_audio_task
+
 import base64
 import os
 import asyncio
@@ -635,6 +638,105 @@ async def record_answer(
     except Exception as e:
         logger.error(f"녹음 제출 중 오류 발생: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"오류가 발생했습니다: {str(e)}")
+
+
+@router.post("/{test_pk}/record-celery/{problem_pk}")
+async def record_answer_celery(
+    test_pk: str,
+    problem_pk: str,
+    audio_file: UploadFile = File(...),
+    is_last_problem: bool = Body(False),
+    db: Database = Depends(get_mongodb)
+) -> Any:
+    try:
+        # ObjectId 유효성 검사
+        if not ObjectId.is_valid(test_pk) or not ObjectId.is_valid(problem_pk):
+            raise HTTPException(status_code=400, detail="유효하지 않은 ID 형식입니다.")
+        
+        # 테스트 존재 확인
+        test = await db.tests.find_one({"_id": ObjectId(test_pk)})
+        if not test:
+            raise HTTPException(status_code=404, detail="해당 테스트를 찾을 수 없습니다.")
+            
+        # 문제 존재 확인
+        problem = await db.problems.find_one({"_id": ObjectId(problem_pk)})
+        if not problem:
+            raise HTTPException(status_code=404, detail="해당 문제를 찾을 수 없습니다.")
+        
+        # 테스트에 해당 문제가 포함되어 있는지 확인 및 문제 번호 찾기
+        problem_number = None
+        problem_exists = False
+        for key, value in test.get("problem_data", {}).items():
+            if value.get("problem_id") == problem_pk:
+                problem_exists = True
+                problem_number = key
+                break
+                
+        if not problem_exists:
+            raise HTTPException(status_code=404, detail="해당 테스트에 이 문제가 포함되어 있지 않습니다.")
+        
+        # 상태 필드 초기화
+        await db.tests.update_one(
+            {"_id": ObjectId(test_pk)},
+            {"$set": {
+                f"problem_data.{problem_number}.processing_status": "processing",
+                f"problem_data.{problem_number}.processing_started_at": datetime.now()
+            }}
+        )
+        
+        if is_last_problem:
+            # 마지막 문제인 경우 전체 피드백 상태 초기화
+            await db.tests.update_one(
+                {"_id": ObjectId(test_pk)},
+                {"$set": {
+                    "overall_feedback_status": "pending",
+                    "overall_feedback_started_at": datetime.now()
+                }}
+            )
+        
+        # 오디오 콘텐츠 읽기
+        audio_content = await audio_file.read()
+        
+        # Base64로 인코딩 (Celery 작업에 전달하기 위해)
+        import base64
+        audio_content_base64 = base64.b64encode(audio_content).decode('utf-8')
+        
+        # 상태 필드 초기화 (기존 코드)
+        await db.tests.update_one(
+            {"_id": ObjectId(test_pk)},
+            {"$set": {
+                f"problem_data.{problem_number}.processing_status": "processing",
+                f"problem_data.{problem_number}.processing_started_at": datetime.now()
+            }}
+        )
+        
+        # Celery 작업으로 오디오 처리 요청
+        process_audio_task.delay(
+            test_pk, 
+            problem_pk, 
+            problem_number, 
+            audio_content_base64, 
+            is_last_problem
+        )
+        
+        # 202 Accepted 응답
+        return JSONResponse(
+            status_code=202,
+            content={
+                "message": f"{problem_number}번째 문제의 녹음이 성공적으로 제출되었습니다. 평가가 진행 중입니다.",
+                "test_id": test_pk,
+                "problem_id": problem_pk,
+                "problem_number": problem_number,
+                "is_last_problem": is_last_problem
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"녹음 제출 중 오류 발생: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"오류가 발생했습니다: {str(e)}")
+
 
 
 @router.post("/random-problem/evaluate", response_model=RandomProblemEvaluationResponse)

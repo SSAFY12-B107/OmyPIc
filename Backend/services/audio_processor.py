@@ -49,11 +49,11 @@ class AudioProcessor:
         
         Args:
             audio_content: 오디오 파일 바이트 데이터
-            
+        
         Returns:
             str: 추출된 텍스트
         """
-        try:            
+        try:
             # 오디오 크기 메트릭 추가
             track_audio_size(audio_content, "groq")
 

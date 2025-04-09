@@ -43,3 +43,8 @@ locust==2.33.2
 
 # scheduler
 APScheduler==3.11.0
+
+# 비동기 처리
+redis==5.2.1
+celery==5.5.0
+flower==2.0.1
