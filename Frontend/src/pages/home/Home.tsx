@@ -44,8 +44,9 @@ function Home() {
       <header className={styles["home-header-box"]}>
         <div className={styles["home-header"]}>
           <h1 className={styles["logo-txt"]}>OmyPIc</h1>
-          <button className={styles["logout-btn"]} onClick={() => logout()}>
+          <button className={styles["logout-btn"]} onClick={() => logout()} aria-label="로그아웃">
             <svg
+              aria-hidden="true"
               xmlns="http://www.w3.org/2000/svg"
               width="18"
               height="18"
@@ -63,8 +64,9 @@ function Home() {
           <p>Hello, {userInfo?.name}!</p>
           {/* <img src="" alt="" /> */}
           {/* user-img 없는 경우 */}
-          <div className={styles["basic-img"]}>
+          <div className={styles["basic-img"]} role="img" aria-label="사용자 기본 프로필 이미지">
             <svg
+              aria-hidden="true"
               xmlns="http://www.w3.org/2000/svg"
               width="20"
               height="20"
@@ -102,6 +104,7 @@ function Home() {
               <p>내 OPIc 시험</p>
               <div className={styles['calendar']}>
                 <svg
+                  aria-hidden="true"
                   xmlns="http://www.w3.org/2000/svg"
                   width="17"
                   height="17"

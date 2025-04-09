@@ -8,8 +8,9 @@ export interface TestHistory {
     id: string;
     overall_feedback_status: string;
     test_date: string;
-    test_type: boolean;
+    test_type: number;
     test_score: Scores | null;
+    test_type_str?: string;
 }
 export interface AverageScore {
     total_score: string | null;
@@ -27,6 +28,11 @@ export interface UserHistoryResponse {
             remaining: number;
         };
         random_problem: {
+            used: number;
+            limit: number;
+            remaining: number;
+        };
+        categorical_test_count: {
             used: number;
             limit: number;
             remaining: number;

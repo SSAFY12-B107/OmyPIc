@@ -143,7 +143,9 @@ function LevelChart({ testResult }: LevelChartProps) {
   return (
     <div className={styles["level-chart"]}>
       <h2>실력 향상 추이</h2>
-      <Line data={data} options={options} />
+      <div className={styles["chart-box"]}>
+        <Line data={data} options={options} />
+      </div>
 
       {/* 커스텀 범례 */}
       <div className={styles["chart-legend"]}>

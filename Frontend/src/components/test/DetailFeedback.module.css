@@ -74,9 +74,6 @@
   font-size: 1.6rem;
 }
 
-.gradeBadge {
-  font-size: 1.6rem;
-}
 .iconWrapper {
   display: flex;
   align-items: center;
@@ -100,6 +97,7 @@
   padding: 0.4rem 1.5rem;
   border-radius: 1.5rem;
   font-weight: bold;
+  font-size: 1.6rem;
 }
 
 .feedbackCard {

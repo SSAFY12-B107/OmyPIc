@@ -1,8 +1,8 @@
 import styles from "./Introduction.module.css";
 import logo from "@/assets/images/logo.png";
-import opigi from "@/assets/images/opigi.png";
-import intro1 from "@/assets/images/intro1.png";
-import intro2 from "@/assets/images/intro2.png";
+import opigi from "@/assets/images/opigi.webp";
+import intro1 from "@/assets/images/intro1.webp";
+import intro2 from "@/assets/images/intro2.webp";
 
 // 소개 컴포넌트의 타입 정의
 export type IntroType = "first" | "second" | "third";
