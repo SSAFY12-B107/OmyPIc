@@ -29,7 +29,7 @@ pydantic_settings==2.8.1
 # Audio processing
 gtts==2.5.4
 pydub==0.25.1
-beautifulsoup4==4.12.2
+beautifulsoup4==4.13.3
 
 # Monitoring
 prometheus_client==0.21.1
