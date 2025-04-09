@@ -358,7 +358,7 @@ class ResponseEvaluator:
             
             for problem_number, problem_data in problem_details.items():
                 problem_number_int = int(problem_number)
-                problem_type = self._get_problem_type(problem_number_int, test_type)
+                problem_type = self._get_problem_type(problem_number_int, test_data)
                 
                 response = problem_data.get("user_response", "")
                 score = problem_data.get("score", "")
@@ -455,33 +455,44 @@ class ResponseEvaluator:
             }
     
 
-    def _get_problem_type(self, problem_number: int, test: Dict[str, Any]) -> str:
+
+    def _get_problem_type(self, problem_number: int, test_data: Dict[str, Any]) -> str:
         """
         문제 번호와 테스트 정보에 따라 문제 유형 결정
         
         Args:
             problem_number: 문제 번호 (1부터 시작)
-            test: 테스트 정보 딕셔너리
+            test_data: 테스트 정보 딕셔너리
             
         Returns:
             문제 유형 문자열
         """
-        # 새 필드를 우선 확인
-        test_type_str = test.get("test_type_str")
+        # test_data가 None이거나 유효하지 않은 경우
+        if not test_data:
+            logger.error(f"유효하지 않은 test_data: {test_data}")
+            raise ValueError("유효한 test_data가 필요합니다.")
+
+        # test_type_str 우선 확인
+        test_type_str = test_data.get("test_type_str")
         if test_type_str:
+            logger.info(f"test_type_str로 문제 유형 결정: {test_type_str}")
             if test_type_str == "single":
                 return "single"
-            elif test_type_str == "category":
-                # 유형별 테스트의 경우 문제 카테고리를 확인
-                problem_data = test.get("problem_data", {})
+            elif test_type_str == "category":  # 수정: category로 변경
+                problem_data = test_data.get("problem_data", {})
                 if str(problem_number) in problem_data:
                     problem_category = problem_data[str(problem_number)].get("problem_category", "").lower()
+                    logger.info(f"유형별 테스트 문제 카테고리: {problem_category}")
                     if "롤플레이" in problem_category or "roleplay" in problem_category:
                         return "roleplaying"
-                    else:
-                        return "comboset"  # 기본값
-                return "comboset"  # 정보가 없으면 기본값
-            else:  # "full_test"
+                    elif "콤보셋" in problem_category or "comboset" in problem_category:
+                        return "comboset"
+                    elif "자기소개" in problem_category or "introduction" in problem_category:
+                        return "self_introduction"
+                    elif "돌발" in problem_category or "unexpected" in problem_category:
+                        return "unexpected"
+                return "comboset"  # 기본값
+            elif test_type_str == "full_test":
                 if problem_number == 1:
                     return "self_introduction"
                 elif 2 <= problem_number <= 10:
@@ -491,19 +502,20 @@ class ResponseEvaluator:
                 else:  # 14~15
                     return "unexpected"
         
-        # 기존 bool 필드로 폴백
-        test_type = test.get("test_type", False)
+        # test_type (bool) 필드 확인
+        test_type = test_data.get("test_type")
+        logger.info(f"test_type으로 문제 유형 결정: {test_type}")
         
-        if test_type:  # True는 Half 테스트
-            if len(test.get("problem_data", {})) == 1:
-                return "single"  # 문제가 1개면 single
+        if test_type is True:  # Half 테스트
+            if len(test_data.get("problem_data", {})) == 1:
+                return "single"
             elif 1 <= problem_number <= 3:
                 return "comboset"
             elif 4 <= problem_number <= 5:
                 return "roleplaying"
-            else:  # 6~7
+            else:
                 return "unexpected"
-        else:  # False는 Full 테스트
+        elif test_type is False:  # Full 테스트
             if problem_number == 1:
                 return "self_introduction"
             elif 2 <= problem_number <= 10:
@@ -512,8 +524,11 @@ class ResponseEvaluator:
                 return "roleplaying"
             else:  # 14~15
                 return "unexpected"
+        
+        # 모든 분기에서 해당되지 않는 경우
+        logger.error(f"문제 유형을 결정할 수 없습니다. test_data: {test_data}")
+        raise ValueError(f"문제 유형을 결정할 수 없습니다. test_data: {test_data}")
     
-
     def _calculate_average_level(self, levels: List[str]) -> str:
         """
         오픽 레벨 문자열 목록의 평균 레벨 계산
@@ -596,6 +611,85 @@ class ResponseEvaluator:
         
         return result
     
+    
+    def evaluate_overall_test_sync(self, test_data, problem_details):
+        """
+        전체 테스트의 종합 평가를 동기적으로 수행하는 메소드
+        Celery 작업에서 호출할 때 사용됩니다.
+        """
+        import asyncio
 
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            result = loop.run_until_complete(
+                self.evaluate_overall_test(test_data, problem_details)
+            )
+            return result
+        except Exception as e:
+            logger.error(f"종합 평가 동기 실행 중 오류 발생: {str(e)}", exc_info=True)
+            return {
+                "test_score": {
+                    "total_score": "N/A",
+                    "comboset_score": "N/A",
+                    "roleplaying_score": "N/A",
+                    "unexpected_score": "N/A"
+                },
+                "test_feedback": {
+                    "total_feedback": f"평가 실행 중 오류가 발생했습니다: {str(e)}",
+                    "paragraph": "문단 구성력에 대한 평가를 제공할 수 없습니다.",
+                    "vocabulary": "어휘력에 대한 평가를 제공할 수 없습니다.",
+                    "spoken_amount": "발화량에 대한 평가를 제공할 수 없습니다."
+                }
+            }
+        finally:
+            loop.close()
+
+
+    def evaluate_response_sync(self, user_response, problem_category, topic_category, problem):
+        """
+        사용자 응답 평가를 동기적으로 수행하는 메소드
+        
+        Celery 작업에서 호출할 때 사용됩니다.
+        
+        Args:
+            user_response: 사용자 응답 텍스트
+            problem_category: 문제 카테고리 (self_introduction, comboset, roleplaying, unexpected)
+            topic_category: 주제 카테고리
+            problem: 문제 내용
+        
+        Returns:
+            평가 결과 딕셔너리 (score와 feedback 포함)
+        """
+        import asyncio
+        
+        # 비동기 함수를 동기적으로 실행하기 위한 새 이벤트 루프 생성
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # evaluate_response 메소드가 비동기 메소드라고 가정
+            result = loop.run_until_complete(self.evaluate_response(
+                user_response=user_response,
+                problem_category=problem_category,
+                topic_category=topic_category,
+                problem=problem
+            ))
+            return result
+        except Exception as e:
+            logger.error(f"응답 평가 동기 실행 중 오류 발생: {str(e)}", exc_info=True)
+            # 오류 발생 시 기본 평가 결과 반환
+            return {
+                "score": "N/A",
+                "feedback": {
+                    "paragraph": f"평가 중 오류가 발생했습니다: {str(e)}",
+                    "vocabulary": "평가를 완료할 수 없습니다.",
+                    "spoken_amount": "평가를 완료할 수 없습니다."
+                }
+            }
+        finally:
+            # 이벤트 루프 종료
+            loop.close()
 
 
