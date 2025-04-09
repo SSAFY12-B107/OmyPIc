@@ -517,22 +517,31 @@ def extract_json_from_text(text: str) -> str:
     return '{"score": "IM2", "feedback": {...}}' # 기본값
 
 
-def calculate_average_level(levels: List[str]) -> str:
-    """오픽 레벨 문자열 목록의 평균 레벨을 계산하는 함수"""
+def calculate_average_level(scores):
+    """
+    오픽 레벨 점수들의 평균을 계산하는 함수
     
-    # 레벨이 없으면 N/A 반환
-    if not levels:
+    Args:
+        scores: 오픽 레벨 문자열 목록 (예: ["NL", "IM2", "IH"])
+        
+    Returns:
+        평균에 해당하는 오픽 레벨 문자열 또는 유효한 점수가 없는 경우 "N/A"
+    """
+    if not scores:
         return "N/A"
     
-    # 레벨을 숫자로 변환
+    # OPIC_LEVELS 정의
+    OPIC_LEVELS = ["NL", "NM", "NH", "IL", "IM1", "IM2", "IM3", "IH", "AL"]
+    
+    # 유효한 레벨만 숫자로 변환
     level_values = []
-    for level in levels:
-        try:
-            level_index = OPIC_LEVELS.index(level)
-            level_values.append(level_index)
-        except (ValueError, IndexError):
-            # 유효하지 않은 레벨은 중간 레벨(IM2)로 처리
-            level_values.append(OPIC_LEVELS.index("IM2"))
+    for level in scores:
+        if level in OPIC_LEVELS:
+            level_values.append(OPIC_LEVELS.index(level))
+    
+    # 유효한 점수가 없는 경우
+    if not level_values:
+        return "N/A"  # 기본값 설정이 아닌 "평가 불가" 의미로 N/A 반환
     
     # 평균 계산 및 가장 가까운 레벨 반환
     average_value = sum(level_values) / len(level_values)

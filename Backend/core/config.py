@@ -31,19 +31,18 @@ class Settings(BaseSettings):
     MONGODB_DB_NAME: str = os.getenv("MONGODB_DB_NAME", "omypic_db")
     
     # CORS
-    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:5173")
-
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS")
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL")
 
     # OAuth 설정
     NAVER_CLIENT_ID: str = os.getenv("NAVER_CLIENT_ID", "NAVER_CLIENT_ID")
     NAVER_CLIENT_SECRET: str = os.getenv("NAVER_CLIENT_SECRET", "NAVER_CLIENT_SECRET")
-    NAVER_REDIRECT_URI: str = os.getenv("NAVER_REDIRECT_URI", "http://localhost:8000/api/auth/naver/callback")
+    NAVER_REDIRECT_URI: str = os.getenv("NAVER_REDIRECT_URI")
     
     # Google OAuth 설정 (추후 구현을 위한 설정)
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "YOUR_GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "YOUR_GOOGLE_CLIENT_SECRET")
-    GOOGLE_REDIRECT_URI: str = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/google/callback")
+    GOOGLE_REDIRECT_URI: str = os.getenv("GOOGLE_REDIRECT_URI")
     
     # AWS S3 설정
     AWS_ACCESS_KEY_ID: str = Field(..., env="AWS_ACCESS_KEY_ID")
@@ -51,9 +50,12 @@ class Settings(BaseSettings):
     AWS_REGION: str = Field(..., env="AWS_REGION")
     AWS_S3_BUCKET_NAME: str = Field(..., env="AWS_S3_BUCKET_NAME")
 
-    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:5173")
     GEMINI_API_KEYS: str = os.getenv("GEMINI_API_KEYS")
     GROQ_API_KEYS: str = os.getenv("GROQ_API_KEYS")
+
+    # Redis 및 Celery 설정
+    REDIS_URL: str = os.getenv("REDIS_URL")
+    CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND")
     
     def cors_origins(self) -> List[str]:
         return [i.strip() for i in self.CORS_ORIGINS.split(",") if i.strip()]

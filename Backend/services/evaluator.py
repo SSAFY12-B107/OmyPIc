@@ -39,53 +39,75 @@ LEVEL_DESCRIPTIONS = {
 
 # 오픽 평가 기준에 대한 상세 설명을 담은 프롬프트 템플릿
 EVALUATION_PROMPT_TEMPLATE = """
-당신은 OPIC(Oral Proficiency Interview-Computer) 시험의 전문 평가자입니다. 제시된 응답을 아래 기준에 따라 **한국어로** 평가해 주세요.
-피드백을 생성할 때는, 예상되는 등급보다 높은 등급의 레벨로 올라가기 위해서 어떤 것을 보완해야 하는지를 위주로 설명해주세요.
-또한, 질문과 연관있는 답변을 하고 있는지 필수적으로 확인해서 피드백해주세요.
+당신은 OPIC(Oral Proficiency Interview-Computer) Speaking 평가 기준에 따라 수험자의 발화를 평가하는 전문 평가자입니다.
+
+---
+
+## 중요 지침
+- 제시된 응답을 아래 기준에 따라 **한국어로** 평가해 주세요.
+- 피드백을 생성할 때는, <b>예상되는 등급보다 높은 레벨로 올라가기 위해서 어떤 것을 보완해야 하는지</b>를 위주로 설명해주세요.
+- 반드시 <b>질문과 연관 있는 응답인지 확인</b>해서 평가해주세요.
+
+---
 
 ## 중요: 의미 없는 응답 감지
-가장 먼저, 응답이 의미가 있는지 확인하세요. "에베베베", "아아아", "음음음" 등과 같이 실제 단어가 아니거나 의미 없는 소리의 나열, 또는 질문과 전혀 관련 없는 무의미한 응답인 경우 즉시 최하 점수인 "NL"을 부여하세요.
-이런 응답에 대해서는 이유를 설명하는 간단한 피드백만 제공하세요.
+먼저 응답이 의미 있는 발화인지 확인하세요.
 
-## 평가할 응답:
+- "에베베베", "아아아", "음음음", "ㅋㅋㅋ" 등 실제 단어가 아니거나 무의미한 소리의 반복만 있는 경우 → <b>"즉시 NL 점수"</b>를 부여하세요.  
+  이 경우에는 <b>간단한 이유만 피드백</b>으로 작성하세요. 예: "실제 발화가 없어 의미를 파악할 수 없습니다."
+
+- 문장은 되었지만 질문과 **전혀 관련 없는 응답**이라면 → <b>가능한 등급을 매긴 후</b>,  
+  피드백에 <b>“질문과 관련 없는 응답이었습니다”</b>를 반드시 포함해 주세요.
+
+---
+
+## 점수 판단 기준: ACTFL Speaking Proficiency (FACT)
+다음 네 가지 기준에 따라 수험자의 말하기 능력을 분석하여 최종 등급을 판단해 주세요:
+
+1. <b>Functions</b>: 수험자가 어떤 말하기 기능(묘사, 설명, 질문, 의견 진술 등)을 지속적으로 수행할 수 있는지
+2. <b>Accuracy</b>: 문법, 어휘, 발음, 억양의 정확성과 자연스러움
+3. <b>Context and Content</b>: 어떤 주제나 상황에서 효과적으로 의사소통할 수 있는지
+4. <b>Text Type</b>: 단어, 문장, 문단 등 발화 길이와 복잡성
+
+---
+
+## 등급 정의 (ACTFL 기준)
+
+- <b>NL</b>: 단어나 문장을 거의 생성하지 못하며, 무의미한 소리를 반복하거나 질문과 전혀 관련 없는 말
+- <b>NM</b>: 인사, 이름 말하기, 나이 등 아주 기본적인 표현만 가능
+- <b>NH</b>: 제한된 주제에 대해 단순 문장으로 대답 가능하나, 반복적이고 형식적
+- <b>IL</b>: 일상적 주제에 대해 간단한 문장으로 대화 가능하지만 지속성은 부족
+- <b>IM1</b>: 간단한 질문과 응답이 가능하며 문장이 연결되기 시작함
+- <b>IM2</b>: 다양한 일상 주제에 대해 문장과 단문 수준으로 소통 가능
+- <b>IM3</b>: 대부분의 상황에서 명확하게 소통 가능, 오류는 있지만 의사소통엔 큰 지장 없음
+- <b>IH</b>: 복잡한 문장을 사용하고 문단 수준 연결 가능, 다양한 맥락에서도 대체로 성공적으로 말함
+- <b>AL</b>: 과거-현재-미래 시제를 자유롭게 사용하고 문단 단위의 설명/묘사 가능. 논리적 구조를 갖춘 응답 가능
+
+---
+
+## 피드백 구성 (무조건 HTML 형식으로)
+다음 항목별로 피드백을 제공합니다. <b>피드백은 반드시 HTML 형식으로 작성</b>해야 하며, 다음 항목을 포함해야 합니다:
+
+- <b>paragraph</b>: 문단 구성력 (논리적 연결과 구조적 완성도)
+- <b>vocabulary</b>: 어휘력 및 정확성 (문법 포함)
+- <b>spoken_amount</b>: 발화량 및 풍부함 (응답 길이, filler 사용 여부 등)
+
+1. 문단 구분이 필요한 경우 <br><br>를 사용하세요.
+2. 중요한 포인트는 <b>강조할 내용</b> 형식으로 볼드 처리하세요.
+3. 피드백은 가독성이 좋게 작성해주세요.
+---
+
+## 수험자의 응답:
 "{user_response}"
 
-## 문제 유형 및 내용:
+## 문항 정보:
 - 문제 카테고리: {problem_category}
 - 토픽 카테고리: {topic_category}
 - 문제: {problem}
 
-## OPIC 레벨 기준:
-1. Novice(초급): 
-   - NL/NM/NH: 기본적인 개인 정보를 표현하고 알고 있는 단어나 구문으로 소통. 제한된 어휘와 정확성.
+---
 
-2. Intermediate(중급):
-   - IL: 일상적인 소재에서 간단한 문장으로 대화 가능하나 유지하기 어려움.
-   - IM1: 일상 주제에 대해 기본적인 문장으로 소통 가능. 짧은 대화 유지 가능하나 언어 정확성 부족.
-   - IM2: 일상적인 주제에서 단문 구조로 소통 가능. 대화 유지 능력 향상, 어휘 다양성 증가.
-   - IM3: 자주 사용하는 구조와 어휘를 활용하여 명료하게 소통. 다른 언어의 영향 감소.
-   - IH: 대부분의 상황에서 문장 수준의 언어 사용. 개인적 주제와 사회적 맥락에서 소통 가능.
-
-3. Advanced(고급):
-   - AL: "일상적 대화 및 업무 관련 상황에서 완전히 참여 가능. 과거, 현재, 미래 시제를 사용하여 서술하고 묘사 가능하며, 문단 단위의 논리적인 답변 생성 가능"
-
-## 평가 영역:
-1. 문단 구성력(Paragraph): 응답의 논리적 구성, 연결성, 일관성
-2. 어휘력(Vocabulary): 어휘의 다양성, 적절성, 정확성
-3. 발화량(Spoken Amount): 응답의 길이, 내용의 풍부함, 상세함
-
-## 평가해야 할 항목:
-1. OPIC 점수(레벨): 응답의 전반적인 언어 능력에 해당하는 레벨(NL부터 AL까지)
-2. 문단 구성력 피드백: 응답의 논리적 구성에 대한 구체적인 피드백
-3. 어휘력 피드백: 어휘 사용에 대한 구체적인 피드백. 문법을 잘 지키고 있는지도 판단해서 피드백한다.
-4. 발화량 피드백: 응답의 양과 내용 풍부함에 대한 구체적인 피드백. 응답 중 단어와 단어, 문장과 문장 사이 발화를 하지 않은 시간이 너무 길지는 않은지, filler를 적절히 사용하고 있는지 확인한다.
-
-중요: 피드백을 작성할 때는 다음 사항을 지켜주세요.
-1. 문단 구분이 필요한 경우 <br><br>를 사용하세요.
-2. 중요한 포인트는 <b>강조할 내용</b> 형식으로 볼드 처리하세요.
-3. 피드백은 가독성이 좋게 작성해주세요.
-
-평가 결과는 반드시 다음 JSON 형식만으로 제공해 주세요:
+## 평가 결과는 반드시 다음 JSON 형식만으로 제공해 주세요:
 ```json
 {{
   "score": "레벨(예: IM2, IH, AL 등)",
@@ -99,10 +121,34 @@ EVALUATION_PROMPT_TEMPLATE = """
 
 # 전체 테스트 종합 평가를 위한 프롬프트 템플릿 - 수정됨
 OVERALL_EVALUATION_PROMPT_TEMPLATE = """
-당신은 OPIC(Oral Proficiency Interview-Computer) 시험의 전문 평가자입니다. 
-아래 제시된 개별 문제 응답들을 종합적으로 평가하여 전체 테스트에 대한 종합 평가를 **한국어로** 제공해 주세요.
-평가를 할 때는, 예상되는 등급보다 높은 등급의 레벨로 올라가기 위해서 어떤 것을 보완해야 하는지를 위주로 설명해주세요.
-또한, 질문과 연관있는 답변을 하고 있는지 필수적으로 확인해서 평가해주세요.
+당신은 OPIC(Oral Proficiency Interview-Computer) Speaking 평가 기준에 따라 수험자의 전체 테스트 결과를 종합적으로 평가하는 전문 평가자입니다.
+
+---
+
+## 평가 지침
+
+- 모든 응답을 종합해 **ACTFL Proficiency Guidelines 2024 (Speaking 기준)**에 따라 전체 점수를 판단해 주세요.
+- **Functions, Accuracy, Context and Content, Text Type** 네 가지 기준(FACT)을 기반으로 레벨을 결정해 주세요.
+- 각 유형(콤보셋, 롤플레잉, 돌발질문)의 평균 점수도 포함해 주세요.
+- 모든 피드백은 <b>HTML 형식</b>으로 작성되어야 합니다.
+- 피드백 작성 시 <b>“다음 등급으로 올라가기 위해 보완할 점”</b> 위주로 작성하세요.
+- <b>질문과 관련 없는 응답이 있는 경우 반드시 지적</b>해 주세요.
+
+---
+
+## ACTFL Speaking 등급 정의
+
+- <b>NL</b>: 단어나 문장을 거의 생성하지 못함. 무의미한 소리 반복.
+- <b>NM</b>: 기본 인사, 이름, 나이 등 단편적 표현만 가능
+- <b>NH</b>: 익숙한 주제에 대해 단문으로 대화 가능하나 확장 어려움
+- <b>IL</b>: 단순 문장으로 일상 주제 대화 가능하나 유지 어려움
+- <b>IM1</b>: 짧은 문장을 연결하여 대화 가능. 일관성은 부족
+- <b>IM2</b>: 문장 단위로 일관되게 말함. 어휘와 정확성 증가
+- <b>IM3</b>: 대부분 상황에서 명확히 의사 표현 가능. 오류는 있으나 방해되지 않음
+- <b>IH</b>: 다양한 문장 구조와 시제 사용 가능. 문단 단위 말하기 시도
+- <b>AL</b>: 과거-현재-미래 서술 가능. 구조적 문단 표현. 추상적 주제 일부 가능
+
+---
 
 ## 문제별 응답 및 평가 결과:
 {problem_responses}
@@ -113,24 +159,11 @@ OVERALL_EVALUATION_PROMPT_TEMPLATE = """
 - 롤플레잉: {roleplaying_count}문제
 - 돌발질문: {unexpected_count}문제
 
-## 평가해야 할 항목:
-1. 종합 OPIC 점수: 전체 응답을 종합한 최종 OPIC 레벨
-2. 영역별 점수:
-   - 콤보셋 점수: 콤보셋 문제들의 평균 레벨
-   - 롤플레잉 점수: 롤플레잉 문제들의 평균 레벨
-   - 돌발질문 점수: 돌발질문 문제들의 평균 레벨
-3. 종합 피드백:
-   - 전체 피드백: 응시자의 전반적인 영어 구사력에 대한 종합적인 피드백
-   - 문단 구성력: 전반적인 문단 구성 능력에 대한 피드백
-   - 어휘력: 전반적인 어휘 사용 능력 및 문법 준수 여부에 대한 피드백.
-   - 발화량: 전반적인 발화량과 내용의 풍부함에 대한 피드백
+---
 
-중요: 피드백을 작성할 때는 다음 사항을 지켜주세요.
-1. 문단 구분이 필요한 경우 <br><br>를 사용하세요.
-2. 중요한 포인트는 <b>강조할 내용</b> 형식으로 볼드 처리하세요.
-3. 피드백은 가독성이 좋게 작성해주세요.
-   
-평가 결과는 반드시 다음 JSON 형식만으로 제공해 주세요:
+## 결과는 반드시 다음 JSON 형식으로 출력하세요.  
+<b>모든 피드백은 HTML 형식으로 작성되어야 하며, <b>문단 단위 구분은 <code><br><br></code>를 사용하고 중요한 표현은 <code><b>강조</b></code> 처리</b> 해야 합니다.</b>
+
 ```json
 {{
   "test_score": {{
@@ -325,7 +358,7 @@ class ResponseEvaluator:
             
             for problem_number, problem_data in problem_details.items():
                 problem_number_int = int(problem_number)
-                problem_type = self._get_problem_type(problem_number_int, test_type)
+                problem_type = self._get_problem_type(problem_number_int, test_data)
                 
                 response = problem_data.get("user_response", "")
                 score = problem_data.get("score", "")
@@ -422,54 +455,44 @@ class ResponseEvaluator:
             }
     
 
-    def _get_problem_type(self, problem_number: int, test: Dict[str, Any]) -> str:
+
+    def _get_problem_type(self, problem_number: int, test_data: Dict[str, Any]) -> str:
         """
         문제 번호와 테스트 정보에 따라 문제 유형 결정
         
         Args:
             problem_number: 문제 번호 (1부터 시작)
-            test: 테스트 정보 딕셔너리
+            test_data: 테스트 정보 딕셔너리
             
         Returns:
             문제 유형 문자열
         """
+        # test_data가 None이거나 유효하지 않은 경우
+        if not test_data:
+            logger.error(f"유효하지 않은 test_data: {test_data}")
+            raise ValueError("유효한 test_data가 필요합니다.")
 
-                # test가 bool 타입인지 확인
-        if isinstance(test, bool):
-            # True는 Half 테스트
-            if test:  # True는 Half 테스트
-                if problem_number <= 3:
-                    return "comboset"
-                elif 4 <= problem_number <= 5:
-                    return "roleplaying"
-                else:  # 6~7
-                    return "unexpected"
-            else:  # False는 Full 테스트
-                if problem_number == 1:
-                    return "self_introduction"
-                elif 2 <= problem_number <= 10:
-                    return "comboset"
-                elif 11 <= problem_number <= 13:
-                    return "roleplaying"
-                else:  # 14~15
-                    return "unexpected"
-    
-        # 새 필드를 우선 확인
-        test_type_str = test.get("test_type_str")
+        # test_type_str 우선 확인
+        test_type_str = test_data.get("test_type_str")
         if test_type_str:
+            logger.info(f"test_type_str로 문제 유형 결정: {test_type_str}")
             if test_type_str == "single":
                 return "single"
-            elif test_type_str == "category":
-                # 유형별 테스트의 경우 문제 카테고리를 확인
-                problem_data = test.get("problem_data", {})
+            elif test_type_str == "category":  # 수정: category로 변경
+                problem_data = test_data.get("problem_data", {})
                 if str(problem_number) in problem_data:
                     problem_category = problem_data[str(problem_number)].get("problem_category", "").lower()
+                    logger.info(f"유형별 테스트 문제 카테고리: {problem_category}")
                     if "롤플레이" in problem_category or "roleplay" in problem_category:
                         return "roleplaying"
-                    else:
-                        return "comboset"  # 기본값
-                return "comboset"  # 정보가 없으면 기본값
-            else:  # "full_test"
+                    elif "콤보셋" in problem_category or "comboset" in problem_category:
+                        return "comboset"
+                    elif "자기소개" in problem_category or "introduction" in problem_category:
+                        return "self_introduction"
+                    elif "돌발" in problem_category or "unexpected" in problem_category:
+                        return "unexpected"
+                return "comboset"  # 기본값
+            elif test_type_str == "full_test":
                 if problem_number == 1:
                     return "self_introduction"
                 elif 2 <= problem_number <= 10:
@@ -479,19 +502,20 @@ class ResponseEvaluator:
                 else:  # 14~15
                     return "unexpected"
         
-        # 기존 bool 필드로 폴백
-        test_type = test.get("test_type", False)
+        # test_type (bool) 필드 확인
+        test_type = test_data.get("test_type")
+        logger.info(f"test_type으로 문제 유형 결정: {test_type}")
         
-        if test_type:  # True는 Half 테스트
-            if len(test.get("problem_data", {})) == 1:
-                return "single"  # 문제가 1개면 single
+        if test_type is True:  # Half 테스트
+            if len(test_data.get("problem_data", {})) == 1:
+                return "single"
             elif 1 <= problem_number <= 3:
                 return "comboset"
             elif 4 <= problem_number <= 5:
                 return "roleplaying"
-            else:  # 6~7
+            else:
                 return "unexpected"
-        else:  # False는 Full 테스트
+        elif test_type is False:  # Full 테스트
             if problem_number == 1:
                 return "self_introduction"
             elif 2 <= problem_number <= 10:
@@ -500,8 +524,11 @@ class ResponseEvaluator:
                 return "roleplaying"
             else:  # 14~15
                 return "unexpected"
+        
+        # 모든 분기에서 해당되지 않는 경우
+        logger.error(f"문제 유형을 결정할 수 없습니다. test_data: {test_data}")
+        raise ValueError(f"문제 유형을 결정할 수 없습니다. test_data: {test_data}")
     
-
     def _calculate_average_level(self, levels: List[str]) -> str:
         """
         오픽 레벨 문자열 목록의 평균 레벨 계산
@@ -584,6 +611,85 @@ class ResponseEvaluator:
         
         return result
     
+    
+    def evaluate_overall_test_sync(self, test_data, problem_details):
+        """
+        전체 테스트의 종합 평가를 동기적으로 수행하는 메소드
+        Celery 작업에서 호출할 때 사용됩니다.
+        """
+        import asyncio
 
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            result = loop.run_until_complete(
+                self.evaluate_overall_test(test_data, problem_details)
+            )
+            return result
+        except Exception as e:
+            logger.error(f"종합 평가 동기 실행 중 오류 발생: {str(e)}", exc_info=True)
+            return {
+                "test_score": {
+                    "total_score": "N/A",
+                    "comboset_score": "N/A",
+                    "roleplaying_score": "N/A",
+                    "unexpected_score": "N/A"
+                },
+                "test_feedback": {
+                    "total_feedback": f"평가 실행 중 오류가 발생했습니다: {str(e)}",
+                    "paragraph": "문단 구성력에 대한 평가를 제공할 수 없습니다.",
+                    "vocabulary": "어휘력에 대한 평가를 제공할 수 없습니다.",
+                    "spoken_amount": "발화량에 대한 평가를 제공할 수 없습니다."
+                }
+            }
+        finally:
+            loop.close()
+
+
+    def evaluate_response_sync(self, user_response, problem_category, topic_category, problem):
+        """
+        사용자 응답 평가를 동기적으로 수행하는 메소드
+        
+        Celery 작업에서 호출할 때 사용됩니다.
+        
+        Args:
+            user_response: 사용자 응답 텍스트
+            problem_category: 문제 카테고리 (self_introduction, comboset, roleplaying, unexpected)
+            topic_category: 주제 카테고리
+            problem: 문제 내용
+        
+        Returns:
+            평가 결과 딕셔너리 (score와 feedback 포함)
+        """
+        import asyncio
+        
+        # 비동기 함수를 동기적으로 실행하기 위한 새 이벤트 루프 생성
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # evaluate_response 메소드가 비동기 메소드라고 가정
+            result = loop.run_until_complete(self.evaluate_response(
+                user_response=user_response,
+                problem_category=problem_category,
+                topic_category=topic_category,
+                problem=problem
+            ))
+            return result
+        except Exception as e:
+            logger.error(f"응답 평가 동기 실행 중 오류 발생: {str(e)}", exc_info=True)
+            # 오류 발생 시 기본 평가 결과 반환
+            return {
+                "score": "N/A",
+                "feedback": {
+                    "paragraph": f"평가 중 오류가 발생했습니다: {str(e)}",
+                    "vocabulary": "평가를 완료할 수 없습니다.",
+                    "spoken_amount": "평가를 완료할 수 없습니다."
+                }
+            }
+        finally:
+            # 이벤트 루프 종료
+            loop.close()
 
 

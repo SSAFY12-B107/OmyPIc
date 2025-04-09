@@ -4,5 +4,5 @@ interface PronunciationAudioResponse {
     file_size_bytes: number;
     file_size_kb: number;
 }
-export declare const usePronunciationAudio: (scriptId: number) => import("@tanstack/react-query").UseQueryResult<PronunciationAudioResponse, Error>;
+export declare const usePronunciationAudio: (scriptId: string | null) => import("@tanstack/react-query").UseQueryResult<PronunciationAudioResponse, Error>;
 export {};
