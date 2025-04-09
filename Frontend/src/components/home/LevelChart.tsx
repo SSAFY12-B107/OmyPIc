@@ -87,7 +87,7 @@ function LevelChart({ testResult }: LevelChartProps) {
     const data: LevelChartData = {
       labels: formatLabels(),
       datasets: [{
-        label: '모의고사 점수',
+        label: '실전 연습 점수',
         data: formatData(),
         borderColor: '#8A63D2',
         backgroundColor: '#8A63D2',
@@ -150,7 +150,7 @@ function LevelChart({ testResult }: LevelChartProps) {
       {/* 커스텀 범례 */}
       <div className={styles["chart-legend"]}>
         <div className={styles["legend-dot"]}></div>
-        <p className={styles["legend-text"]}>모의고사 점수</p>
+        <p className={styles["legend-text"]}>실전 연습 점수</p>
       </div>
     </div>
   );

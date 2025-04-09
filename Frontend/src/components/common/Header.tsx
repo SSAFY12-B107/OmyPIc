@@ -115,7 +115,7 @@ const Header: React.FC = () => {
             <h3>정말 나가시겠습니까?</h3>
             <p>
               {location.pathname.includes("/tests/practice")
-                ? "진행 중인 모의고사가 종료되고 횟수가 차감됩니다."
+                ? "진행 중인 실전 연습이 종료되고 횟수가 차감됩니다."
                 : "작성한 내용이 저장되지 않고 모두 사라집니다."}
             </p>
             <div className={styles.modalButtons}>
