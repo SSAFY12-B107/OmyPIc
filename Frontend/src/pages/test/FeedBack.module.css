@@ -6,22 +6,26 @@
 
   .stepsContainer {
     display: flex;
-    justify-content: center;
-    justify-content: space-evenly;
-    margin: 1 2.4rem;
+    align-items: center; /* 수직 정렬 추가 */
+    gap: 0.5rem; /* 간격을 space-evenly 대신 gap으로 제어 */
+    margin: 1rem 1.6rem; /* margin 수정 */
+    overflow-x: auto; /* 가로 스크롤만 허용 */
+    white-space: nowrap;
+    padding: 0.5rem 0; /* 상하 패딩 추가로 스크롤바와 거리 확보 */
   }
   
   .stepCircle {
+    min-width: 3.3rem; /* 최소 너비 지정 */
     width: 3.3rem;
     height: 3.3rem;
     border-radius: 50%;
+    flex-shrink: 0; /* 크기가 줄어들지 않도록 설정 */
     display: flex;
     align-items: center;
     justify-content: center;
     background-color: #EFE6FF;
     border: 0.8px solid rgba(87, 63, 132, 0.2);
     cursor: pointer;
-    
   }
 
   
