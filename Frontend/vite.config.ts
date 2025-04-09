@@ -36,8 +36,8 @@ export default defineConfig({
       },
       // API 요청 처리를 위한 Workbox 설정 추가
       workbox: {
-        // API 경로를 서비스 워커의 기본 처리에서 제외
-        navigateFallbackDenylist: [/^\/api\//],
+        // API와 docs 경로를 서비스 워커의 기본 처리에서 제외
+        navigateFallbackDenylist: [/^\/api\//, /^\/docs\//],
         
         // 런타임 캐싱 전략 설정
         runtimeCaching: [
