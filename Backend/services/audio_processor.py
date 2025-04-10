@@ -86,6 +86,10 @@ class AudioProcessor:
                 raise ValueError("Groq API 연결에 문제가 발생했습니다. 관리자에게 문의해주세요.")
             else:
                 raise ValueError(f"음성 처리 중 오류가 발생했습니다: {str(e)}")
+            
+    @track_time(AUDIO_PROCESS_DURATION, {"processor": "groq_optimized"})
+    def process_audio_for_celery(self, audio_content: bytes) -> str:
+        return self.process_audio(audio_content)
 
 
 class FastAudioProcessor(AudioProcessor):

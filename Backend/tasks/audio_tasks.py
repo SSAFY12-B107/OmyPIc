@@ -132,7 +132,7 @@ def process_audio_task(self, test_id, problem_id, problem_number, audio_content_
         try:
             audio_processor = AudioProcessor(model_name="whisper-large-v3")
             # audio_content_bytes를 직접 전달
-            transcribed_text = audio_processor.process_audio(audio_content_bytes)
+            transcribed_text = audio_processor.process_audio_for_celery(audio_content_bytes)
             logger.info(f"음성 변환 완료: {transcribed_text[:50]}...")
         except Exception as e:
             logger.error(f"음성 변환 중 오류: {str(e)}", exc_info=True)

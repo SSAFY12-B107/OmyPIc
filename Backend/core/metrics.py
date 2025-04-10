@@ -203,23 +203,39 @@ def track_time_async(metric, labels_dict):
         return wrapper
     return decorator
 
+def track_audio_processing(processor="standard"):
+    def decorator(func):
+        async def wrapper(*args, **kwargs):
+            start_time = time.time()
+            status = "success"
+            try:
+                return await func(*args, **kwargs)
+            except Exception:
+                status = "error"
+                raise
+            finally:
+                duration = time.time() - start_time
+                AUDIO_PROCESS_DURATION.labels(status=status, processor=processor).observe(duration)
+        return wrapper
+    return decorator
+
 # 오디오 처리 시간 기록 데코레이터
-def track_audio_processing_time(func):
-    async def wrapper(*args, **kwargs):
-        start_time = time.time()
-        status = "success"
+# def track_audio_processing_time(func):
+#     async def wrapper(*args, **kwargs):
+#         start_time = time.time()
+#         status = "success"
         
-        try:
-            result = await func(*args, **kwargs)
-            return result
-        except Exception as e:
-            status = "error"
-            raise
-        finally:
-            duration = time.time() - start_time
-            AUDIO_PROCESS_DURATION.labels(status=status, processor="standard").observe(duration)
+#         try:
+#             result = await func(*args, **kwargs)
+#             return result
+#         except Exception as e:
+#             status = "error"
+#             raise
+#         finally:
+#             duration = time.time() - start_time
+#             AUDIO_PROCESS_DURATION.labels(status=status, processor="standard").observe(duration)
     
-    return wrapper
+#     return wrapper
 
 # LLM API 호출 시간 기록 함수
 def track_llm_api_call(provider, model, func):
