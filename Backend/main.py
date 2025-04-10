@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("앱 시작함.")
-    print(settings.REDIS_URL)
 
     # MongoDB 연결 설정
     await connect_to_mongo()

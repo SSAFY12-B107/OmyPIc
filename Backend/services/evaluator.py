@@ -245,7 +245,7 @@ class ResponseEvaluator:
             convert_system_message_to_human=True
         )
 
-    @track_time_async(LLM_API_DURATION, {"model": "gemini-1.5-pro", "operation": "evaluate_response"})
+    @track_time_async(LLM_API_DURATION, {"provider": "google", "model": "gemini-1.5-pro", "operation": "evaluate_response"})
     async def evaluate_response(
         self, 
         user_response: str, 
@@ -323,7 +323,7 @@ class ResponseEvaluator:
     
 
 
-    @track_time_async(LLM_API_DURATION, {"model": "gemini-1.5-pro", "operation": "evaluate_overall_test"})
+    @track_time_async(LLM_API_DURATION, {"provider": "google", "model": "gemini-1.5-pro", "operation": "evaluate_overall_test"})
     async def evaluate_overall_test(
         self,
         test_data: Dict[str, Any],
