@@ -585,7 +585,7 @@ async def delete_script(
         )
 
 
-@router.get("/scripts/{script_pk}/audio", status_code=status.HTTP_200_OK)
+@router.post("/scripts/{script_pk}/audio", status_code=status.HTTP_200_OK)
 async def listen_script(
     script_pk: str = Path(..., description="조회할 스크립트 ID"),
     db: Database = Depends(get_mongodb)
