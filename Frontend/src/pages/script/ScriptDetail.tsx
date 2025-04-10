@@ -104,7 +104,7 @@ function ScriptDetail({}: Props) {
               />
             </svg>
           </div>
-          <p>나의 모의고사 답변</p>
+          <p>나의 실전 연습 답변</p>
         </div>
 
         {/* content */}

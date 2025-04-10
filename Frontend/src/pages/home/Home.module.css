@@ -41,29 +41,19 @@
   font-size: 1.8rem;
 }
 
-.user-info div {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 3rem;
-  height: 3rem;
-  border-radius: 50%;
-  background-color: #C4B1E8;
-}
-
-.user-info img {
+/* 프로필 이미지 스타일 공통화 */
+.profile-img,
+.basic-img {
   width: 3rem;
   height: 3rem;
   border-radius: 50%;
 }
 
+/* 기본 이미지 배경 스타일 */
 .basic-img {
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 3rem;
-  height: 3rem;
-  border-radius: 50%;
   background-color: #C4B1E8;
 }
 
