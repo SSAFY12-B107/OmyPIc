@@ -14,6 +14,8 @@ from services import auth as auth_service
 from itertools import cycle
 from core.config import settings
 import logging
+from redis import Redis
+import time
 
 
 # 로거 설정
@@ -190,17 +192,94 @@ def _init_key_cycles():
     _gemini_key_cycle = cycle(gemini_keys) if gemini_keys else None
     _groq_key_cycle = cycle(groq_keys) if groq_keys else None
 
-# 초기화 실행
-_init_key_cycles()
+# 초기화는 필요할 때만 - Redis 키 관리 실패 시 폴백으로 사용
+# _init_key_cycles()
+
+# Redis 클라이언트 초기화
+redis_client = Redis.from_url(settings.REDIS_URL)
 
 def get_next_gemini_key():
-    """다음 Gemini API 키를 반환합니다."""
+    """다음 Gemini API 키를 반환합니다. Redis 기반 구현."""
+    try:
+        # 모든 키 가져오기
+        keys = settings.gemini_api_keys()
+        if not keys:
+            logger.warning("Gemini API 키가 설정되지 않았습니다.")
+            return ""
+        
+        # 가장 적게 사용된 키 선택
+        min_usage_key = None
+        min_usage_count = float('inf')
+        
+        for key in keys:
+            # 키 사용량 확인 (Redis에서)
+            usage_count = int(redis_client.get(f"key_usage:gemini:{key}") or 0)
+            
+            if usage_count < min_usage_count:
+                min_usage_count = usage_count
+                min_usage_key = key
+        
+        # 선택된 키 사용량 증가
+        if min_usage_key:
+            redis_client.incr(f"key_usage:gemini:{min_usage_key}")
+            # 만료 시간 설정 (1시간 후 리셋)
+            redis_client.expire(f"key_usage:gemini:{min_usage_key}", 3600)
+            
+            # 키 사용 로그
+            logger.debug(f"Gemini API 키 사용: {min_usage_key[:8]}... (사용량: {min_usage_count+1})")
+            return min_usage_key
+            
+    except Exception as e:
+        logger.error(f"Redis에서 Gemini API 키 관리 중 오류: {str(e)}")
+        # Redis 오류 시 기존 방식으로 폴백
+        if _gemini_key_cycle is None:
+            _init_key_cycles()
+        return next(_gemini_key_cycle) if _gemini_key_cycle else ""
+    
+    # 예상치 못한 경우를 대비한 폴백
     if _gemini_key_cycle is None:
-        return ""
-    return next(_gemini_key_cycle)
+        _init_key_cycles()
+    return next(_gemini_key_cycle) if _gemini_key_cycle else ""
 
 def get_next_groq_key():
-    """다음 Groq API 키를 반환합니다."""
+    """다음 Groq API 키를 반환합니다. Redis 기반 구현."""
+    try:
+        # 모든 키 가져오기
+        keys = settings.groq_api_keys()
+        if not keys:
+            logger.warning("Groq API 키가 설정되지 않았습니다.")
+            return ""
+        
+        # 가장 적게 사용된 키 선택
+        min_usage_key = None
+        min_usage_count = float('inf')
+        
+        for key in keys:
+            # 키 사용량 확인 (Redis에서)
+            usage_count = int(redis_client.get(f"key_usage:groq:{key}") or 0)
+            
+            if usage_count < min_usage_count:
+                min_usage_count = usage_count
+                min_usage_key = key
+        
+        # 선택된 키 사용량 증가
+        if min_usage_key:
+            redis_client.incr(f"key_usage:groq:{min_usage_key}")
+            # 만료 시간 설정 (1시간 후 리셋)
+            redis_client.expire(f"key_usage:groq:{min_usage_key}", 3600)
+            
+            # 키 사용 로그
+            logger.debug(f"Groq API 키 사용: {min_usage_key[:8]}... (사용량: {min_usage_count+1})")
+            return min_usage_key
+            
+    except Exception as e:
+        logger.error(f"Redis에서 Groq API 키 관리 중 오류: {str(e)}")
+        # Redis 오류 시 기존 방식으로 폴백
+        if _groq_key_cycle is None:
+            _init_key_cycles()
+        return next(_groq_key_cycle) if _groq_key_cycle else ""
+    
+    # 예상치 못한 경우를 대비한 폴백
     if _groq_key_cycle is None:
-        return ""
-    return next(_groq_key_cycle)
+        _init_key_cycles()
+    return next(_groq_key_cycle) if _groq_key_cycle else ""

@@ -97,7 +97,7 @@ def evaluate_random_problem_task(self, test_id, problem_id, user_id, audio_conte
         }
 
 @shared_task(bind=True, name="process_audio")
-def process_audio_task(self, test_id, problem_id, problem_number, audio_content_base64, is_last_problem=False):
+def process_audio_task(self, test_id, problem_id, problem_number, audio_content_bytes, is_last_problem=False):
     """
     오디오 파일을 처리하고 평가하는 Celery 작업
     
@@ -106,14 +106,15 @@ def process_audio_task(self, test_id, problem_id, problem_number, audio_content_
         test_id: 테스트 ID
         problem_id: 문제 ID
         problem_number: 문제 번호
-        audio_content_base64: Base64로 인코딩된 오디오 내용
+        audio_content_bytes: 원본 오디오 바이트 데이터
         is_last_problem: 마지막 문제 여부
     """
-    import base64
+    # import base64 - 필요 없어졌으므로 제거
     
     try:
-        # Base64 디코딩
-        audio_content = base64.b64decode(audio_content_base64)
+        # Base64 디코딩 제거 - 이미 bytes 타입으로 받음
+        # audio_content = base64.b64decode(audio_content_base64)
+        # audio_content_bytes는 이미 디코딩된 바이트 형태의 데이터임
 
         # ✅ MongoDB 동기 연결
         db = get_mongodb_sync()
@@ -130,7 +131,8 @@ def process_audio_task(self, test_id, problem_id, problem_number, audio_content_
         # 2. AudioProcessor를 사용하여 오디오 텍스트 변환
         try:
             audio_processor = AudioProcessor(model_name="whisper-large-v3")
-            transcribed_text = audio_processor.process_audio(audio_content)
+            # audio_content_bytes를 직접 전달
+            transcribed_text = audio_processor.process_audio(audio_content_bytes)
             logger.info(f"음성 변환 완료: {transcribed_text[:50]}...")
         except Exception as e:
             logger.error(f"음성 변환 중 오류: {str(e)}", exc_info=True)
