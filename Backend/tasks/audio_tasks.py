@@ -14,6 +14,87 @@ from services.evaluator import ResponseEvaluator
 # 로깅 설정
 logger = logging.getLogger(__name__)
 
+@shared_task(bind=True, name="evaluate_random_problem")
+def evaluate_random_problem_task(self, test_id, problem_id, user_id, audio_content_base64):
+    try:
+        # Base64 디코딩
+        import base64
+        audio_content = base64.b64decode(audio_content_base64)
+        
+        # MongoDB 연결
+        db = get_mongodb_sync()
+        
+        # 문제 정보 가져오기
+        problem = db.problems.find_one({"_id": ObjectId(problem_id)})
+        
+        # 음성 변환
+        audio_processor = AudioProcessor(model_name="whisper-large-v3")
+        transcribed_text = audio_processor.process_audio(audio_content)
+        
+        # 스크립트 저장
+        script_data = {
+            "user_id": user_id,
+            "problem_id": problem_id,
+            "content": transcribed_text,
+            "is_script": False,
+            "created_at": datetime.now()
+        }
+        db.scripts.insert_one(script_data)
+        
+        # 응답 평가
+        evaluator = ResponseEvaluator()
+        evaluation_result = evaluator.evaluate_response_sync(
+            transcribed_text, 
+            problem.get("problem_category", ""),
+            problem.get("topic_category", ""),
+            problem.get("content", "")
+        )
+        
+        # 테스트 문서 업데이트
+        db.tests.update_one(
+            {"_id": ObjectId(test_id)},
+            {"$set": {
+                "random_problem.score": evaluation_result.get("score", ""),
+                "random_problem.feedback": evaluation_result.get("feedback", {}),
+                "random_problem.user_response": transcribed_text,
+                "random_problem.processing_status": "completed",
+                "random_problem.processing_completed_at": datetime.now()
+            }}
+        )
+        
+        return {
+            "status": "success",
+            "test_id": test_id,
+            "problem_id": problem_id,
+            "evaluation": evaluation_result
+        }
+    
+    except Exception as e:
+        db = get_mongodb_sync()
+        # 오류 상태 업데이트
+        db.tests.update_one(
+            {"_id": ObjectId(test_id)},
+            {"$set": {
+                "random_problem.processing_status": "failed",
+                "random_problem.processing_message": f"오류 발생: {str(e)}",
+                "random_problem.processing_completed_at": datetime.now()
+            }}
+        )
+        # 오류 로깅
+        db.errors.insert_one({
+            "test_id": test_id,
+            "problem_id": problem_id,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "timestamp": datetime.now(),
+            "source": "evaluate_random_problem_task"
+        })
+        return {
+            "status": "error",
+            "test_id": test_id,
+            "problem_id": problem_id,
+            "error": str(e)
+        }
 
 @shared_task(bind=True, name="process_audio")
 def process_audio_task(self, test_id, problem_id, problem_number, audio_content_base64, is_last_problem=False):

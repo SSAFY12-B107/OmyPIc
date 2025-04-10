@@ -792,6 +792,60 @@ async def evaluate_random_problem(
         await log_error(db, test_id, problem_id, e)
         raise HTTPException(status_code=500, detail=f"오류가 발생했습니다: {str(e)}")
 
+@router.post("/random-problem-celery/evaluate")
+async def evaluate_random_problem_celery(
+    test_id: str = Form(..., description="테스트 ID"),
+    audio_file: Optional[UploadFile] = File(None),
+    current_user: User = Depends(get_current_user_for_multipart),
+    db: Database = Depends(get_mongodb)
+):
+    try:
+        # 기본 검증만 수행
+        user_id = str(current_user.id)
+        
+        # 테스트 정보 간단히 확인
+        test = await validate_test(db, test_id)
+        problem_id = await get_problem_id(db, test_id)
+        
+        # 오디오 내용 가져오기
+        audio_content = await get_audio_content(test, audio_file)
+        
+        # Base64로 인코딩
+        import base64
+        audio_content_base64 = base64.b64encode(audio_content).decode('utf-8')
+        
+        # 상태 업데이트
+        await db.tests.update_one(
+            {"_id": ObjectId(test_id)},
+            {"$set": {
+                "random_problem.processing_status": "processing",
+                "random_problem.processing_started_at": datetime.now()
+            }}
+        )
+        
+        # Celery 작업 시작
+        from tasks.audio_tasks import evaluate_random_problem_task
+        evaluate_random_problem_task.delay(
+            test_id=test_id,
+            problem_id=problem_id,
+            user_id=user_id,
+            audio_content_base64=audio_content_base64
+        )
+        
+        # 즉시 응답
+        return JSONResponse(
+            status_code=202,
+            content={
+                "message": "랜덤 문제 평가가 시작되었습니다. 처리 결과는 추후 확인 가능합니다.",
+                "test_id": test_id,
+                "problem_id": problem_id,
+                "status": "processing"
+            }
+        )
+    
+    except Exception as e:
+        await log_error(db, test_id, problem_id, e)
+        raise HTTPException(status_code=500, detail=f"오류가 발생했습니다: {str(e)}")
 
 
 # 모의고사 점수, 피드백 생성 비동기 처리를 위한 상태 확인 엔드포인트 - 개별 문제
