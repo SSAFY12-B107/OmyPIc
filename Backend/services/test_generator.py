@@ -15,7 +15,7 @@ async def get_random_single_problem(
     user_id: str
 ) -> Dict:
     """
-    랜덤으로 하나의 문제만 선택하여 반환합니다.
+    특정 problem_id를 가진 문제 하나만 조회하여 반환합니다. (테스트용)
     선택된 문제를 test 컬렉션에 저장합니다.
     
     Args:
@@ -23,8 +23,85 @@ async def get_random_single_problem(
         user_id: 사용자 ID
         
     Returns:
-        Dict: 랜덤 선택된 문제 정보 (SingleProblemResponse에 사용될 형식)
+        Dict: 선택된 문제 정보 (SingleProblemResponse에 사용될 형식)
     """
+    logger.info(f"테스트를 위한 고정 문제 선택 - 사용자: {user_id}")
+    
+    # 사용자 정보 가져오기
+    user_object_id = ObjectId(user_id)
+    user = await db.users.find_one({"_id": user_object_id})
+    
+    if not user:
+        logger.error(f"사용자 ID {user_id}에 해당하는 사용자를 찾을 수 없습니다.")
+        raise ValueError(f"사용자 ID {user_id}에 해당하는 사용자를 찾을 수 없습니다.")
+    
+    # 테스트용 고정 problem_id (실제 존재하는 ID로 변경해야 함)
+    test_problem_id = "67d97ab2361f78766a3c466a"  # 실제 DB에 존재하는 ID로 교체하세요
+    
+    try:
+        # 특정 ID로 문제 조회
+        problem = await db.problems.find_one({"_id": ObjectId(test_problem_id)})
+        
+        if not problem:
+            logger.error(f"테스트용 problem_id {test_problem_id}에 해당하는 문제를 찾을 수 없습니다.")
+            # 대체 문제 가져오기 - 첫 번째 문제 선택
+            problem = await db.problems.find_one()
+            
+            if not problem:
+                logger.error("데이터베이스에 문제가 없습니다.")
+                raise ValueError("테스트할 문제를 찾을 수 없습니다.")
+        
+        problem_id = str(problem["_id"])
+        logger.info(f"테스트용 문제 선택됨: {problem_id}")
+
+        # 테스트 데이터 생성
+        test_data = TestModel(
+            test_type=True,  # 기존 필드: 단일 문제는 Half로 간주
+            test_type_str=TestTypeEnum.SINGLE_PROBLEM,  # 새 필드: 명시적으로 SINGLE_PROBLEM으로 설정
+            problem_data={
+                "1": create_problem_detail(problem)
+            },
+            user_id=user_id,
+            test_date=datetime.now()
+        )
+        
+        # Test 모델을 MongoDB에 저장하기 위해 변환
+        data_to_insert = test_data.model_dump(by_alias=True)
+
+        # _id 필드가 없거나 None일 경우 제거하여 MongoDB가 자동으로 생성하도록 함
+        if "_id" in data_to_insert and data_to_insert["_id"] is None:
+            del data_to_insert["_id"]
+        
+        # MongoDB에 테스트 저장
+        result = await db.tests.insert_one(data_to_insert)
+        test_id = str(result.inserted_id)
+        logger.info(f"테스트용 문제 테스트 저장 완료 - ID: {test_id}")
+        
+        # 반환할 문제 데이터 구성
+        response_data = {
+            "test_id": test_id,
+            "problem_id": problem_id,
+            "problem_category": problem.get("problem_category", ""),
+            "topic_category": problem.get("topic_category", ""),
+            "content": problem.get("content", ""),
+            "audio_s3_url": problem.get("audio_s3_url", None),
+            "high_grade_kit": problem.get("high_grade_kit", False),
+            "user_id": user_id
+        }
+        
+        logger.info(f"테스트용 문제 반환 완료: {problem_id}, 카테고리: {problem.get('problem_category', '')}")
+        return response_data
+        
+    except Exception as e:
+        logger.error(f"테스트용 문제 조회 중 오류: {str(e)}")
+        raise ValueError(f"테스트용 문제 조회 중 오류가 발생했습니다: {str(e)}")
+
+# 원래 로직 (주석 처리)
+"""
+async def get_random_single_problem_original(
+    db: Database,
+    user_id: str
+) -> Dict:
     logger.info(f"랜덤 단일 문제 선택 - 사용자: {user_id}")
     
     # 사용자 정보 가져오기
@@ -112,6 +189,7 @@ async def get_random_single_problem(
     else:
         logger.warning("선택할 수 있는 문제가 없습니다.")
         raise ValueError("선택할 수 있는 문제가 없습니다.")
+"""
 
 
 async def generate_full_test(db: Database, test_data: TestModel, user_topics: List[str]):
