@@ -641,7 +641,7 @@ async def listen_script(
         logger.debug(f"Colab TTS API 호출: {COLAB_TTS_API_URL}")
         
         # Colab API 호출
-        async with httpx.AsyncClient(timeout=180.0) as client:  # 타임아웃을 180초(3분)으로 증가
+        async with httpx.AsyncClient(timeout=600.0) as client:  # 타임아웃을 600초(10분)으로 증가
             try:
                 # CSM-1B API는 바이너리 WAV 데이터를 직접 반환
                 logger.info(f"CSM-1B API 호출 시작: {COLAB_TTS_API_URL}")
