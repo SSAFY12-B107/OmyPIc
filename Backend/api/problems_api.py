@@ -585,7 +585,7 @@ async def delete_script(
         )
 
 
-@router.post("/scripts/{script_pk}/audio", status_code=status.HTTP_200_OK)
+@router.get("/scripts/{script_pk}/audio", status_code=status.HTTP_200_OK)
 async def listen_script(
     script_pk: str = Path(..., description="조회할 스크립트 ID"),
     db: Database = Depends(get_mongodb)
@@ -710,6 +710,14 @@ async def listen_script(
         # 자세한 오류 정보 로깅
         logger.error(f"TTS 처리 중 예상치 못한 오류: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"음성 생성 중 오류: {str(e)}")
+
+@router.post("/scripts/{script_pk}/audio", status_code=status.HTTP_200_OK)
+async def listen_script_post(
+    script_pk: str = Path(..., description="조회할 스크립트 ID"),
+    db: Database = Depends(get_mongodb)
+) -> Dict[str, Any]:
+    # GET 엔드포인트와 동일한 로직 구현
+    return await listen_script(script_pk, db)
 
 
 # 테스트용 라우터
