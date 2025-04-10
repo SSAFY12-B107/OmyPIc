@@ -237,13 +237,13 @@ async def make_test(
     elif test_type == 2: # 랜덤 1문제
         random_problem_count = limits.get("random_problem", 0)
         logger.info(f"현재 random_problem_count: {random_problem_count}")
-        # if random_problem_count >= 3:
-        #     # 로깅 추가
-        #     logger.warning(f"사용자 {user_id}의 random_problem_count({random_problem_count})가 제한(3)을 초과했습니다")
-        #     return JSONResponse(
-        #         status_code=403,
-        #         content={"detail": "맛보기 한 문제는 최대 3회까지만 생성 가능합니다"}
-        #     )
+        if random_problem_count >= 3:
+            # 로깅 추가
+            logger.warning(f"사용자 {user_id}의 random_problem_count({random_problem_count})가 제한(3)을 초과했습니다")
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "맛보기 한 문제는 최대 3회까지만 생성 가능합니다"}
+            )
         
         # 무조건 limits 필드 사용
         limit_field = "limits.random_problem"
