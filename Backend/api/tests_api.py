@@ -694,31 +694,25 @@ async def record_answer_celery(
                 }}
             )
         
-        # 오디오 콘텐츠 읽기
-        audio_content = await audio_file.read()
-        
-        # Base64로 인코딩 (Celery 작업에 전달하기 위해)
-        import base64
-        audio_content_base64 = base64.b64encode(audio_content).decode('utf-8')
-        
-        # 상태 필드 초기화 (기존 코드)
-        await db.tests.update_one(
-            {"_id": ObjectId(test_pk)},
-            {"$set": {
-                f"problem_data.{problem_number}.processing_status": "processing",
-                f"problem_data.{problem_number}.processing_started_at": datetime.now()
-            }}
-        )
-        
-        # Celery 작업으로 오디오 처리 요청
+        # 오디오 콘텐츠 읽기 (원본 바이트)
+        audio_content = await audio_file.read() # audio_content는 이제 bytes 타입
+
+        # --- Base64 인코딩 로직 주석 처리 ---
+        # import base64
+        # audio_content_base64 = base64.b64encode(audio_content).decode('utf-8')
+        # --- 여기까지 주석 처리 ---
+
+        # Celery 작업으로 오디오 처리 요청 (원본 바이트 전달)
+        # tasks.audio_tasks 임포트 확인 필요 (파일 상단에 있는지)
+        from tasks.audio_tasks import process_audio_task # 만약 임포트가 없다면 추가
         process_audio_task.delay(
-            test_pk, 
-            problem_pk, 
-            problem_number, 
-            audio_content_base64, 
+            test_pk,
+            problem_pk,
+            problem_number,
+            audio_content,  # 원본 바이트(bytes) 전달
             is_last_problem
         )
-        
+
         # 202 Accepted 응답
         return JSONResponse(
             status_code=202,
@@ -730,11 +724,11 @@ async def record_answer_celery(
                 "is_last_problem": is_last_problem
             }
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"녹음 제출 중 오류 발생: {str(e)}", exc_info=True)
+        logger.error(f"녹음 제출 중 오류 발생: {str(e)}", exc_info=True) # logger import 확인 필요
         raise HTTPException(status_code=500, detail=f"오류가 발생했습니다: {str(e)}")
 
 
