@@ -49,11 +49,11 @@ class AudioProcessor:
         
         Args:
             audio_content: 오디오 파일 바이트 데이터
-            
+        
         Returns:
             str: 추출된 텍스트
         """
-        try:            
+        try:
             # 오디오 크기 메트릭 추가
             track_audio_size(audio_content, "groq")
 
@@ -86,6 +86,10 @@ class AudioProcessor:
                 raise ValueError("Groq API 연결에 문제가 발생했습니다. 관리자에게 문의해주세요.")
             else:
                 raise ValueError(f"음성 처리 중 오류가 발생했습니다: {str(e)}")
+            
+    @track_time(AUDIO_PROCESS_DURATION, {"processor": "groq_optimized"})
+    def process_audio_for_celery(self, audio_content: bytes) -> str:
+        return self.process_audio(audio_content)
 
 
 class FastAudioProcessor(AudioProcessor):

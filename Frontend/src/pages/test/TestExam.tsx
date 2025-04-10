@@ -170,6 +170,11 @@ function TestExam() {
     setHasListenedAgain(false);
     // 녹음 파일도 초기화
     setRecordedFile(null);
+    // 녹음 시간 초기화 추가
+    recordingTimeRef.current = 0;
+    if (timeDisplayRef.current) {
+      timeDisplayRef.current.textContent = "00:00";
+    }
   }, [currentProblem]);
 
   // 오디오 이벤트 설정(ui 설정정)
@@ -226,14 +231,6 @@ function TestExam() {
     };
   }, []); // 빈 의존성 배열: 마운트/언마운트 시에만 실행
 
-  // 시간 형식 변환 함수 (초 -> MM:SS)
-  const formatTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes.toString().padStart(2, "0")}:${remainingSeconds
-      .toString()
-      .padStart(2, "0")}`;
-  };
   // 오디오 재생/일시정지 핸들러
   const handleAudioControl = useCallback(() => {
     const audio = audioCache[currentProblem];
@@ -426,7 +423,6 @@ function TestExam() {
         setRandomEvaluationLoading(false);
       }
       setIsSubmitting(false);
-
     }
   };
 
@@ -492,8 +488,7 @@ function TestExam() {
           <span className={styles.answerText}>내 답변</span>
 
           {/* 녹음 시간 표시 추가 */}
-          <span ref={timeDisplayRef} className={styles.recordingTime}>
-          </span>
+          <span ref={timeDisplayRef} className={styles.recordingTime}></span>
         </div>
 
         <div className={styles.animationBox}>

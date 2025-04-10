@@ -42,40 +42,71 @@ function LevelChart({ testResult }: LevelChartProps) {
     const levels = ['IL이하', 'IM1', 'IM2', 'IM3', 'IH', 'AL', ''];
     // 유효한 레벨 정의 (NH이하보다 높은 레벨들)
     const validLevels = ['IM1', 'IM2', 'IM3', 'IH', 'AL'];
+    
+    // 정렬된 인덱스를 저장할 변수
+    let sortedIndices: number[] = [];
   
     // 테스트 데이터 가공
     const formatLabels = () => {
       if (!testResult || !testResult.test_date) return [];
       
-      return testResult.test_date.map(dateStr => {
-        if (!dateStr) return '';
+      // 날짜와 인덱스를 함께 저장
+      const datesWithIndices = testResult.test_date.map((dateStr, index) => {
+        if (!dateStr) return { date: new Date(0), formatted: '', index };
         
-        // ISO 날짜 포맷을 "M/D h시" 형식으로 변환
         try {
           const date = new Date(dateStr);
-          if (isNaN(date.getTime())) return '';
+          if (isNaN(date.getTime())) return { date: new Date(0), formatted: '', index };
           
-          const month = date.getMonth() + 1;
-          const day = date.getDate();
-          const hour = date.getHours();
+          // 한국 시간으로 변환 (+9시간)
+          const koreaDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
           
-          return `${month}/${day}\n${hour}시`;
+          return {
+            date: koreaDate, // 정렬을 위해 한국 시간 기준 저장
+            rawDate: koreaDate, // 포맷팅에 사용할 날짜 저장
+            index
+          };
         } catch (e) {
           console.error("Invalid date format:", dateStr);
-          return '';
+          return { date: new Date(0), rawDate: new Date(0), formatted: '', index };
         }
-      }).filter(date => date !== ''); // 빈 문자열 필터링
+      }).filter(item => item.date.getTime() > 0);
+      
+      // 날짜 오름차순 정렬 (과거 → 최근)
+      datesWithIndices.sort((a, b) => a.date.getTime() - b.date.getTime());
+      
+      // 정렬된 인덱스 저장
+      sortedIndices = datesWithIndices.map(item => item.index);
+      
+      // 정렬 후 포맷팅 적용
+      return datesWithIndices.map(item => {
+        if (!item.rawDate) return '';
+        
+        const date = item.rawDate;
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        const hour = date.getHours();
+        
+        return `${month}/${day}\n${hour}시`;
+      });
     };
     
     const formatData = () => {
       if (!testResult || !testResult.test_score) return [];
       
-      return testResult.test_score.map(score => {
-        if (!score) return 0; // null이면 'IM이하'로 간주
+      // 정렬된 인덱스가 비어있으면 formatLabels 호출
+      if (sortedIndices.length === 0) {
+        formatLabels();
+      }
+      
+      // 정렬된 인덱스 순서에 맞게 점수 데이터 재구성
+      return sortedIndices.map(index => {
+        const score = testResult.test_score[index];
         
-        // 'IL', 'IM1', 'IM2', 'IM3', 'IH', 'AL' 중 하나인지 확인
+        if (!score) return 0;
+        
         if (!validLevels.includes(score)) {
-          return 0; // 유효한 레벨이 아니면 'IM이하'(인덱스 0)로 간주
+          return 0;
         }
         
         const levelIndex = levels.indexOf(score);
@@ -87,7 +118,7 @@ function LevelChart({ testResult }: LevelChartProps) {
     const data: LevelChartData = {
       labels: formatLabels(),
       datasets: [{
-        label: '모의고사 점수',
+        label: '실전 연습 점수',
         data: formatData(),
         borderColor: '#8A63D2',
         backgroundColor: '#8A63D2',
@@ -150,7 +181,7 @@ function LevelChart({ testResult }: LevelChartProps) {
       {/* 커스텀 범례 */}
       <div className={styles["chart-legend"]}>
         <div className={styles["legend-dot"]}></div>
-        <p className={styles["legend-text"]}>모의고사 점수</p>
+        <p className={styles["legend-text"]}>실전 연습 점수</p>
       </div>
     </div>
   );

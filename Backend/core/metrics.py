@@ -1,4 +1,3 @@
-# core/metrics.py
 from prometheus_client import Counter, Histogram, Gauge, Summary
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -117,6 +116,17 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             # 요청 처리 완료 시 진행 중인 요청 카운터 감소
             REQUESTS_IN_PROGRESS.labels(method=method, endpoint=endpoint).dec()
 
+
+def normalize_label_value(value: str) -> str:
+    """
+    Prometheus label로 사용할 수 있도록 정규화된 문자열 반환
+    - 알파벳, 숫자, 하이픈, 언더스코어만 허용
+    - 공백은 _로 대체, 대문자는 소문자로 변환
+    """
+    import re
+    value = value.strip().lower().replace(" ", "_")
+    return re.sub(r'[^a-z0-9_\-]', '_', value)
+
 # 연속적인 측정 지표 기록을 위한 데코레이터 (동기 함수용)
 def track_time(metric, labels_dict):
     def decorator(func):
@@ -136,10 +146,14 @@ def track_time(metric, labels_dict):
                 raise
             finally:
                 duration = time.time() - start_time
-                # 라벨 사전에 상태 추가
-                labels = {**labels_dict, "status": status}
-                metric.labels(**labels).observe(duration)
-        
+                labels = {k: normalize_label_value(str(v)) for k, v in labels_dict.items()}
+                labels["status"] = normalize_label_value(status)
+                try:
+                    metric.labels(**labels).observe(duration)
+                except Exception as label_error:
+                    import logging
+                    logging.getLogger(__name__).error(f"메트릭 레이블 오류: {label_error}, 레이블: {labels}")
+
         return wrapper
     return decorator
 
@@ -189,23 +203,39 @@ def track_time_async(metric, labels_dict):
         return wrapper
     return decorator
 
+def track_audio_processing(processor="standard"):
+    def decorator(func):
+        async def wrapper(*args, **kwargs):
+            start_time = time.time()
+            status = "success"
+            try:
+                return await func(*args, **kwargs)
+            except Exception:
+                status = "error"
+                raise
+            finally:
+                duration = time.time() - start_time
+                AUDIO_PROCESS_DURATION.labels(status=status, processor=processor).observe(duration)
+        return wrapper
+    return decorator
+
 # 오디오 처리 시간 기록 데코레이터
-def track_audio_processing_time(func):
-    async def wrapper(*args, **kwargs):
-        start_time = time.time()
-        status = "success"
+# def track_audio_processing_time(func):
+#     async def wrapper(*args, **kwargs):
+#         start_time = time.time()
+#         status = "success"
         
-        try:
-            result = await func(*args, **kwargs)
-            return result
-        except Exception as e:
-            status = "error"
-            raise
-        finally:
-            duration = time.time() - start_time
-            AUDIO_PROCESS_DURATION.labels(status=status, processor="standard").observe(duration)
+#         try:
+#             result = await func(*args, **kwargs)
+#             return result
+#         except Exception as e:
+#             status = "error"
+#             raise
+#         finally:
+#             duration = time.time() - start_time
+#             AUDIO_PROCESS_DURATION.labels(status=status, processor="standard").observe(duration)
     
-    return wrapper
+#     return wrapper
 
 # LLM API 호출 시간 기록 함수
 def track_llm_api_call(provider, model, func):
@@ -221,9 +251,19 @@ def track_llm_api_call(provider, model, func):
             raise
         finally:
             duration = time.time() - start_time
-            LLM_API_DURATION.labels(provider=provider, model=model, operation="default", status=status).observe(duration)
-    
+            labels = {
+                "provider": normalize_label_value(provider),
+                "model": normalize_label_value(model),
+                "operation": "default",
+                "status": normalize_label_value(status)
+            }
+            try:
+                LLM_API_DURATION.labels(**labels).observe(duration)
+            except Exception as label_error:
+                import logging
+                logging.getLogger(__name__).error(f"메트릭 레이블 오류: {label_error}, 레이블: {labels}")
     return wrapper
+
 
 # 오디오 파일 크기 추적 헬퍼 함수
 def track_audio_size(audio_content: bytes, processor: str = "standard"):
@@ -231,6 +271,7 @@ def track_audio_size(audio_content: bytes, processor: str = "standard"):
     file_size_mb = len(audio_content) / (1024 * 1024)
     AUDIO_SIZE_VS_PROCESS_TIME.labels(processor=processor).observe(file_size_mb)
     return file_size_mb
+
 
 # 문제 유형별 평가 시간 기록 함수
 def track_problem_evaluation_time(problem_category: str, duration: float, status: str = "success"):

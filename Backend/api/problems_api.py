@@ -15,10 +15,16 @@ from api.deps import get_current_user
 from models.user import User
 
 import logging
+from dotenv import load_dotenv
+import httpx
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# .env 파일에서 환경 변수 로드
+load_dotenv()
+
 
 @router.get("/{category}", response_model=List[ProblemResponse], status_code=status.HTTP_200_OK)
 async def get_problems_by_category(
@@ -585,7 +591,7 @@ async def listen_script(
     db: Database = Depends(get_mongodb)
 ) -> Dict[str, Any]:
     """
-    스크립트 발음을 TTS로 변환하여 Base64 인코딩된 오디오 데이터 반환
+    스크립트 발음을 외부 Colab TTS API로 변환하여 Base64 인코딩된 오디오 데이터 반환
     """
     try:
         # MongoDB에서 스크립트 조회
@@ -596,7 +602,7 @@ async def listen_script(
         
         # 스크립트 내용 추출
         script_content = script.get('content', '')
-        logger.debug(f"4. 스크립트 내용 길이: {len(script_content)}")
+        logger.debug(f"스크립트 내용 길이: {len(script_content)}")
         
         if not script_content:
             raise HTTPException(status_code=400, detail="No content available for TTS")
@@ -622,36 +628,88 @@ async def listen_script(
         if not clean_text:
             raise HTTPException(status_code=400, detail="No valid text content after HTML removal")
         
-        # 임시 오디오 파일 생성
-        tts = gTTS(text=clean_text, lang='en')
-        temp_audio_path = f"./temp_script_audio_{script_pk}.mp3"
-        tts.save(temp_audio_path)
+        # Colab TTS API URL 설정 (ngrok URL)
+        # .env에서 COLAB_TTS_API_URL 가져오기, 없으면 기본값 사용
+        COLAB_TTS_API_URL = os.getenv("COLAB_TTS_API_URL", "https://omypic.ngrok.app/csm-1b")
         
-        # 파일 처리
-        try:
-            file_size = os.path.getsize(temp_audio_path)
-            with open(temp_audio_path, 'rb') as audio_file:
-                encoded_audio = base64.b64encode(audio_file.read()).decode('utf-8')
-            os.remove(temp_audio_path)
-            logger.debug(f"9. 파일 처리 완료: {file_size} bytes")
-        except Exception as e:
-            logger.error(f"파일 처리 실패: {e}")
-            if os.path.exists(temp_audio_path):
-                os.remove(temp_audio_path)
-            raise HTTPException(status_code=500, detail=f"File processing failed: {str(e)}")
+        if not COLAB_TTS_API_URL:
+            raise HTTPException(status_code=500, detail="Colab TTS 서비스 URL이 설정되지 않았습니다.")
         
-        return {
-            "audio_base64": encoded_audio,
-            "audio_type": "mp3",
-            "file_size_bytes": file_size,
-            "file_size_kb": round(file_size / 1024, 2)
-        }
-    
+        # Colab API 호출 데이터 형식 맞추기
+        tts_request_payload = {"text": clean_text}
+        
+        logger.debug(f"Colab TTS API 호출: {COLAB_TTS_API_URL}")
+        
+        # Colab API 호출
+        async with httpx.AsyncClient(timeout=180.0) as client:  # 타임아웃을 180초(3분)으로 증가
+            try:
+                # CSM-1B API는 바이너리 WAV 데이터를 직접 반환
+                logger.info(f"CSM-1B API 호출 시작: {COLAB_TTS_API_URL}")
+                
+                response = await client.post(
+                    COLAB_TTS_API_URL, 
+                    json=tts_request_payload,
+                    headers={"Accept": "audio/wav"}  # WAV 형식 명시적 요청
+                )
+                
+                # 상태 코드 로깅 추가
+                logger.info(f"API 응답 상태 코드: {response.status_code}")
+                logger.debug(f"API 응답 헤더: {response.headers}")
+                
+                # HTTP 오류 발생 시 예외 발생
+                response.raise_for_status()
+                
+                # 응답 데이터가 있는지 확인
+                if not response.content:
+                    raise HTTPException(status_code=500, detail="음성 생성 API에서 데이터를 받지 못했습니다")
+                
+                # 파일 처리 - WAV 바이너리 데이터를 Base64로 인코딩
+                file_size = len(response.content)
+                encoded_audio = base64.b64encode(response.content).decode('utf-8')
+                
+                # Content-Type 헤더 확인, 없으면 기본값으로 audio/wav 사용
+                audio_type = response.headers.get('Content-Type', 'audio/wav')
+                
+                logger.debug(f"Colab TTS API 응답 처리 완료: {file_size} bytes, 형식: {audio_type}")
+                
+                # 클라이언트에 응답 반환
+                return {
+                    "audio_base64": encoded_audio,
+                    "audio_type": audio_type,
+                    "file_size_bytes": file_size,
+                    "file_size_kb": round(file_size / 1024, 2)
+                }
+                
+            except httpx.HTTPStatusError as e:
+                # 상세 오류 정보 로깅
+                logger.error(f"Colab TTS API HTTP 오류: {e.response.status_code}")
+                logger.error(f"응답 헤더: {e.response.headers}")
+                
+                # 응답 본문이 텍스트인 경우만 로깅 (바이너리 데이터는 생략)
+                try:
+                    if 'text' in e.response.headers.get('Content-Type', ''):
+                        logger.error(f"응답 본문: {e.response.text}")
+                except:
+                    logger.error("응답 본문을 로깅할 수 없습니다 (바이너리 데이터)")
+                
+                raise HTTPException(
+                    status_code=e.response.status_code, 
+                    detail=f"음성 생성 API 오류: 상태 코드 {e.response.status_code}"
+                )
+                
+            except httpx.RequestError as e:
+                logger.error(f"Colab TTS API 요청 오류: {str(e)}")
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"음성 생성 API 연결 오류: {str(e)}"
+                )
+                
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"예상치 못한 오류: {e}")
-        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+        # 자세한 오류 정보 로깅
+        logger.error(f"TTS 처리 중 예상치 못한 오류: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"음성 생성 중 오류: {str(e)}")
 
 
 # 테스트용 라우터

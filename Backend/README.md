@@ -5,7 +5,7 @@ Docker 환경에서 손쉽게 실행 가능하며, 구조화된 폴더 구성을
 
 ---
 
-## 📁 프로젝트 구조 *
+## 📁 프로젝트 구조 **
 
 ```
 📁 Backend/
@@ -131,7 +131,7 @@ pytest tests/
 
 - 문서 확인: `http://localhost:8000/docs` (Swagger UI)
 - OpenAPI JSON: `http://localhost:8000/openapi.json`
-blue/green test 3
+blue/green test 6
 ---
 
 
