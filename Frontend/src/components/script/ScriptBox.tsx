@@ -68,7 +68,7 @@ function ScriptBox({ userScript }: ScriptBoxProps) {
                 <audio
                   controls
                   className={styles["audio-player"]}
-                  src={`data:audio/${audioData.audio_type || "mp3"};base64,${audioData.audio_base64}`}
+                  src={`data:${audioData.audio_type};base64,${audioData.audio_base64}`}
                 />
               ) : (
                 isLoading && activeScriptId === script._id ? (
