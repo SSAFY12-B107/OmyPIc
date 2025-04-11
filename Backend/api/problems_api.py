@@ -595,7 +595,7 @@ async def listen_script(
     """
     try:
         # MongoDB에서 스크립트 조회
-        script = await db.scripts.find_one({"_id": ObjectId(script_pk)})
+        script =  await db.scripts.find_one({"_id": ObjectId(script_pk)})
         
         if not script:
             raise HTTPException(status_code=404, detail="Script not found")
