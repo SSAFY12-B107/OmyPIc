@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useInView } from "react-intersection-observer";
 import styles from "./ScriptList.module.css";
 import opigi from "@/assets/images/opigi.png";
+import opigiPark from "@/assets/images/opigi-park.png";
 import QuestionBox from "@/components/script/QuestionBox";
 import { useGetProblems } from "@/hooks/useProblems";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
@@ -69,7 +70,12 @@ function ScriptList() {
           <br />
           무슨 질문으로 대화를 나눌까요?
         </p>
-        <img src={opigi} alt="opigi-img" />
+        {/* 카테고리에 따라 이미지 조건부 렌더링 */}
+        {category === '공원가기' ? (
+          <img src={opigiPark} alt="opigi-park-img" />
+        ) : (
+          <img src={opigi} alt="opigi-img" />
+        )}
       </div>
 
       {/* 질문 리스트 */}
