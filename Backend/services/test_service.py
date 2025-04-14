@@ -15,6 +15,7 @@ from core.config import settings
 from schemas.test import RandomProblemEvaluationResponse
 from core.metrics import BACKGROUND_TASK_DURATION, ACTIVE_TASKS, track_time_async, ERROR_COUNTER
 
+import asyncio
 
 # 로깅 설정
 logger = logging.getLogger(__name__)
@@ -632,19 +633,62 @@ async def transcribe_audio(audio_content, user_id):
         raise
 
 
-async def evaluate_response(transcribed_text, problem_category, topic_category, problem_content):
-    try:
-        # 평가 수행
-        evaluator_instance = ResponseEvaluator()
-        return await evaluator_instance.evaluate_response(
-            user_response=transcribed_text,
-            problem_category=problem_category,
-            topic_category=topic_category,
-            problem=problem_content
-        )
-    except Exception as e:
-        logger.error(f"응답 평가 중 오류 발생: {str(e)}")
-        raise
+# async def evaluate_response(transcribed_text, problem_category, topic_category, problem_content):
+#     try:
+#         # 평가 수행
+#         evaluator_instance = ResponseEvaluator()
+#         return await evaluator_instance.evaluate_response(
+#             user_response=transcribed_text,
+#             problem_category=problem_category,
+#             topic_category=topic_category,
+#             problem=problem_content
+#         )
+#     except Exception as e:
+#         logger.error(f"응답 평가 중 오류 발생: {str(e)}")
+#         raise
+
+async def evaluate_response(
+    transcribed_text, 
+    problem_category,
+    topic_category,
+    problem
+):
+    """사용자 응답 평가 실행"""
+    logger.info(f"응답 평가 시작 - 문제 카테고리: {problem_category}, 토픽: {topic_category}")
+    
+    evaluator = ResponseEvaluator()
+    max_retries = 10
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        try:
+            # 평가 실행
+            result = await evaluator.evaluate_response(
+                transcribed_text, 
+                problem_category, 
+                topic_category, 
+                problem
+            )
+            return result
+            
+        except Exception as e:
+            retry_count += 1
+            error_msg = str(e)
+            
+            # 할당량 오류 감지 및 재시도
+            if "quota" in error_msg.lower() or "429" in error_msg or "rate limit" in error_msg:
+                logger.warning(f"API 할당량 오류 발생 ({retry_count}/{max_retries}): {error_msg}")
+                
+                # 다음 시도 전에 잠시 대기 (지수 백오프 적용)
+                await asyncio.sleep(2 * retry_count)  # 점점 더 긴 대기 시간
+            else:
+                logger.error(f"응답 평가 중 오류 발생 ({retry_count}/{max_retries}): {error_msg}")
+                await asyncio.sleep(1)
+                
+            # 최대 재시도 횟수에 도달하면 예외 발생
+            if retry_count >= max_retries:
+                logger.error(f"최대 재시도 횟수에 도달했습니다: {error_msg}")
+                raise ValueError(f"응답 평가 중 오류가 발생했습니다: {error_msg}")
 
 async def save_script(db, user_id, problem_id, transcribed_text):
     script_data = {

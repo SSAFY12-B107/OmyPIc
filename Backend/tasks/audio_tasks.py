@@ -5,11 +5,11 @@ from bson import ObjectId
 from celery import shared_task
 from bson import ObjectId, errors as bson_errors
 
-
-# ✅ 수정된 import
 from db.mongodb import get_mongodb_sync
 from services.audio_processor import AudioProcessor
 from services.evaluator import ResponseEvaluator
+
+import time
 
 # 로깅 설정
 logger = logging.getLogger(__name__)
@@ -41,14 +41,78 @@ def evaluate_random_problem_task(self, test_id, problem_id, user_id, audio_conte
         }
         db.scripts.insert_one(script_data)
         
-        # 응답 평가
-        evaluator = ResponseEvaluator()
-        evaluation_result = evaluator.evaluate_response_sync(
-            transcribed_text, 
-            problem.get("problem_category", ""),
-            problem.get("topic_category", ""),
-            problem.get("content", "")
-        )
+        # 응답이 너무 짧으면 평가 생략
+        if len(transcribed_text.split()) < 5:
+            evaluation_result = {
+                "score": "NL",
+                "feedback": {
+                    "paragraph": "응답이 너무 짧아 평가할 수 없습니다. 최소 한 문장 이상의 응답이 필요합니다.",
+                    "vocabulary": "응답이 너무 짧아 어휘력을 평가할 수 없습니다.",
+                    "delivery": "발화량이 매우 부족합니다. 질문에 대해 충분한 길이로 답변해야 합니다."
+                }
+            }
+        else:
+            # 응답 평가 - 재시도 로직 추가
+            evaluator = ResponseEvaluator()
+            
+            # 최대 5번까지 재시도
+            retry_count = 0
+            max_retries = 5
+            last_error = None
+            
+            while retry_count < max_retries:
+                try:
+                    evaluation_result = evaluator.evaluate_response_sync(
+                        transcribed_text, 
+                        problem.get("problem_category", ""),
+                        problem.get("topic_category", ""),
+                        problem.get("content", "")
+                    )
+                    
+                    # 평가 결과 로깅
+                    logger.info(f"평가 결과: {evaluation_result}")
+                    
+                    # 결과 검증
+                    if not evaluation_result or not isinstance(evaluation_result, dict):
+                        logger.warning(f"평가 결과가 유효하지 않습니다: {evaluation_result}")
+                        evaluation_result = {
+                            "score": "IL",
+                            "feedback": {
+                                "paragraph": "평가를 완료했으나 결과 형식이 올바르지 않습니다.",
+                                "vocabulary": "기본 어휘력 평가입니다.",
+                                "delivery": "기본 전달력 평가입니다."
+                            }
+                        }
+                    
+                    # 성공적으로 결과를 얻었으면 반복 종료
+                    break
+                    
+                except Exception as e:
+                    retry_count += 1
+                    last_error = e
+                    error_msg = str(e).lower()
+                    
+                    # API 할당량 초과 관련 오류인 경우
+                    if any(term in error_msg for term in ["quota", "429", "rate limit", "exceeded"]):
+                        logger.warning(f"API 할당량 오류 발생 ({retry_count}/{max_retries}): {error_msg}")
+                        # 다음 시도 전에 잠시 대기
+                        time.sleep(2 * retry_count)  # 점점 더 긴 대기 시간
+                    else:
+                        logger.error(f"평가 중 오류 발생 ({retry_count}/{max_retries}): {error_msg}")
+                        time.sleep(1)
+                    
+                    # 마지막 시도에서도 실패한 경우
+                    if retry_count >= max_retries:
+                        logger.error(f"최대 재시도 횟수에 도달했습니다: {error_msg}")
+                        evaluation_result = {
+                            "score": "ERROR",
+                            "feedback": {
+                                "paragraph": f"평가 중 오류가 발생했습니다: {str(last_error)}",
+                                "vocabulary": "평가를 완료할 수 없습니다.",
+                                "delivery": "평가를 완료할 수 없습니다."
+                            },
+                            "error": str(last_error)
+                        }
         
         # 테스트 문서 업데이트
         db.tests.update_one(
@@ -189,19 +253,79 @@ def process_audio_task(self, test_id, problem_id, problem_number, audio_content_
                 }
             }
         else:
-            # 7. 평가기 생성 및 평가 수행
+            # 7. 평가기 생성 및 평가 수행 - 재시도 로직 추가
             evaluator_instance = ResponseEvaluator()
             
-            # LangChain 평가 모델 호출 - 동기식으로 변경 필요
-            evaluation_result = evaluator_instance.evaluate_response_sync(
-                user_response=transcribed_text,
-                problem_category=problem_category,
-                topic_category=topic_category,
-                problem=problem_content
-            )
+            # 최대 5번까지 재시도
+            retry_count = 0
+            max_retries = 5
+            last_error = None
+            
+            while retry_count < max_retries:
+                try:
+                    # LangChain 평가 모델 호출 - 동기식
+                    evaluation_result = evaluator_instance.evaluate_response_sync(
+                        user_response=transcribed_text,
+                        problem_category=problem_category,
+                        topic_category=topic_category,
+                        problem=problem_content
+                    )
+                    
+                    # 평가 결과 로깅 - 로그에서 확인할 수 있도록
+                    logger.info(f"평가 결과: {evaluation_result}")
+                    
+                    # 결과 검증 - None이나 빈 딕셔너리면 기본값 적용
+                    if not evaluation_result or not isinstance(evaluation_result, dict):
+                        logger.warning(f"평가 결과가 유효하지 않습니다: {evaluation_result}")
+                        evaluation_result = {
+                            "score": "IL",
+                            "feedback": {
+                                "paragraph": "평가를 완료했으나 결과 형식이 올바르지 않습니다.",
+                                "vocabulary": "기본 어휘력 평가입니다.",
+                                "delivery": "기본 전달력 평가입니다."
+                            }
+                        }
+                    
+                    # 성공적으로 결과를 얻었으면 반복 종료
+                    break
+                    
+                except Exception as e:
+                    retry_count += 1
+                    last_error = e
+                    error_msg = str(e).lower()
+                    
+                    # API 할당량 초과 관련 오류인 경우
+                    if any(term in error_msg for term in ["quota", "429", "rate limit", "exceeded"]):
+                        logger.warning(f"API 할당량 오류 발생 ({retry_count}/{max_retries}): {error_msg}")
+                        # 다음 시도 전에 잠시 대기
+                        time.sleep(2 * retry_count)  # 점점 더 긴 대기 시간
+                    else:
+                        logger.error(f"평가 중 오류 발생 ({retry_count}/{max_retries}): {error_msg}")
+                        time.sleep(1)
+                    
+                    # 마지막 시도에서도 실패한 경우
+                    if retry_count >= max_retries:
+                        logger.error(f"최대 재시도 횟수에 도달했습니다: {error_msg}")
+                        evaluation_result = {
+                            "score": "ERROR",
+                            "feedback": {
+                                "paragraph": f"평가 중 오류가 발생했습니다: {str(last_error)}",
+                                "vocabulary": "평가를 완료할 수 없습니다.",
+                                "delivery": "평가를 완료할 수 없습니다."
+                            },
+                            "error": str(last_error)
+                        }
         
-        score = evaluation_result.get("score", "IM2")
+        # 점수와 피드백 추출 - 더 안전한 방식으로
+        score = evaluation_result.get("score", None)
         feedback = evaluation_result.get("feedback", {})
+        if not isinstance(feedback, dict):
+            feedback = {
+                "paragraph": "피드백 형식이 올바르지 않습니다.",
+                "vocabulary": "피드백 형식이 올바르지 않습니다.",
+                "delivery": "피드백 형식이 올바르지 않습니다."
+            }
+        
         
         # 8. 테스트 문서 내 해당 문제의 평가 결과 업데이트
         db.tests.update_one(
@@ -317,9 +441,60 @@ def evaluate_overall_test_task(self, test_id):
 
         logger.info(f"전체 테스트 종합 평가 시작 - 문제 수: {len(problem_details)}")
 
-        # 4. 평가기 생성 및 종합 평가 실행
+        # 4. 평가기 생성 및 종합 평가 실행 - 재시도 로직 추가
         evaluator = ResponseEvaluator()
-        evaluation_result = evaluator.evaluate_overall_test_sync(test, problem_details)
+
+        # 최대 5번까지 재시도
+        retry_count = 0
+        max_retries = 5
+        last_error = None
+
+        while retry_count < max_retries:
+            try:
+                evaluation_result = evaluator.evaluate_overall_test_sync(test, problem_details)
+                
+                # 결과 로깅
+                logger.info(f"종합 평가 결과: {evaluation_result}")
+                
+                # 결과 검증
+                if not evaluation_result or not isinstance(evaluation_result, dict):
+                    logger.warning("종합 평가 결과가 유효하지 않습니다")
+                    evaluation_result = {
+                        "test_score": {
+                            "total_score": "IM2",
+                            "comboset_score": "IM2",
+                            "roleplaying_score": "IM2",
+                            "unexpected_score": "IM2"
+                        },
+                        "test_feedback": {
+                            "total_feedback": "평가 결과 형식이 올바르지 않아 기본 피드백을 제공합니다.",
+                            "paragraph": "문단 구성력 평가를 완료할 수 없습니다.",
+                            "vocabulary": "어휘력 평가를 완료할 수 없습니다.",
+                            "delivery": "전달력 평가를 완료할 수 없습니다."
+                        }
+                    }
+                
+                # 성공적으로 결과를 얻었으면 반복 종료
+                break
+                
+            except Exception as e:
+                retry_count += 1
+                last_error = e
+                error_msg = str(e).lower()
+                
+                # API 할당량 초과 관련 오류인 경우
+                if any(term in error_msg for term in ["quota", "429", "rate limit", "exceeded"]):
+                    logger.warning(f"API 할당량 오류 발생 ({retry_count}/{max_retries}): {error_msg}")
+                    # 다음 시도 전에 잠시 대기
+                    time.sleep(2 * retry_count)  # 점점 더 긴 대기 시간
+                else:
+                    logger.error(f"종합 평가 중 오류 발생 ({retry_count}/{max_retries}): {error_msg}")
+                    time.sleep(1)
+                
+                # 마지막 시도에서도 실패한 경우
+                if retry_count >= max_retries:
+                    logger.error(f"최대 재시도 횟수에 도달했습니다: {error_msg}")
+                    raise ValueError(f"종합 평가 중 오류가 발생했습니다: {str(last_error)}")
 
         # 5. 점수 및 피드백 업데이트
         db.tests.update_one(
