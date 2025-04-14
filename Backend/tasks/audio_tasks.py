@@ -48,7 +48,7 @@ def evaluate_random_problem_task(self, test_id, problem_id, user_id, audio_conte
                 "feedback": {
                     "paragraph": "응답이 너무 짧아 평가할 수 없습니다. 최소 한 문장 이상의 응답이 필요합니다.",
                     "vocabulary": "응답이 너무 짧아 어휘력을 평가할 수 없습니다.",
-                    "delivery": "발화량이 매우 부족합니다. 질문에 대해 충분한 길이로 답변해야 합니다."
+                    "spoken_amount": "발화량이 매우 부족합니다. 질문에 대해 충분한 길이로 답변해야 합니다."
                 }
             }
         else:
@@ -80,7 +80,7 @@ def evaluate_random_problem_task(self, test_id, problem_id, user_id, audio_conte
                             "feedback": {
                                 "paragraph": "평가를 완료했으나 결과 형식이 올바르지 않습니다.",
                                 "vocabulary": "기본 어휘력 평가입니다.",
-                                "delivery": "기본 전달력 평가입니다."
+                                "spoken_amount": "기본 전달력 평가입니다."
                             }
                         }
                     
@@ -109,7 +109,7 @@ def evaluate_random_problem_task(self, test_id, problem_id, user_id, audio_conte
                             "feedback": {
                                 "paragraph": f"평가 중 오류가 발생했습니다: {str(last_error)}",
                                 "vocabulary": "평가를 완료할 수 없습니다.",
-                                "delivery": "평가를 완료할 수 없습니다."
+                                "spoken_amount": "평가를 완료할 수 없습니다."
                             },
                             "error": str(last_error)
                         }
@@ -282,7 +282,7 @@ def process_audio_task(self, test_id, problem_id, problem_number, audio_content_
                             "feedback": {
                                 "paragraph": "평가를 완료했으나 결과 형식이 올바르지 않습니다.",
                                 "vocabulary": "기본 어휘력 평가입니다.",
-                                "delivery": "기본 전달력 평가입니다."
+                                "spoken_amount": "기본 전달력 평가입니다."
                             }
                         }
                     
@@ -311,7 +311,7 @@ def process_audio_task(self, test_id, problem_id, problem_number, audio_content_
                             "feedback": {
                                 "paragraph": f"평가 중 오류가 발생했습니다: {str(last_error)}",
                                 "vocabulary": "평가를 완료할 수 없습니다.",
-                                "delivery": "평가를 완료할 수 없습니다."
+                                "spoken_amount": "평가를 완료할 수 없습니다."
                             },
                             "error": str(last_error)
                         }
@@ -323,7 +323,7 @@ def process_audio_task(self, test_id, problem_id, problem_number, audio_content_
             feedback = {
                 "paragraph": "피드백 형식이 올바르지 않습니다.",
                 "vocabulary": "피드백 형식이 올바르지 않습니다.",
-                "delivery": "피드백 형식이 올바르지 않습니다."
+                "spoken_amount": "피드백 형식이 올바르지 않습니다."
             }
         
         
@@ -470,7 +470,7 @@ def evaluate_overall_test_task(self, test_id):
                             "total_feedback": "평가 결과 형식이 올바르지 않아 기본 피드백을 제공합니다.",
                             "paragraph": "문단 구성력 평가를 완료할 수 없습니다.",
                             "vocabulary": "어휘력 평가를 완료할 수 없습니다.",
-                            "delivery": "전달력 평가를 완료할 수 없습니다."
+                            "spoken_amount": "전달력 평가를 완료할 수 없습니다."
                         }
                     }
                 
