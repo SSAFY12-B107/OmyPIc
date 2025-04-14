@@ -54,6 +54,13 @@ class AudioProcessor:
             str: 추출된 텍스트
         """
         try:
+            # 기본적인 유효성 검사
+            if not audio_content or len(audio_content) < 100:
+                raise ValueError(f"오디오 데이터가 너무 작거나 유효하지 않습니다: {len(audio_content)} 바이트")
+            
+            # 오디오 데이터 크기 로깅
+            logger.info(f"오디오 데이터 크기: {len(audio_content)} 바이트")
+            
             # 오디오 크기 메트릭 추가
             track_audio_size(audio_content, "groq")
 

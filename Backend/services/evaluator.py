@@ -81,7 +81,7 @@ EVALUATION_PROMPT_TEMPLATE = """
 
 -   <b>paragraph (Text Type & Cohesion)</b>: 발화의 길이, 문장 연결성, 문단 구성 능력 (논리적 흐름, 구조적 완성도).
 -   <b>vocabulary & accuracy (Accuracy & Content)</b>: 어휘의 다양성, 정확성, 적절성 및 문법/구문 정확성.
--   <b>delivery (Accuracy & Functions)</b>: 발음, 강세, 억양의 명확성 및 유창성(끊김, filler 사용). 전반적인 의사 전달 능력.
+-   <b>spoken_amount (Accuracy & Functions)</b>: 발화량, 발음, 강세, 억양의 명확성 및 유창성(끊김, filler 사용). 전반적인 의사 전달 능력.
 
 1. 문단 구분이 필요한 경우 `<br><br>`를 사용하세요.
 2. 중요한 포인트는 `<b>강조할 내용</b>` 형식으로 볼드 처리하세요.
@@ -131,7 +131,7 @@ EVALUATION_PROMPT_TEMPLATE = """
   "feedback": {{
     "paragraph": "HTML 형식의 Text Type & Cohesion 피드백",
     "vocabulary": "HTML 형식의 Accuracy & Content 피드백",
-    "delivery": "HTML 형식의 Accuracy & Functions (전달력) 피드백"
+    "spoken_amount": "HTML 형식의 Accuracy & Functions (전달력) 피드백"
   }}
 }}
 """
@@ -190,7 +190,7 @@ OVERALL_EVALUATION_PROMPT_TEMPLATE = """
     "total_feedback": "HTML 형식의 전체적인 강점 및 다음 등급을 위한 종합 피드백",
     "paragraph": "HTML 형식의 Text Type & Cohesion 종합 피드백",
     "vocabulary": "HTML 형식의 Accuracy & Content 종합 피드백",
-    "delivery": "HTML 형식의 Accuracy & Functions (전달력) 종합 피드백"
+    "spoken_amount": "HTML 형식의 Accuracy & Functions (전달력) 종합 피드백"
   }}
 }}
 """
@@ -713,7 +713,7 @@ class ResponseEvaluator:
             평가 결과 사전
         """
         logger.info(f"응답 평가 시작 - 문제 카테고리: {problem_category}, 토픽: {topic_category}")
-        
+    
         # 10번 재시도 루프
         retry_count = 0
         max_retries = 10
@@ -750,7 +750,7 @@ class ResponseEvaluator:
                 error_msg = str(e).lower()
                 
                 # 현재 사용 중인 키가 있으면 오류 처리
-                if current_key and ("quota" in error_msg or "rate limit" in error_msg or "exceeded" in error_msg):
+                if current_key and any(term in error_msg for term in ["quota", "rate limit", "exceeded", "resource", "429"]):
                     handle_api_error(current_key, error_msg)
                 
                 logger.warning(f"평가 중 오류 발생 ({retry_count}/{max_retries}): {str(e)}")
