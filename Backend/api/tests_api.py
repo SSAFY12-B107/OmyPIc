@@ -526,7 +526,7 @@ async def play_problem_audio(
         raise HTTPException(status_code=500, detail=f"Error generating audio: {str(e)}")
 
 
-@router.post("/{test_pk}/record/{problem_pk}")
+@router.post("/{test_pk}/record-bgt/{problem_pk}")
 async def record_answer(
     test_pk: str,
     problem_pk: str,
@@ -640,7 +640,7 @@ async def record_answer(
         raise HTTPException(status_code=500, detail=f"오류가 발생했습니다: {str(e)}")
 
 
-@router.post("/{test_pk}/record-celery/{problem_pk}")
+@router.post("/{test_pk}/record/{problem_pk}")
 async def record_answer_celery(
     test_pk: str,
     problem_pk: str,
@@ -733,7 +733,7 @@ async def record_answer_celery(
 
 
 
-@router.post("/random-problem/evaluate", response_model=RandomProblemEvaluationResponse)
+@router.post("/random-problem-bgt/evaluate", response_model=RandomProblemEvaluationResponse)
 async def evaluate_random_problem(
     test_id: str = Form(..., description="테스트 ID"),
     audio_file: Optional[UploadFile] = File(None),
@@ -786,7 +786,7 @@ async def evaluate_random_problem(
         await log_error(db, test_id, problem_id, e)
         raise HTTPException(status_code=500, detail=f"오류가 발생했습니다: {str(e)}")
 
-@router.post("/random-problem-celery/evaluate")
+@router.post("/random-problem/evaluate")
 async def evaluate_random_problem_celery(
     test_id: str = Form(..., description="테스트 ID"),
     audio_file: Optional[UploadFile] = File(None),
