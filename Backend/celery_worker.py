@@ -1,20 +1,10 @@
 from celery import Celery
 from core.config import settings
 
-from prometheus_client import make_asgi_app
-# from fastapi import FastAPI
-
-metrics_app = make_asgi_app()
-
-# app = FastAPI()
-# app.mount("/metrics", metrics_app)
-
 # Redis URL 설정
 redis_url = settings.REDIS_URL if hasattr(settings, 'REDIS_URL') else 'redis://localhost:6379/0'
-# redis_url = "redis://127.0.0.1:6379/0"  # localhost 대신 IP 주소 사용
 
-
-print(settings.REDIS_URL)
+print(f"Redis URL: {redis_url}")
 
 # Celery 앱 초기화
 celery_app = Celery(
@@ -27,8 +17,8 @@ celery_app = Celery(
 
 # Celery 설정
 celery_app.conf.update(
-    broker_transport='redis',
-    result_backend_transport='redis',
+    # broker_transport='redis',
+    # result_backend_transport='redis',
     task_serializer='json',
     accept_content=['json'],
     result_serializer='json',
