@@ -10,91 +10,108 @@ from api.deps import get_next_groq_key, get_next_gemini_key
 import time
 
 # 로깅 설정
+import logging # Assuming you have logging imported
+
 logger = logging.getLogger(__name__)
 
-# 오픽 레벨 정의
+# 오픽 레벨 정의 (ACTFL 매핑 고려)
 OPIC_LEVELS = [
-    "NL", "NM", "NH",  # Novice
-    "IL", "IM1", "IM2", "IM3", "IH",  # Intermediate
-    "AL"  # Advanced
+    "NL", "NM", "NH",  # Novice Low, Mid, High
+    "IL",  # Intermediate Low
+    "IM1", "IM2", "IM3", # Intermediate Mid (varying strength)
+    "IH",  # Intermediate High
+    "AL"  # Advanced (likely Low/Mid within ACTFL Advanced)
 ]
 
-# 평가 기준에 대한 상세 설명
-LEVEL_DESCRIPTIONS = {
-    # Novice 레벨
-    "NL": "기본 어휘와 간단한 문장만 사용. 개인적이고 일상적인 주제에 대해서만 제한적으로 대화 가능.",
-    "NM": "기본적인 개인 정보를 표현하고 제한된 어휘와 간단한 문장으로 소통 가능.",
-    "NH": "알고 있는 단어나 구문, 간단한 문장으로 자신을 표현 가능. 제한된 어휘와 정확성.",
-    
-    # Intermediate 레벨
-    "IL": "일상적인 소재에서 간단한 문장으로 대화 가능. 대화에 참여는 가능하지만 유지하기 어려움.",
-    "IM1": "일상 주제에 대해 기본적인 문장으로 소통 가능. 짧은 대화 유지 가능하나 언어 정확성 부족.",
-    "IM2": "일상적인 주제에서 문장과 단문 구조로 소통 가능. 대화 유지 능력이 향상되고 어휘 다양성 증가.",
-    "IM3": "자주 사용하는 구조와 어휘를 활용하여 명료하게 소통 가능하며, 다른 언어의 영향 감소.",
-    "IH": "대부분의 상황에서 문장 수준의 언어 사용 가능. 개인적 주제와 사회적 맥락에서 소통 가능하며, 문장 또는 문장 연결 수준의 답변 생성 가능.",
-    
-    # Advanced 레벨
-    "AL": "일상적 대화 및 업무 관련 상황에서 완전히 참여 가능. 과거, 현재, 미래 시제를 사용하여 서술하고 묘사 가능하며, 문단 단위의 논리적인 답변 생성 가능",
+# ACTFL 2024 Speaking 기준 요약 (OPIC 레벨 매핑 포함)
+ACTFL_LEVEL_DESCRIPTIONS_SUMMARY = {
+    "NH": "Novice High: 주로 암기한 표현 확장 사용. 현재 시제 위주 짧고 불완전한 문장. 간단한 생존 관련 대화 가능. 때때로 문장 생성 시도 (Intermediate Low 수준 보임).",
+    "IL": "Intermediate Low: 제한된 수의 간단한 소통 과제 수행. 예측 가능한 생존 관련 주제(개인 정보, 음식 주문 등)에서 창의적 언어 사용 시작. 짧은 문장 조합/재조합. 주로 반응적이며 질문에 어려움. 망설임, 반복, 자가 수정 잦음.",
+    "IM": "Intermediate Mid (IM1-IM3 포괄): 다양한 비복잡성 소통 과제 수행. 예측 가능한 교환(일상 활동, 관심사, 필요 등) 참여. 기본적인 필요 충족 위한 질문 가능. 문장 연결 시작. 오류 있으나 대체로 이해 가능. IM1/2/3은 이 Mid 레벨 내에서의 일관성, 유창성, 정확성 차이 반영.",
+    "IH": "Intermediate High: 익숙한 일상 업무/상황에서 자신감 있게 대화. 개인 관심/능력 분야 정보 교환. 어휘/통제력 향상. Advanced 수준 과제(주요 시제 사용한 서술/묘사, 문단 길이 발화) 수행 가능하나, **일관되게 유지하지 못하고** 때때로 오류/붕괴(breakdown) 발생.",
+    "AL": "Advanced Low/Mid: 다양한 소통 과제 처리. 대부분 비공식 및 일부 공식 대화 참여(업무, 시사, 개인 관심사 등). 주요 시제(과거, 현재, 미래) 사용하여 서술/묘사. 사실 보고, 간단한 권고, 명확한 설명 가능. **문단 길이의 연결된 발화**. 예상치 못한 상황 대처. 명확성, 정확성 갖춘 구체적 언어 사용."
+    # Superior/Distinguished는 일반적인 OPIC 범위 넘어서므로 생략
 }
+
 
 # 오픽 평가 기준에 대한 상세 설명을 담은 프롬프트 템플릿
 EVALUATION_PROMPT_TEMPLATE = """
-당신은 OPIC(Oral Proficiency Interview-Computer) Speaking 평가 기준에 따라 수험자의 발화를 평가하는 전문 평가자입니다.
+당신은 **ACTFL Proficiency Guidelines 2024 (Speaking)** 기준에 능통한 OPIC(Oral Proficiency Interview-Computer) 전문 평가자입니다.
+수험자의 발화를 아래 기준에 따라 **정확하게 평가**하고, OPIC 등급(NH, IL, IM1-3, IH, AL)을 부여하세요.
 
 ---
 
 ## 중요 지침
-- 제시된 응답을 아래 기준에 따라 **한국어로** 평가해 주세요.
-- 피드백을 생성할 때는, <b>예상되는 등급보다 높은 레벨로 올라가기 위해서 어떤 것을 보완해야 하는지</b>를 위주로 설명해주세요.
-- 반드시 <b>질문과 연관 있는 응답인지 확인</b>해서 평가해주세요.
+- 제시된 응답을 아래 **ACTFL 2024 Speaking 기준 (FACT)** 과 **세부 등급 설명**에 따라 **한국어로** 평가해 주세요.
+- 피드백 생성 시, <b>현재 등급의 강점과 함께, 다음 등급(예: IM3 -> IH, IH -> AL)으로 올라가기 위해 보완해야 할 점</b>을 구체적으로 설명해주세요.
+- 반드시 <b>질문과 연관 있는 응답인지 확인</b>하여 평가에 반영하세요.
 
 ---
 
 ## 중요: 의미 없는 응답 감지
 먼저 응답이 의미 있는 발화인지 확인하세요.
 
-- "에베베베", "아아아", "음음음", "ㅋㅋㅋ" 등 실제 단어가 아니거나 무의미한 소리의 반복만 있는 경우 → <b>"즉시 NL 점수"</b>를 부여하세요.  
-  이 경우에는 <b>간단한 이유만 피드백</b>으로 작성하세요. 예: "실제 발화가 없어 의미를 파악할 수 없습니다."
+- "에베베베", "아아아", "음음음", "ㅋㅋㅋ" 등 실제 단어가 아니거나 무의미한 소리의 반복만 있는 경우 → <b>"즉시 NL 점수"</b>를 부여하고, 간단한 이유만 피드백으로 작성하세요. (예: "실제 발화 내용이 없어 평가가 불가능합니다.")
 
-- 문장은 되었지만 질문과 **전혀 관련 없는 응답**이라면 → <b>가능한 등급을 매긴 후</b>,  
-  피드백에 <b>“질문과 관련 없는 응답이었습니다”</b>를 반드시 포함해 주세요.
+- 문장은 구성되었으나 질문과 **전혀 관련 없는 응답**이라면 → <b>ACTFL 기준에 따라 가능한 등급을 신중히 매긴 후</b>, 피드백에 <b>“질문과 관련 없는 응답이었습니다.”</b>를 반드시 포함해 주세요. 관련 없는 응답은 Functions와 Context/Content 측면에서 감점 요인이 될 수 있습니다.
 
 ---
 
-## 점수 판단 기준: ACTFL Speaking Proficiency (FACT)
-다음 네 가지 기준에 따라 수험자의 말하기 능력을 분석하여 최종 등급을 판단해 주세요:
+## 점수 판단 기준: ACTFL Speaking Proficiency Guidelines 2024 (FACT)
+다음 네 가지 기준을 종합적으로 분석하여 OPIC 등급을 결정합니다.
 
-1. <b>Functions</b>: 수험자가 어떤 말하기 기능(묘사, 설명, 질문, 의견 진술 등)을 지속적으로 수행할 수 있는지
-2. <b>Accuracy</b>: 문법, 어휘, 발음, 억양의 정확성과 자연스러움
-3. <b>Context and Content</b>: 어떤 주제나 상황에서 효과적으로 의사소통할 수 있는지
-4. <b>Text Type</b>: 단어, 문장, 문단 등 발화 길이와 복잡성
-
----
-
-## 등급 정의 (ACTFL 기준)
-
-- <b>NL</b>: 단어나 문장을 거의 생성하지 못하며, 무의미한 소리를 반복하거나 질문과 전혀 관련 없는 말
-- <b>NM</b>: 인사, 이름 말하기, 나이 등 아주 기본적인 표현만 가능
-- <b>NH</b>: 제한된 주제에 대해 단순 문장으로 대답 가능하나, 반복적이고 형식적
-- <b>IL</b>: 일상적 주제에 대해 간단한 문장으로 대화 가능하지만 지속성은 부족
-- <b>IM1</b>: 간단한 질문과 응답이 가능하며 문장이 연결되기 시작함
-- <b>IM2</b>: 다양한 일상 주제에 대해 문장과 단문 수준으로 소통 가능
-- <b>IM3</b>: 대부분의 상황에서 명확하게 소통 가능, 오류는 있지만 의사소통엔 큰 지장 없음
-- <b>IH</b>: 복잡한 문장을 사용하고 문단 수준 연결 가능, 다양한 맥락에서도 대체로 성공적으로 말함
-- <b>AL</b>: 과거-현재-미래 시제를 자유롭게 사용하고 문단 단위의 설명/묘사 가능. 논리적 구조를 갖춘 응답 가능
+1.  <b>Functions & Tasks (F)</b>: 수험자가 언어로 **무엇을 할 수 있는가?** (예: 정보 제공, 질문, 묘사, 서술, 의견 제시, 상황 대처 등). 등급을 나누는 **가장 중요한 기준**입니다.
+2.  <b>Accuracy (A)</b>: 언어적 특징(문법, 구문, 어휘, 발음, 강세/억양, 사회문화적 지식 등)을 얼마나 정확하게 사용하는가?
+3.  <b>Context & Content (C)</b>: 어떤 상황(Context)과 주제(Content) 범위 내에서 의사소통이 가능한가? (예: 개인적, 사회적, 직업적, 추상적)
+4.  <b>Text Type (T)</b>: 어느 정도 길이와 복잡성(단어, 구, 문장, 연결된 문장, 문단, 다문단)의 발화를 생성하는가?
 
 ---
 
-## 피드백 구성 (무조건 HTML 형식으로)
-다음 항목별로 피드백을 제공합니다. <b>피드백은 반드시 HTML 형식으로 작성</b>해야 하며, 다음 항목을 포함해야 합니다:
+## ACTFL 2024 기반 OPIC 등급별 세부 기준:
+- **NH (Novice High)**: {{ACTFL_LEVEL_DESCRIPTIONS_SUMMARY[NH]}}
+- **IL (Intermediate Low)**: {{ACTFL_LEVEL_DESCRIPTIONS_SUMMARY[IL]}}
+- **IM1-IM3 (Intermediate Mid)**: {{ACTFL_LEVEL_DESCRIPTIONS_SUMMARY[IM]}} (IM1: Mid의 초기 단계, IM2: Mid의 안정적 단계, IM3: Mid의 상위 단계로, IH 수준에 근접하나 아직 도달하지 못함)
+- **IH (Intermediate High)**: {{ACTFL_LEVEL_DESCRIPTIONS_SUMMARY[IH]}} (**핵심: Advanced 기능(시제 사용 서술/묘사, 문단 길이 발화)을 시도하고 일부 성공하지만, 일관되게 유지하지 못함**)
+- **AL (Advanced Low/Mid)**: {{ACTFL_LEVEL_DESCRIPTIONS_SUMMARY[AL]}} (**핵심: Advanced 기능을 일관되게 수행하며 문단 길이 발화 가능**)
 
-- <b>paragraph</b>: 문단 구성력 (논리적 연결과 구조적 완성도)
-- <b>vocabulary</b>: 어휘력 및 정확성 (문법 포함)
-- <b>spoken_amount</b>: 발화량 및 풍부함 (응답 길이, filler 사용 여부 등)
+---
 
-1. 문단 구분이 필요한 경우 <br><br>를 사용하세요.
-2. 중요한 포인트는 <b>강조할 내용</b> 형식으로 볼드 처리하세요.
-3. 피드백은 가독성이 좋게 작성해주세요.
+## 피드백 구성 (반드시 HTML 형식)
+다음 항목별로 피드백을 제공합니다. **피드백은 반드시 HTML 형식으로 작성**하며, 다음 항목을 포함합니다:
+
+-   <b>paragraph (Text Type & Cohesion)</b>: 발화의 길이, 문장 연결성, 문단 구성 능력 (논리적 흐름, 구조적 완성도).
+-   <b>vocabulary & accuracy (Accuracy & Content)</b>: 어휘의 다양성, 정확성, 적절성 및 문법/구문 정확성.
+-   <b>delivery (Accuracy & Functions)</b>: 발음, 강세, 억양의 명확성 및 유창성(끊김, filler 사용). 전반적인 의사 전달 능력.
+
+1. 문단 구분이 필요한 경우 `<br><br>`를 사용하세요.
+2. 중요한 포인트는 `<b>강조할 내용</b>` 형식으로 볼드 처리하세요.
+3. 피드백은 가독성이 좋게 작성하고, **다음 등급으로 나아가기 위한 구체적인 조언**을 포함하세요.
+
+---
+
+## Few-shot 예시 (ACTFL 기준 적용):
+아래 예시들은 각 레벨별 특징을 보여줍니다. 수험자의 응답을 FACT 기준에 맞춰 분석하고 가장 유사한 수준의 등급을 판단하세요.
+
+### IM1 예시 (Intermediate Mid - Low):
+"Yes, that's right. I live in a high-rise apartment building in Gumi. There are so many apartment buildings in Gumi. I live on the top floor, so I have a great view. and um... There are a living room, two rooms, a kitchen, and a balcony in my apartment."
+*   **분석:** 단순 정보 나열 (Function). 짧고 분리된 문장 (Text Type). 기본 어휘 (Accuracy). 개인적이고 구체적인 주제 (Context). IL보다는 창의적이나 연결성 부족.
+
+### IM2 예시 (Intermediate Mid - Solid):
+"Yes, that's right. I live in a high-rise apartment building in Gumi. There are so many apartment buildings in Gumi. I live on the top floor, so I have a great view. and um... There are a living room, two rooms, a kitchen, and a balcony in my apartment. And you know, Even though it's a small house, it can be spacious if you style your home. So I styled my home, and I'm very satisfied with my apartment."
+*   **분석:** 이유/결과 추가 (Function 향상). 문장 연결 시도 (Text Type). 감정 표현 (Function). 어휘 약간 확장 (Accuracy). IM1보다 길고 약간 더 복잡.
+
+### IM3 예시 (Intermediate Mid - High):
+"Yes, I live in a high-rise apartment in Gumi. It's located near downtown and has great access to public transportation. My apartment is on the top floor, so I can enjoy the city view every night. It's quite spacious, with a living room, two bedrooms, a kitchen, and a balcony. I decorated it with warm-toned furniture, and I feel comfortable and relaxed whenever I stay at home."
+*   **분석:** 묘사 구체화 (Function). 연결된 문장들 (Text Type). 더 나은 어휘 선택 (Accuracy). 일관성 있고 유창함 증가 (Accuracy). IH에 가까우나 아직 Advanced 기능(복잡한 시제, 문단 구조) 부족.
+
+### IH 예시 (Intermediate High):
+"Let's see, when it comes to my favorite furniture in my house... Um... you know, It's definitely, my sofa in the living room. I almost spend my time on the sofa when I stay at home. This sofa is, you know, perfect for having a relax. Especially after work when I am worn out. It's made of natural leather, and it is ash gray. That's a totally nice texture and a nice color. So this sofa is making the living room atmosphere just so comfortable. Of course, the sofa itself is also comfortable. I love watching TV and, you know, playing games with my PlayStation 4 on that sofa. So what I'm trying to say is that my favorite piece of furniture in my house is the sofa. Is this enough to answer?"
+*   **분석:** **문단 길이 발화 시도** (Text Type). 이유/사례 상세 설명 (Function - Advanced 시도). 현재 시제 위주지만 과거 경험(worn out) 언급. 연결성 좋음. 하지만 **Advanced 수준의 서술/묘사(과거/미래 시제 활용)나 복잡한 구조를 일관되게 유지하지는 못함.** AL로 가기엔 부족.
+
+### AL 예시 (Advanced Low/Mid):
+"I had one very crazy experience. One time I was having a picnic with my friend. These guys were playing a game of baseball near us. This is common for, um, people who go to the park. We didn't mind that they were close to us, but then a baseball hit my head! One guy tried to catch it but he missed the ball. It went past him and hit my head! I don't know how hard they threw that ball, but I was in excruciating pain. Everyone was staring at me and I just wanted to hide. The guy said sorry, but… I was so embarrassed! My friend would not stop laughing at me. That made the situation, umm, even worse. I wanted to go home and never come back. I can't stand this story, but that was my crazy experience."
+*   **분석:** **과거 시제 일관된 사용 및 사건 서술** (Function - Advanced). **문단 길이의 연결된 발화** (Text Type). 감정 묘사 (Function). 예상치 못한 상황 설명. 명확하고 이해하기 쉬움 (Accuracy). Advanced 수준의 기능을 **일관되게** 보여줌.
+
 ---
 
 ## 수험자의 응답:
@@ -110,73 +127,70 @@ EVALUATION_PROMPT_TEMPLATE = """
 ## 평가 결과는 반드시 다음 JSON 형식만으로 제공해 주세요:
 ```json
 {{
-  "score": "레벨(예: IM2, IH, AL 등)",
+  "score": "OPIC 레벨 (예: IM2, IH, AL 등)",
   "feedback": {{
-    "paragraph": "HTML 형식의 문단 구성력 피드백(예: <b>강조</b> 태그 사용 가능, <br><br>로 문단 구분)",
-    "vocabulary": "HTML 형식의 어휘력 피드백(예: <b>강조</b> 태그 사용 가능, <br><br>로 문단 구분)",
-    "spoken_amount": "HTML 형식의 발화량 피드백(예: <b>강조</b> 태그 사용 가능, <br><br>로 문단 구분)"
+    "paragraph": "HTML 형식의 Text Type & Cohesion 피드백",
+    "vocabulary": "HTML 형식의 Accuracy & Content 피드백",
+    "delivery": "HTML 형식의 Accuracy & Functions (전달력) 피드백"
   }}
 }}
 """
 
 # 전체 테스트 종합 평가를 위한 프롬프트 템플릿 - 수정됨
 OVERALL_EVALUATION_PROMPT_TEMPLATE = """
-당신은 OPIC(Oral Proficiency Interview-Computer) Speaking 평가 기준에 따라 수험자의 전체 테스트 결과를 종합적으로 평가하는 전문 평가자입니다.
+당신은 **ACTFL Proficiency Guidelines 2024 (Speaking)** 기준에 따라 수험자의 전체 OPIC 테스트 결과를 종합적으로 평가하는 전문 평가자입니다.
 
 ---
 
 ## 평가 지침
 
-- 모든 응답을 종합해 **ACTFL Proficiency Guidelines 2024 (Speaking 기준)**에 따라 전체 점수를 판단해 주세요.
-- **Functions, Accuracy, Context and Content, Text Type** 네 가지 기준(FACT)을 기반으로 레벨을 결정해 주세요.
-- 각 유형(콤보셋, 롤플레잉, 돌발질문)의 평균 점수도 포함해 주세요.
-- 모든 피드백은 <b>HTML 형식</b>으로 작성되어야 합니다.
-- 피드백 작성 시 <b>“다음 등급으로 올라가기 위해 보완할 점”</b> 위주로 작성하세요.
-- <b>질문과 관련 없는 응답이 있는 경우 반드시 지적</b>해 주세요.
+-   제시된 모든 문제별 응답과 평가 결과를 종합하여 **ACTFL 2024 Speaking 기준 (FACT)** 에 따라 전체 OPIC 등급(NH ~ AL)을 결정해 주세요.
+-   **Functions, Accuracy, Context and Content, Text Type (FACT)** 네 가지 기준을 **일관되게** 보여주는 최고 등급을 최종 등급으로 판단합니다. 특정 문제에서 더 높은 등급의 특징을 보이더라도, 전체적으로 **지속적인(sustained)** 능력을 보여주지 못하면 해당 등급을 부여할 수 없습니다.
+-   각 문제 유형(콤보셋, 롤플레잉, 돌발질문)별 평균적인 수행 능력 수준도 평가에 참고하여 점수를 제시하세요.
+-   모든 피드백은 <b>HTML 형식</b>으로 작성되어야 합니다.
+-   종합 피드백 작성 시, 수험자의 전반적인 강점을 언급하고, <b>“다음 등급으로 올라가기 위해 보완해야 할 점”</b>을 FACT 기준에 맞춰 구체적으로 제시하세요.
+-   테스트 중 <b>질문과 관련 없는 응답이 있었다면 반드시 종합 피드백에서 지적</b>해 주세요.
 
 ---
 
-## ACTFL Speaking 등급 정의
+## ACTFL 2024 Speaking 등급 정의 (OPIC 적용 요약):
 
-- <b>NL</b>: 단어나 문장을 거의 생성하지 못함. 무의미한 소리 반복.
-- <b>NM</b>: 기본 인사, 이름, 나이 등 단편적 표현만 가능
-- <b>NH</b>: 익숙한 주제에 대해 단문으로 대화 가능하나 확장 어려움
-- <b>IL</b>: 단순 문장으로 일상 주제 대화 가능하나 유지 어려움
-- <b>IM1</b>: 짧은 문장을 연결하여 대화 가능. 일관성은 부족
-- <b>IM2</b>: 문장 단위로 일관되게 말함. 어휘와 정확성 증가
-- <b>IM3</b>: 대부분 상황에서 명확히 의사 표현 가능. 오류는 있으나 방해되지 않음
-- <b>IH</b>: 다양한 문장 구조와 시제 사용 가능. 문단 단위 말하기 시도
-- <b>AL</b>: 과거-현재-미래 서술 가능. 구조적 문단 표현. 추상적 주제 일부 가능
+-   <b>Novice (NL, NM, NH)</b>: 단어, 구, 암기된 문장 위주. 제한적 소통.
+-   <b>Intermediate Low (IL)</b>: 기본적인 생존 요구 관련 창의적 문장 생성 시작. 짧고 단순하며, 오류 많고 망설임.
+-   <b>Intermediate Mid (IM1, IM2, IM3)</b>: 예측 가능한 일상 주제 관련 문장 단위 소통. 문장 연결 시도. 자신감/어휘/정확성 증가. IM3는 IH에 근접.
+-   <b>Intermediate High (IH)</b>: **Advanced 수준 기능(시제 활용 서술/묘사, 문단 단위 발화) 수행 가능**하나, **일관성 부족 및 오류/붕괴 발생**. Advanced 수준을 지속하지 못함.
+-   <b>Advanced Low/Mid (AL)</b>: **Advanced 수준 기능(시제 활용 서술/묘사, 문단 단위 발화, 상황 대처)을 일관되게 수행**. 연결성, 명확성, 정확성 갖춤. OPIC의 AL은 주로 ACTFL Advanced Low/Mid에 해당.
+-   <b>Superior & Distinguished</b>: OPIC 범위 초과. 추상적 토론, 가설 설정, 설득, 전문적 주제 등.
 
 ---
 
-## 문제별 응답 및 평가 결과:
+## 문제별 응답 및 평가 결과 요약:
 {problem_responses}
 
 ## 테스트 구성:
-- 자기소개: {self_introduction_count}문제
-- 콤보셋: {comboset_count}문제
-- 롤플레잉: {roleplaying_count}문제
-- 돌발질문: {unexpected_count}문제
+-   자기소개: {self_introduction_count}문제
+-   콤보셋: {comboset_count}문제
+-   롤플레잉: {roleplaying_count}문제
+-   돌발질문: {unexpected_count}문제
 
 ---
 
-## 결과는 반드시 다음 JSON 형식으로 출력하세요.  
-<b>모든 피드백은 HTML 형식으로 작성되어야 하며, <b>문단 단위 구분은 <code><br><br></code>를 사용하고 중요한 표현은 <code><b>강조</b></code> 처리</b> 해야 합니다.</b>
+## 결과는 반드시 다음 JSON 형식으로 출력하세요.
+<b>모든 피드백은 HTML 형식으로 작성되어야 하며, 문단 구분은 `<br><br>`, 중요 표현은 `<b>강조</b>` 처리해야 합니다.</b>
 
 ```json
 {{
   "test_score": {{
-    "total_score": "종합 레벨(예: IM2, IH, AL 등)",
-    "comboset_score": "콤보셋 평균 레벨(예: IM2, IH, AL 등)",
-    "roleplaying_score": "롤플레잉 평균 레벨(예: IM2, IH, AL 등)",
-    "unexpected_score": "돌발질문 평균 레벨(예: IM2, IH, AL 등)"
+    "total_score": "최종 종합 OPIC 레벨 (예: IM2, IH, AL 등)",
+    "comboset_score": "콤보셋 평균 수행 레벨 (예: IM2, IH, AL 등)",
+    "roleplaying_score": "롤플레잉 평균 수행 레벨 (예: IM2, IH, AL 등)",
+    "unexpected_score": "돌발질문 평균 수행 레벨 (예: IM2, IH, AL 등)"
   }},
   "test_feedback": {{
-    "total_feedback": "HTML 형식의 전체 영어 구사력 피드백(예: <b>강조</b> 태그 사용 가능, <br><br>로 문단 구분)",
-    "paragraph": "HTML 형식의 문단 구성력 피드백(예: <b>강조</b> 태그 사용 가능, <br><br>로 문단 구분)",
-    "vocabulary": "HTML 형식의 어휘력 피드백(예: <b>강조</b> 태그 사용 가능, <br><br>로 문단 구분)",
-    "spoken_amount": "HTML 형식의 발화량 피드백(예: <b>강조</b> 태그 사용 가능, <br><br>로 문단 구분)"
+    "total_feedback": "HTML 형식의 전체적인 강점 및 다음 등급을 위한 종합 피드백",
+    "paragraph": "HTML 형식의 Text Type & Cohesion 종합 피드백",
+    "vocabulary": "HTML 형식의 Accuracy & Content 종합 피드백",
+    "delivery": "HTML 형식의 Accuracy & Functions (전달력) 종합 피드백"
   }}
 }}
 """
