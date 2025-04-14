@@ -4,8 +4,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
-
-from api.deps import get_next_groq_key, get_next_gemini_key
+from api.deps import handle_api_error, get_next_gemini_key
 
 import time
 
@@ -661,49 +660,112 @@ class ResponseEvaluator:
             loop.close()
 
 
+    # def evaluate_response_sync(self, user_response, problem_category, topic_category, problem):
+    #     """
+    #     사용자 응답 평가를 동기적으로 수행하는 메소드
+        
+    #     Celery 작업에서 호출할 때 사용됩니다.
+        
+    #     Args:
+    #         user_response: 사용자 응답 텍스트
+    #         problem_category: 문제 카테고리 (self_introduction, comboset, roleplaying, unexpected)
+    #         topic_category: 주제 카테고리
+    #         problem: 문제 내용
+        
+    #     Returns:
+    #         평가 결과 딕셔너리 (score와 feedback 포함)
+    #     """
+    #     import asyncio
+        
+    #     # 비동기 함수를 동기적으로 실행하기 위한 새 이벤트 루프 생성
+    #     loop = asyncio.new_event_loop()
+    #     asyncio.set_event_loop(loop)
+        
+    #     try:
+    #         # evaluate_response 메소드가 비동기 메소드라고 가정
+    #         result = loop.run_until_complete(self.evaluate_response(
+    #             user_response=user_response,
+    #             problem_category=problem_category,
+    #             topic_category=topic_category,
+    #             problem=problem
+    #         ))
+    #         return result
+    #     except Exception as e:
+    #         logger.error(f"응답 평가 동기 실행 중 오류 발생: {str(e)}", exc_info=True)
+    #         # 오류 발생 시 기본 평가 결과 반환
+    #         return {
+    #             "score": "N/A",
+    #             "feedback": {
+    #                 "paragraph": f"평가 중 오류가 발생했습니다: {str(e)}",
+    #                 "vocabulary": "평가를 완료할 수 없습니다.",
+    #                 "spoken_amount": "평가를 완료할 수 없습니다."
+    #             }
+    #         }
+    #     finally:
+    #         # 이벤트 루프 종료
+    #         loop.close()
+
     def evaluate_response_sync(self, user_response, problem_category, topic_category, problem):
         """
-        사용자 응답 평가를 동기적으로 수행하는 메소드
-        
-        Celery 작업에서 호출할 때 사용됩니다.
+        사용자 응답 평가 실행
         
         Args:
-            user_response: 사용자 응답 텍스트
-            problem_category: 문제 카테고리 (self_introduction, comboset, roleplaying, unexpected)
-            topic_category: 주제 카테고리
+            user_response: 사용자 음성 응답 텍스트
+            problem_category: 문제 카테고리 (예: 일상생활, 과거 경험)
+            topic_category: 주제 카테고리 (예: 여행, 음식)
             problem: 문제 내용
-        
+            
         Returns:
-            평가 결과 딕셔너리 (score와 feedback 포함)
+            평가 결과 사전
         """
-        import asyncio
+        logger.info(f"응답 평가 시작 - 문제 카테고리: {problem_category}, 토픽: {topic_category}")
         
-        # 비동기 함수를 동기적으로 실행하기 위한 새 이벤트 루프 생성
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # 10번 재시도 루프
+        retry_count = 0
+        max_retries = 10
         
-        try:
-            # evaluate_response 메소드가 비동기 메소드라고 가정
-            result = loop.run_until_complete(self.evaluate_response(
-                user_response=user_response,
-                problem_category=problem_category,
-                topic_category=topic_category,
-                problem=problem
-            ))
-            return result
-        except Exception as e:
-            logger.error(f"응답 평가 동기 실행 중 오류 발생: {str(e)}", exc_info=True)
-            # 오류 발생 시 기본 평가 결과 반환
-            return {
-                "score": "N/A",
-                "feedback": {
-                    "paragraph": f"평가 중 오류가 발생했습니다: {str(e)}",
-                    "vocabulary": "평가를 완료할 수 없습니다.",
-                    "spoken_amount": "평가를 완료할 수 없습니다."
-                }
-            }
-        finally:
-            # 이벤트 루프 종료
-            loop.close()
+        while retry_count < max_retries:
+            try:
+                # LLM 초기화
+                llm = self._get_llm()
+                current_key = None
+                
+                # 현재 키 추출
+                if hasattr(llm, 'google_api_key'):
+                    current_key = llm.google_api_key
+                
+                # 프롬프트 포맷
+                evaluation_chain = (
+                    self.evaluation_prompt 
+                    | llm 
+                    | self.evaluation_parser
+                )
+                
+                # 평가 실행
+                result = evaluation_chain.invoke({
+                    "user_response": user_response,
+                    "problem_category": problem_category,
+                    "topic_category": topic_category,
+                    "problem": problem
+                })
+                
+                return result
+                
+            except Exception as e:
+                retry_count += 1
+                error_msg = str(e).lower()
+                
+                # 현재 사용 중인 키가 있으면 오류 처리
+                if current_key and ("quota" in error_msg or "rate limit" in error_msg or "exceeded" in error_msg):
+                    handle_api_error(current_key, error_msg)
+                
+                logger.warning(f"평가 중 오류 발생 ({retry_count}/{max_retries}): {str(e)}")
+                
+                if retry_count >= max_retries:
+                    logger.error(f"최대 재시도 횟수에 도달했습니다: {str(e)}")
+                    raise ValueError(f"응답 평가 중 오류가 발생했습니다: {str(e)}")
+                
+                # 다음 시도 전에 잠시 대기
+                time.sleep(2)
 
 
