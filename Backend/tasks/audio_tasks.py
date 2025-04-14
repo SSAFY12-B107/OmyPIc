@@ -126,11 +126,17 @@ def evaluate_random_problem_task(self, test_id, problem_id, user_id, audio_conte
             }}
         )
         
+        # 요청된 형식으로 결과 반환
         return {
-            "status": "success",
-            "test_id": test_id,
-            "problem_id": problem_id,
-            "evaluation": evaluation_result
+            "problem_id": str(problem["_id"]),
+            "user_id": user_id,
+            "problem_category": problem.get("problem_category", ""),
+            "topic_category": problem.get("topic_category", ""),
+            "problem_content": problem.get("content", ""),
+            "transcribed_text": transcribed_text,
+            "score": evaluation_result.get("score", ""),
+            "feedback": evaluation_result.get("feedback", {}),
+            "evaluated_at": datetime.now().isoformat()
         }
     
     except Exception as e:
@@ -153,11 +159,22 @@ def evaluate_random_problem_task(self, test_id, problem_id, user_id, audio_conte
             "timestamp": datetime.now(),
             "source": "evaluate_random_problem_task"
         })
+        
+        # 오류 시에도 동일한 형식으로 반환 (빈 값으로)
         return {
-            "status": "error",
-            "test_id": test_id,
             "problem_id": problem_id,
-            "error": str(e)
+            "user_id": user_id,
+            "problem_category": "",
+            "topic_category": "",
+            "problem_content": "",
+            "transcribed_text": "",
+            "score": "ERROR",
+            "feedback": {
+                "paragraph": f"오류 발생: {str(e)}",
+                "vocabulary": "평가를 완료할 수 없습니다.",
+                "delivery": "평가를 완료할 수 없습니다."
+            },
+            "evaluated_at": datetime.now().isoformat()
         }
 
 @shared_task(bind=True, name="process_audio")
