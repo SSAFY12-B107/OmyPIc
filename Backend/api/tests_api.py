@@ -63,7 +63,6 @@ async def get_test_history(
         user_pk = str(current_user.id)
         
         # 디버깅을 위한 로깅 추가
-        logger.info(f"사용자 정보: {current_user}")
         logger.info(f"사용자 limits 필드: {getattr(current_user, 'limits', None)}")
         
         # 사용자의 테스트 생성 횟수 정보 가져오기 (limits 필드 사용)
@@ -118,9 +117,6 @@ async def get_test_history(
             "test_history": test_history,
             "test_counts": test_counts
         }
-
-        # 최종 응답 로깅
-        logger.info(f"테스트 히스토리 응답: {response}")
         
         return response
     except Exception as e:
