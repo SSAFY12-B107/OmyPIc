@@ -177,69 +177,157 @@ async def get_current_user_for_multipart(
         logger.error(f"인증 처리 중 오류 발생: {str(e)}")
         raise HTTPException(status_code=401, detail="인증에 실패했습니다")
 
-# API 키 순환자 초기화
-_gemini_key_cycle = None
-_groq_key_cycle = None
+redis_client = Redis.from_url(settings.REDIS_URL)
 
-def _init_key_cycles():
-    global _gemini_key_cycle, _groq_key_cycle
+def get_next_gemini_key():
+    """다음 Gemini API 키를 반환합니다. Redis 기반 블랙리스트 메커니즘을 통해 할당량 초과된 키 관리."""
+    global _gemini_key_cycle
     
-    # 메서드 호출하여 실제 리스트 받기
-    gemini_keys = settings.gemini_api_keys()  # 메서드 호출 추가
-    groq_keys = settings.groq_api_keys()      # 메서드 호출 추가
+    # 초기화가 필요하면 초기화
+    if _gemini_key_cycle is None:
+        gemini_keys = settings.gemini_api_keys()
+        _gemini_key_cycle = cycle(gemini_keys) if gemini_keys else None
     
-    # 순환자 생성
-    _gemini_key_cycle = cycle(gemini_keys) if gemini_keys else None
-    _groq_key_cycle = cycle(groq_keys) if groq_keys else None
+    if not _gemini_key_cycle:
+        logger.warning("Gemini API 키가 설정되지 않았습니다.")
+        return ""
+    
+    # 현재 시간
+    current_time = time.time()
+    
+    # 사용 가능한 키 찾기 (최대 키 개수만큼 시도)
+    keys = settings.gemini_api_keys()
+    attempts = len(keys) if keys else 0
+    
+    for _ in range(attempts):
+        key = next(_gemini_key_cycle)
+        
+        try:
+            # Redis에서 블랙리스트 체크
+            blacklist_key = f"key_blacklist:gemini:{key}"
+            blacklist_until = redis_client.get(blacklist_key)
+            
+            if blacklist_until:
+                blacklist_until = float(blacklist_until)
+                if current_time < blacklist_until:
+                    # 아직 블랙리스트 시간이 지나지 않음
+                    continue
+                else:
+                    # 블랙리스트 시간 경과, 블랙리스트에서 제거
+                    redis_client.delete(blacklist_key)
+                    logger.info(f"Gemini API 키 {key[:8]}...의 블랙리스트 시간이 만료되어 다시 사용합니다.")
+            
+            # 사용 가능한 키 발견
+            logger.debug(f"Gemini API 키 사용: {key[:8]}...")
+            return key
+            
+        except Exception as e:
+            logger.error(f"Redis에서 키 블랙리스트 확인 중 오류: {str(e)}")
+            # Redis 오류 시 그냥 키 반환
+            return key
+    
+    # 모든 키가 블랙리스트에 있는 경우
+    logger.error("모든 Gemini API 키가 블랙리스트에 있습니다. 가장 빨리 해제될 키를 찾습니다.")
+    
+    try:
+        # 가장 빨리 해제될 키 찾기
+        earliest_time = float('inf')
+        earliest_key = None
+        
+        for key in keys:
+            blacklist_key = f"key_blacklist:gemini:{key}"
+            blacklist_until = redis_client.get(blacklist_key)
+            
+            if blacklist_until:
+                blacklist_until = float(blacklist_until)
+                if blacklist_until < earliest_time:
+                    earliest_time = blacklist_until
+                    earliest_key = key
+        
+        if earliest_key:
+            return earliest_key
+    except Exception as e:
+        logger.error(f"Redis에서 가장 빨리 해제될 키 찾는 중 오류: {str(e)}")
+    
+    # 어떤 키든 반환
+    return next(_gemini_key_cycle)
+
+def handle_api_error(key, error_message):
+    """API 오류 발생 시 키를 Redis 블랙리스트에 추가"""
+    try:
+        if "exceeded your current quota" in error_message or "rate limit" in error_message:
+            # 할당량 초과 또는 비율 제한 오류 - 30분 동안 블랙리스트에 추가
+            blacklist_until = time.time() + 1800  # 30분
+            redis_client.set(f"key_blacklist:gemini:{key}", blacklist_until)
+            logger.warning(f"Gemini API 키 {key[:8]}...를 할당량 초과로 30분간 블랙리스트에 추가했습니다.")
+    except Exception as e:
+        logger.error(f"Redis에 키 블랙리스트 추가 중 오류: {str(e)}")
+
+
+        
+
+# API 키 순환자 초기화
+# _gemini_key_cycle = None
+# _groq_key_cycle = None
+
+# def _init_key_cycles():
+#     global _gemini_key_cycle, _groq_key_cycle
+    
+#     # 메서드 호출하여 실제 리스트 받기
+#     gemini_keys = settings.gemini_api_keys()  # 메서드 호출 추가
+#     groq_keys = settings.groq_api_keys()      # 메서드 호출 추가
+    
+#     # 순환자 생성
+#     _gemini_key_cycle = cycle(gemini_keys) if gemini_keys else None
+#     _groq_key_cycle = cycle(groq_keys) if groq_keys else None
 
 # 초기화는 필요할 때만 - Redis 키 관리 실패 시 폴백으로 사용
 # _init_key_cycles()
 
 # Redis 클라이언트 초기화
-redis_client = Redis.from_url(settings.REDIS_URL)
 
-def get_next_gemini_key():
-    """다음 Gemini API 키를 반환합니다. Redis 기반 구현."""
-    try:
-        # 모든 키 가져오기
-        keys = settings.gemini_api_keys()
-        if not keys:
-            logger.warning("Gemini API 키가 설정되지 않았습니다.")
-            return ""
+# def get_next_gemini_key():
+#     """다음 Gemini API 키를 반환합니다. Redis 기반 구현."""
+#     try:
+#         # 모든 키 가져오기
+#         keys = settings.gemini_api_keys()
+#         if not keys:
+#             logger.warning("Gemini API 키가 설정되지 않았습니다.")
+#             return ""
         
-        # 가장 적게 사용된 키 선택
-        min_usage_key = None
-        min_usage_count = float('inf')
+#         # 가장 적게 사용된 키 선택
+#         min_usage_key = None
+#         min_usage_count = float('inf')
         
-        for key in keys:
-            # 키 사용량 확인 (Redis에서)
-            usage_count = int(redis_client.get(f"key_usage:gemini:{key}") or 0)
+#         for key in keys:
+#             # 키 사용량 확인 (Redis에서)
+#             usage_count = int(redis_client.get(f"key_usage:gemini:{key}") or 0)
             
-            if usage_count < min_usage_count:
-                min_usage_count = usage_count
-                min_usage_key = key
+#             if usage_count < min_usage_count:
+#                 min_usage_count = usage_count
+#                 min_usage_key = key
         
-        # 선택된 키 사용량 증가
-        if min_usage_key:
-            redis_client.incr(f"key_usage:gemini:{min_usage_key}")
-            # 만료 시간 설정 (1시간 후 리셋)
-            redis_client.expire(f"key_usage:gemini:{min_usage_key}", 3600)
+#         # 선택된 키 사용량 증가
+#         if min_usage_key:
+#             redis_client.incr(f"key_usage:gemini:{min_usage_key}")
+#             # 만료 시간 설정 (1시간 후 리셋)
+#             redis_client.expire(f"key_usage:gemini:{min_usage_key}", 3600)
             
-            # 키 사용 로그
-            logger.debug(f"Gemini API 키 사용: {min_usage_key[:8]}... (사용량: {min_usage_count+1})")
-            return min_usage_key
+#             # 키 사용 로그
+#             logger.debug(f"Gemini API 키 사용: {min_usage_key[:8]}... (사용량: {min_usage_count+1})")
+#             return min_usage_key
             
-    except Exception as e:
-        logger.error(f"Redis에서 Gemini API 키 관리 중 오류: {str(e)}")
-        # Redis 오류 시 기존 방식으로 폴백
-        if _gemini_key_cycle is None:
-            _init_key_cycles()
-        return next(_gemini_key_cycle) if _gemini_key_cycle else ""
+#     except Exception as e:
+#         logger.error(f"Redis에서 Gemini API 키 관리 중 오류: {str(e)}")
+#         # Redis 오류 시 기존 방식으로 폴백
+#         if _gemini_key_cycle is None:
+#             _init_key_cycles()
+#         return next(_gemini_key_cycle) if _gemini_key_cycle else ""
     
-    # 예상치 못한 경우를 대비한 폴백
-    if _gemini_key_cycle is None:
-        _init_key_cycles()
-    return next(_gemini_key_cycle) if _gemini_key_cycle else ""
+#     # 예상치 못한 경우를 대비한 폴백
+#     if _gemini_key_cycle is None:
+#         _init_key_cycles()
+#     return next(_gemini_key_cycle) if _gemini_key_cycle else ""
 
 def get_next_groq_key():
     """다음 Groq API 키를 반환합니다. Redis 기반 구현."""
