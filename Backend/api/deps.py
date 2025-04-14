@@ -16,6 +16,16 @@ from core.config import settings
 import logging
 from redis import Redis
 import time
+import asyncio
+
+redis_client = Redis.from_url(settings.REDIS_URL)
+
+# 전역 변수로 미리 선언
+_gemini_key_cycle = None
+_groq_key_cycle = None
+
+# API 키 관리를 위한 Lock 객체
+_api_key_lock = asyncio.Lock()
 
 
 # 로거 설정
@@ -177,10 +187,13 @@ async def get_current_user_for_multipart(
         logger.error(f"인증 처리 중 오류 발생: {str(e)}")
         raise HTTPException(status_code=401, detail="인증에 실패했습니다")
 
-redis_client = Redis.from_url(settings.REDIS_URL)
-# 전역 변수로 미리 선언
-_gemini_key_cycle = None
-_groq_key_cycle = None
+
+
+
+async def get_next_gemini_key_async():
+    """비동기 버전의 API 키 가져오기 함수"""
+    async with _api_key_lock:
+        return get_next_gemini_key()
 
 def get_next_gemini_key():
     """다음 Gemini API 키를 반환합니다. Redis 기반 블랙리스트를 통해 할당량 초과된 키 관리."""
@@ -216,15 +229,29 @@ def get_next_gemini_key():
                 blacklist_until = float(blacklist_until)
                 if current_time < blacklist_until:
                     # 아직 블랙리스트 시간이 지나지 않음
-                    logger.debug(f"키 {key[:8]}...는 블랙리스트에 있음 (남은 시간: {int(blacklist_until - current_time)}초)")
+                    time_left = int(blacklist_until - current_time)
+                    logger.debug(f"키 {key[:8]}...는 블랙리스트에 있음 (남은 시간: {time_left}초)")
                     continue
                 else:
                     # 블랙리스트 시간 경과, 블랙리스트에서 제거
                     redis_client.delete(blacklist_key)
                     logger.info(f"키 {key[:8]}...의 블랙리스트 시간이 만료되어 다시 사용합니다.")
             
+            # 사용량 제한 확인 (선택 사항)
+            usage_key = f"key_usage:gemini:{key}"
+            usage_count = int(redis_client.get(usage_key) or 0)
+            
+            # 사용량이 일정 수준 이상이면 다른 키 사용 (선택적으로 적용)
+            if usage_count >= 40:  # 시간당 40회로 제한
+                logger.debug(f"키 {key[:8]}...의 사용량이 많아 다른 키 시도 (사용량: {usage_count})")
+                continue
+                
             # 사용 가능한 키 발견
-            logger.info(f"Gemini API 키 사용: {key[:8]}...")
+            # 사용량 카운터 증가
+            redis_client.incr(usage_key)
+            redis_client.expire(usage_key, 3600)  # 1시간 후 리셋
+            
+            logger.info(f"Gemini API 키 사용: {key[:8]}... (사용량: {usage_count + 1})")
             return key
             
         except Exception as e:
@@ -263,9 +290,9 @@ def get_next_gemini_key():
 def handle_api_error(key, error_message):
     """API 오류 발생 시 키를 Redis 블랙리스트에 추가"""
     try:
-        # 할당량 초과 여부 확인
-        quota_exceeded = any(term in error_message.lower() for term in 
-                            ["quota", "rate limit", "exceeded", "resource", "429"])
+        # 할당량 초과 여부 확인 (더 많은 키워드 추가)
+        quota_terms = ["quota", "rate limit", "exceeded", "resource", "429", "limit"]
+        quota_exceeded = any(term in error_message.lower() for term in quota_terms)
         
         if quota_exceeded:
             # 할당량 초과 시 30분 동안 블랙리스트에 추가
