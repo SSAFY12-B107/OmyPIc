@@ -71,7 +71,7 @@ function ScriptList() {
           무슨 질문으로 대화를 나눌까요?
         </p>
         {/* 카테고리에 따라 이미지 조건부 렌더링 */}
-        {category === '공원가기' ? (
+        {category === '공원 가기' ? (
           <img src={opigiPark} alt="opigi-park-img" />
         ) : (
           <img src={opigi} alt="opigi-img" />
