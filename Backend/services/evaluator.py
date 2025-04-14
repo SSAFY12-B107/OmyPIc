@@ -7,6 +7,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from api.deps import handle_api_error, get_next_gemini_key
 
 import time
+import asyncio
 
 # 로깅 설정
 import logging # Assuming you have logging imported
@@ -80,7 +81,7 @@ EVALUATION_PROMPT_TEMPLATE = """
 
 -   <b>paragraph (Text Type & Cohesion)</b>: 발화의 길이, 문장 연결성, 문단 구성 능력 (논리적 흐름, 구조적 완성도).
 -   <b>vocabulary & accuracy (Accuracy & Content)</b>: 어휘의 다양성, 정확성, 적절성 및 문법/구문 정확성.
--   <b>delivery (Accuracy & Functions)</b>: 발음, 강세, 억양의 명확성 및 유창성(끊김, filler 사용). 전반적인 의사 전달 능력.
+-   <b>spoken_amount (Accuracy & Functions)</b>: 발화량, 발음, 강세, 억양의 명확성 및 유창성(끊김, filler 사용). 전반적인 의사 전달 능력.
 
 1. 문단 구분이 필요한 경우 `<br><br>`를 사용하세요.
 2. 중요한 포인트는 `<b>강조할 내용</b>` 형식으로 볼드 처리하세요.
@@ -130,7 +131,7 @@ EVALUATION_PROMPT_TEMPLATE = """
   "feedback": {{
     "paragraph": "HTML 형식의 Text Type & Cohesion 피드백",
     "vocabulary": "HTML 형식의 Accuracy & Content 피드백",
-    "delivery": "HTML 형식의 Accuracy & Functions (전달력) 피드백"
+    "spoken_amount": "HTML 형식의 Accuracy & Functions (전달력) 피드백"
   }}
 }}
 """
@@ -189,7 +190,7 @@ OVERALL_EVALUATION_PROMPT_TEMPLATE = """
     "total_feedback": "HTML 형식의 전체적인 강점 및 다음 등급을 위한 종합 피드백",
     "paragraph": "HTML 형식의 Text Type & Cohesion 종합 피드백",
     "vocabulary": "HTML 형식의 Accuracy & Content 종합 피드백",
-    "delivery": "HTML 형식의 Accuracy & Functions (전달력) 종합 피드백"
+    "spoken_amount": "HTML 형식의 Accuracy & Functions (전달력) 종합 피드백"
   }}
 }}
 """
@@ -259,80 +260,73 @@ class ResponseEvaluator:
         )
 
     @track_time_async(LLM_API_DURATION, {"provider": "google", "model": "gemini-1.5-pro", "operation": "evaluate_response"})
-    async def evaluate_response(
-        self, 
-        user_response: str, 
-        problem_category: str,
-        topic_category: str, 
-        problem: str
-    ) -> Dict[str, Any]:
+    async def evaluate_response(self, user_response, problem_category, topic_category, problem):
         """
-        사용자 응답을 평가하여 점수와 피드백 제공
+        사용자 응답 평가를 비동기적으로 실행
         
         Args:
-            user_response: 사용자 응답 텍스트
-            problem_category: 문제 카테고리
-            topic_category: 토픽 카테고리
+            user_response: 사용자 음성 응답 텍스트
+            problem_category: 문제 카테고리 (예: 일상생활, 과거 경험)
+            topic_category: 주제 카테고리 (예: 여행, 음식)
             problem: 문제 내용
             
         Returns:
-            평가 결과 딕셔너리
+            평가 결과 사전
         """
-        start_time = time.time()
-        status = "success"
-
-        try:
-            logger.info(f"응답 평가 시작 - 문제 카테고리: {problem_category}, 토픽: {topic_category}")
-            
-            # 응답이 너무 짧으면 즉시 낮은 점수 반환
-            if len(user_response.split()) < 5:
-                logger.warning(f"응답이 너무 짧음: '{user_response}'")
-                return {
-                    "score": "NL",
-                    "feedback": {
-                        "paragraph": "응답이 너무 짧아 평가할 수 없습니다. 최소 한 문장 이상의 응답이 필요합니다.",
-                        "vocabulary": "응답이 너무 짧아 어휘력을 평가할 수 없습니다.",
-                        "spoken_amount": "발화량이 매우 부족합니다. 질문에 대해 충분한 길이로 답변해야 합니다."
-                    }
-                }
-            
-            # API 키 순환을 적용한 LLM 인스턴스 생성
-            llm = self._get_llm()
-            
-            # 최신 API 방식으로 체인 구성
-            chain = self.evaluation_prompt | llm | self.evaluation_parser
-            
-            # 체인 실행
-            result = await chain.ainvoke({
-                "user_response": user_response,
-                "problem_category": problem_category,
-                "topic_category": topic_category,
-                "problem": problem
-            })
-            
-            # 결과 유효성 검증 및 보정
-            result = self._validate_and_fix_evaluation(result)
-            
-            logger.info(f"응답 평가 완료 - 점수: {result.get('score', 'N/A')}")
-            return result
-            
-        except Exception as e:
-            status = "error"
-            logger.error(f"응답 평가 중 오류 발생: {str(e)}", exc_info=True)
-            # 오류 발생 시 점수를 제공하지 않고 오류 정보만 반환
-            return {
-                "score": "ERROR",  # 점수를 제공하지 않고 ERROR 표시
-                "feedback": {
-                    "paragraph": f"평가 중 오류가 발생했습니다: {str(e)}. 논리적 구성에 대한 평가를 완료하지 못했습니다.",
-                    "vocabulary": "평가 중 오류가 발생했습니다. 어휘 사용에 대한 평가를 완료하지 못했습니다.",
-                    "spoken_amount": "평가 중 오류가 발생했습니다. 발화량에 대한 평가를 완료하지 못했습니다."
-                },
-                "error": True  # 평가 오류 플래그 추가
-            }
-        finally:
-            # 평가 시간 측정 추가
-            duration = time.time() - start_time
-            track_problem_evaluation_time(problem_category, duration, status)
+        logger.info(f"응답 평가 시작 - 문제 카테고리: {problem_category}, 토픽: {topic_category}")
+        
+        # 10번 재시도 루프
+        retry_count = 0
+        max_retries = 10
+        
+        while retry_count < max_retries:
+            try:
+                # LLM 초기화
+                llm = self._get_llm()
+                current_key = None
+                
+                # 현재 키 추출 (각 LLM 타입에 따라 다름)
+                if hasattr(llm, 'google_api_key'):
+                    current_key = llm.google_api_key
+                
+                # 프롬프트 포맷 및 체인 구성
+                chain = (
+                    self.evaluation_prompt 
+                    | llm 
+                    | self.evaluation_parser
+                )
+                
+                # 평가 실행
+                result = await chain.ainvoke({
+                    "user_response": user_response,
+                    "problem_category": problem_category,
+                    "topic_category": topic_category,
+                    "problem": problem
+                })
+                
+                return result
+                
+            except Exception as e:
+                retry_count += 1
+                error_msg = str(e)
+                
+                # 현재 사용 중인 키가 있고 할당량 초과 오류가 발생한 경우
+                if current_key:
+                    was_blacklisted = handle_api_error(current_key, error_msg)
+                    
+                    if was_blacklisted:
+                        logger.warning(f"할당량 초과로 인해 키를 블랙리스트에 추가하고 다른 키를 시도합니다.")
+                    else:
+                        logger.warning(f"평가 중 오류 발생 (할당량 초과 아님): {error_msg}")
+                else:
+                    logger.warning(f"평가 중 오류 발생: {error_msg}")
+                
+                if retry_count >= max_retries:
+                    logger.error(f"최대 재시도 횟수에 도달했습니다: {error_msg}")
+                    raise ValueError(f"응답 평가 중 오류가 발생했습니다: {error_msg}")
+                
+                # 다음 시도 전에 잠시 대기
+                await asyncio.sleep(2)
     
 
 
@@ -719,7 +713,7 @@ class ResponseEvaluator:
             평가 결과 사전
         """
         logger.info(f"응답 평가 시작 - 문제 카테고리: {problem_category}, 토픽: {topic_category}")
-        
+    
         # 10번 재시도 루프
         retry_count = 0
         max_retries = 10
@@ -756,7 +750,7 @@ class ResponseEvaluator:
                 error_msg = str(e).lower()
                 
                 # 현재 사용 중인 키가 있으면 오류 처리
-                if current_key and ("quota" in error_msg or "rate limit" in error_msg or "exceeded" in error_msg):
+                if current_key and any(term in error_msg for term in ["quota", "rate limit", "exceeded", "resource", "429"]):
                     handle_api_error(current_key, error_msg)
                 
                 logger.warning(f"평가 중 오류 발생 ({retry_count}/{max_retries}): {str(e)}")
