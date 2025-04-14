@@ -630,10 +630,11 @@ async def listen_script(
 
         # Colab TTS API URL 설정 (ngrok URL)
         # .env에서 COLAB_TTS_API_URL 가져오기
-        COLAB_TTS_API_URL = os.getenv("COLAB_TTS_API_URL")
+        # COLAB_TTS_API_URL = os.getenv("COLAB_TTS_API_URL")
+        COLAB_TTS_API_URL = "https://omypic.ngrok.app/csm-1b"
 
-        if not COLAB_TTS_API_URL:
-            raise HTTPException(status_code=500, detail="Colab TTS 서비스 URL이 설정되지 않았습니다.")
+        # if not COLAB_TTS_API_URL:
+        #     raise HTTPException(status_code=500, detail="Colab TTS 서비스 URL이 설정되지 않았습니다.")
 
         # Colab API 호출 데이터 형식 맞추기
         tts_request_payload = {"text": clean_text}
