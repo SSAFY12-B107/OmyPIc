@@ -16,7 +16,7 @@
 # OmyPIc : 오직 나만을 위한 오픽 학습 서비스, 오마이픽 
 오픽 시험을 앞둔 사용자를 대상으로 맞춤형 영어 대본을 생성하고, 실전과 유사한 테스트 환경을 제공하는 학습 서비스 
 <div>
-  <img src="img/readme_img/설문조사.png" />
+  <img src="readme_img/설문조사.png" />
 </div>
 
 ## 개발 기간
@@ -24,7 +24,7 @@
 
 ## 기획배경
 <div>
-  <img src="img/readme_img/설문조사.png" />
+  <img src="readme_img/설문조사.png" />
 </div>
 1. 설문조사를 통한 사용자 니즈 파악(3/3~3/5)
 - 취업준비생 153명 대상 오픽 학습 서비스에 대한 수요, 학습에서 가장 어려운 점 조사 
@@ -41,21 +41,21 @@
 - 한/영 응답 기반으로 Gemini AI를 통해 IH~AL 수준 영어 스크립트 생성
 
 <div>
-  <img src="img/readme_img/주기능소개_1png.png"width="50%"  />
-  <img src="img/readme_img/주기능소개_2.png" width="50%" />
+  <img src="readme_img/주기능소개_1png.png"width="50%"  />
+  <img src="readme_img/주기능소개_2.png" width="50%" />
 </div>
 <br>
 
 ### 2. 실전과 유사한 테스트 환경 제공 
 - 실전(15문제), 유형별(콤보셋/롤플레잉/돌발), 한 문제로 세 가지 유형 테스트 제공
 <div>
-  <img src="img/readme_img/주기능소개_3.png" />
+  <img src="readme_img/주기능소개_3.png" />
 </div>
 
 ### 3. 사용자 답변(음성) 평가 
 - Whisper AI로 사용자 응답을 STT 처리하고, Gemini AI를 통해 오픽 성적 채점 기준에 따라 사용자 응답에 대한 점수 및 피드백 제공
 <div>
-  <img src="img/readme_img/주기능소개_4.png" />
+  <img src="readme_img/주기능소개_4.png" />
 </div>
 <br>
 
@@ -65,8 +65,8 @@
    1) 생성형 AI로 생성한 캐릭터 '오피기': 친근감, 부드러운 느낌 강화  
    2) 서비스 소개 화면: 처음 서비스를 접하는 유저를 위해 핵심기능을 요약하여 전달 
 <div>
-  <img src="img/입력폼%201차.gif" width="48%" />
-  <img src="img/입력폼%202차.gif" width="48%" />
+  <img src="입력폼%201차.gif" width="48%" />
+  <img src="입력폼%202차.gif" width="48%" />
 </div>
 <br>
 
@@ -74,7 +74,7 @@
    1) 맞춤형 학습을 위해 희망등급/현재등급/시험예정일/정보 활용 동의 정보 입력 
 
 <div>
-  <img src="img/image-23.png" width="35%" />
+  <img src="image-23.png" width="35%" />
 </div>
 <br>
 
@@ -82,8 +82,8 @@
    1) 실제 오픽 시험에서는 백그라운드 서베이 기반 출제되기에 유사한 환경 제공하고자 서베이 제공
    2) 서베이 선택 팁 명시하여 매끄러운 학습 환경 셋팅 지원  
 <div>
-  <img src="img/메인 페이지, 마이 페이지, 잘 맞는 화장품 수정 시 추천 변화.gif" width="48%" />
-  <img src="img/마이페이지 top3 및 나와 맞지 않는 성분 제공.gif" width="48%" />
+  <img src="메인 페이지, 마이 페이지, 잘 맞는 화장품 수정 시 추천 변화.gif" width="48%" />
+  <img src="마이페이지 top3 및 나와 맞지 않는 성분 제공.gif" width="48%" />
 </div>
 
 <br>
@@ -91,9 +91,9 @@
 ### 4. 메인 화면 
    1) 현재레벨/희망레벨/시험예정일/실력 향상 추이 시각화 제공하여 지속적 학습 장려 
 <div>
-  <img src="img/image-27.png" width="48%" />
-  <img src="img/image-28.png" width="48%" />
-  <img src="img/일반%20검색,%20추천%20화장품만%20보기.gif" width="48%" />
+  <img src="image-27.png" width="48%" />
+  <img src="image-28.png" width="48%" />
+  <img src="일반%20검색,%20추천%20화장품만%20보기.gif" width="48%" />
 </div>
 <br>
 
@@ -101,21 +101,21 @@
    1) 실전에서 제공되는 주제별 유저가 선택하여 맞춤형 질문 연습 제공 
    2) 기출문제 기반 개인 경험 기반 맞춤형 스크립트 생성 제공 
 <div>
-  <img src="img/image-24.png" width="35%" />
-  <img src="img/제품%20상세%20전성분%20보기.gif" width="48%" />
+  <img src="image-24.png" width="35%" />
+  <img src="제품%20상세%20전성분%20보기.gif" width="48%" />
 </div>
    
    3) 로딩 화면에 애니메이션, 답변 Tip 명시하여 이탈 가능성 완화 
    4) 스크립트 보완 희망시 디테일 추가 가능하도록 AI 스크립트 보완 기능 제공 
 <div>
-  <img src="img/리뷰작성.gif" width="48%" />
+  <img src="리뷰작성.gif" width="48%" />
 </div>
 <br>
 
 ### 6. 실전연습 메인 페이지 
    1) 실전연습(테스트 응시) 메인에서 시험유형 선택/유형별 나의 평균 등급 시각화/지난 응시 기록 제공하여 지속 학습 독려 
 <div>
-  <img src="img/image-29.png" width="48%" />
+  <img src="image-29.png" width="48%" />
 </div>
 <br>
 
@@ -144,7 +144,7 @@
 - 1) 개선점 및 기능에 관한 피드백: "1, 3문제 테스트가 생겨 부담 없이 사용하기 좋고, 예상점수를 알 수 있어서 유용하다."
 - 2) 교내 커뮤니티 배포 후 교우 피드백 : 유료 버전 이용 의사 확인
 <div>  
-  <img src="img/readme_img/장기피드백_2.png" />
+  <img src="readme_img/장기피드백_2.png" />
 </div>
 
 2. 프로젝트 효과성
@@ -152,27 +152,30 @@
 - 서비스 일 차 대비 일 차에는 문단 구성력표현력발화 길이가 모두 향상되어 예상 등급 상승(IM1 → IM3)
 - 4/8(화) 실제 오픽 시험 응시하여 목표 등급(IH) 달성
 <div>  
-  <img src="img/readme_img/장기피드백_1.png" />
+  <img src="readme_img/장기피드백_1.png" />
 </div>
 
+3. 삼성 청년 SW 아카데미 공모전 70명 11팀 중 우수상(2등) 수상 
+-  창의성/실현가능성/기술 활용도 측면에서 수상 
+
 ## 서비스 아키텍처
-<div align="center">
-  <img src="img/readme_img/아키텍처.png" />
+<div>
+  <img src="readme_img/아키텍처.png" />
 </div>
 
 
 ## 기술 설명 
 1. Infra 
 - '업데이트시 서버 끊겨 불편하다'는 유저 피드백에 따라 블루그린 배포 도입하여 서비스 연속성 유지 
-<div align="center">
-  <img src="img/readme_img/인프라설명.png" />  
+<div>
+  <img src="readme_img/인프라설명.png" />  
 </div>
 
 2. Frontend
 - 사용자 행동 패턴 분석 도구 Hotjar 활용하여 UI/UX 개선에 적극 활용
-<div align="center">
-  <img src="img/readme_img/프론트엔드설명.png" />  
-  <img src="img/readme_img/프론트엔드설명_핫자루.gif" />  
+<div>
+  <img src="readme_img/프론트엔드설명.png" />  
+  <img src="readme_img/프론트엔드설명_핫자루.gif" />  
 </div>
 
 3. Backend
@@ -180,17 +183,17 @@
 - Fast API 서버 내부 Background Tasks는 트래픽에 따른 병목 발생, 작업 실패시 재시도 불가
 - 서버 외부, 우선순위 작업 큐에 따라 작업 실행하는 비동기 처리 방식으로 해결  
 - 이로써 메모리 사용량 1/5 수준(25MB -> 5MB) 감소 확인
-<div align="center">
-  <img src="img/readme_img/백엔드설명_1.png" width="50%" />  
-  <img src="img/readme_img/백엔드설명_2.png"  width="50%"/>  
-  <img src="img/readme_img/백엔드설명_3.png"  width="50%"/>  
-  <img src="img/readme_img/백엔드설명_4.png"  width="50%"/>  
+<div>
+  <img src="readme_img/백엔드설명_1.png" width="50%" />  
+  <img src="readme_img/백엔드설명_2.png"  width="50%"/>  
+  <img src="readme_img/백엔드설명_3.png"  width="50%"/>  
+  <img src="readme_img/백엔드설명_4.png"  width="50%"/>  
 </div>
 
 4. AI 
 - 억양, 발음 등 공식 평가 기준에 따라 이를 학습할 수 있도록 고품질 생동감 있는 원어민 음성 제공  
-<div align="center">
-  <img src="img/readme_img/ai설명.png" />  
+<div>
+  <img src="readme_img/ai설명.png" />  
 </div>
 - sesame 모델 선택 기준 
 - 1) 자연스럽고 생동감 있는 음성 구현 능력
@@ -198,48 +201,48 @@
 - 3) 향후 온디바이스 적용시 운영 지원 가능성  
 
 - sesame 활용 로직 
-<div align="center">
-  <img src="img/readme_img/ai설명_2.png" />  
+<div>
+  <img src="readme_img/ai설명_2.png" />  
 </div>
 - sesame 모델은 생동감이 있으나 생성시간의 한계 존재
 - gtts는 빠른 생성 시간 특장점이 있어, 두 모델 결합하여 생성시간 약 83% 단축 
-<div align="center">
-  <img src="img/readme_img/ai설명_3.png" />  
+<div>
+  <img src="readme_img/ai설명_3.png" />  
 </div>
 
 
 ## ERD
-<div align="center">
-  <img src="img/image-31.png" />
+<div>
+  <img src="image-31.png" />
 </div>
 
 ## 명세서
 ### 1. 기능 명세서
-<div align="center">
-  <img src="img/기능명세서.gif" />
+<div>
+  <img src="기능명세서.gif" />
 </div>
 
 ### 2. API 명세서
-<div align="center">
+<div>
   <img src="img/api명세서.gif" />
 </div>
 
 ### 3. 요구사항 명세서
-<div align="center">
-  <img src="img/readme_img/요구사항명세서.png" />
+<div>
+  <img src="readme_img/요구사항명세서.png" />
 
 </div>
 
 
 ## 유저 플로우
-<div align="center">
-  <img src="img/readme_img/유저플로우.png" />
+<div>
+  <img src="readme_img/유저플로우.png" />
 </div>
 
 
 ## 화면 정의서
-<div align="center">
-  <img src="img/화면정의서.png" />
+<div>
+  <img src="readme_img/화면정의서.png" />
 </div>
 
 ## 담당 역할
