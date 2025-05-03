@@ -24,13 +24,14 @@
 
 ## 기획배경
 <div>
-  <img src="readme_img/설문조사.png" width="80%" />
+  <img src="readme_img/설문조사.png" width="48%" />
+  <img src="readme_img/설문조사2.png" width="48%" />
 </div>
-1. 설문조사를 통한 사용자 니즈 파악(3/3~3/5)
-- 취업준비생 153명 대상 오픽 학습 서비스에 대한 수요, 학습에서 가장 어려운 점 조사 
-2. 사용자 니즈 도출 
-- 1) 영어로 대본 작성하는 것이 어렵다
-- 2) 실제 시험과 유사한 형태로 연습하고, 예상 등급을 받아보고 싶다 
+1. 설문조사를 통한 사용자 니즈 파악(3/3~3/5)<br>
+- 취업준비생 153명 대상 오픽 학습 서비스에 대한 수요, 학습에서 가장 어려운 점 조사<br> 
+2. 사용자 니즈 도출<br> 
+- 1) 영어로 대본 작성하는 것이 어렵다<br>
+- 2) 실제 시험과 유사한 형태로 연습하고, 예상 등급을 받아보고 싶다<br> 
 
 ## 서비스 목표
 1. 한국어로 답변하면 사용자의 희망 성적 수준에 맞는 영어 스크립트를 생성해 학습 보조
@@ -49,13 +50,14 @@
 ### 2. 실전과 유사한 테스트 환경 제공 
 - 실전(15문제), 유형별(콤보셋/롤플레잉/돌발), 한 문제로 세 가지 유형 테스트 제공
 <div>
-  <img src="readme_img/주기능소개_3.png" />
+  <img src="readme_img/주기능소개_4.gif" width="48%" />
+  <img src="readme_img/주기능소개_3.png" width="48%" />
 </div>
 
 ### 3. 사용자 답변(음성) 평가 
 - Whisper AI로 사용자 응답을 STT 처리하고, Gemini AI를 통해 오픽 성적 채점 기준에 따라 사용자 응답에 대한 점수 및 피드백 제공
-<div>
-  <img src="readme_img/주기능소개_4.png" />
+<div> 
+  <img src="readme_img/주기능소개_4.png"  width="48%" />
 </div>
 <br>
 
@@ -144,7 +146,7 @@
 - 1) 개선점 및 기능에 관한 피드백: "1, 3문제 테스트가 생겨 부담 없이 사용하기 좋고, 예상점수를 알 수 있어서 유용하다."
 - 2) 교내 커뮤니티 배포 후 교우 피드백 : 유료 버전 이용 의사 확인
 <div>  
-  <img src="readme_img/장기피드백_2.png" width="80%"/>
+  <img src="readme_img/장기피드백_3.png" width="48%"/>
 </div>
 
 2. 프로젝트 효과성
@@ -162,7 +164,7 @@
 
 ## 서비스 아키텍처
 <div>
-  <img src="readme_img/아키텍처.png"  width="80%"/>
+  <img src="readme_img/아키텍처.png"   width="48%"/>
 </div>
 
 
@@ -170,7 +172,7 @@
 1. Infra 
 - '업데이트시 서버 끊겨 불편하다'는 유저 피드백에 따라 블루그린 배포 도입하여 서비스 연속성 유지 
 <div>
-  <img src="readme_img/인프라설명.png" width="80%"/>  
+  <img src="readme_img/인프라설명.png"  width="48%"/>  
 </div>
 
 2. Frontend
@@ -186,16 +188,16 @@
 - 서버 외부, 우선순위 작업 큐에 따라 작업 실행하는 비동기 처리 방식으로 해결  
 - 이로써 메모리 사용량 1/5 수준(25MB -> 5MB) 감소 확인
 <div>
-  <img src="readme_img/백엔드설명_1.png" width="33%" />  
-  <img src="readme_img/백엔드설명_2.png"  width="33%"/>  
-  <img src="readme_img/백엔드설명_3.png"  width="33%"/>  
-  <img src="readme_img/백엔드설명_4.png"  width="33%"/>  
+  <img src="readme_img/백엔드설명_1.png" width="48%" />  
+  <img src="readme_img/백엔드설명_2.png"  width="48%"/>  
+  <img src="readme_img/백엔드설명_3.png"  width="48%"/>  
+  <img src="readme_img/백엔드설명_4.png"  width="48%"/>  
 </div>
 
 4. AI 
 - 억양, 발음 등 공식 평가 기준에 따라 이를 학습할 수 있도록 고품질 생동감 있는 원어민 음성 제공  
 <div>
-  <img src="readme_img/ai설명.png" width="80%" />  
+  <img src="readme_img/ai설명.png" width="48%" />  
 </div>
 - sesame 모델 선택 기준 
 - 1) 자연스럽고 생동감 있는 음성 구현 능력
@@ -204,47 +206,47 @@
 
 - sesame 활용 로직 
 <div>
-  <img src="readme_img/ai설명_2.png" width="80%" />  
+  <img src="readme_img/ai설명_2.png" width="48%" />  
 </div>
 - sesame 모델은 생동감이 있으나 생성시간의 한계 존재
 - gtts는 빠른 생성 시간 특장점이 있어, 두 모델 결합하여 생성시간 약 83% 단축 
 <div>
-  <img src="readme_img/ai설명_3.png" width="80%" />  
+  <img src="readme_img/ai설명_3.png" width="48%" />  
 </div>
 
 
 ## ERD
 <div>
-  <img src="image-31.png" width="80%" />
+  <img src="image-31.png" width="48%" />
 </div>
 
 ## 명세서
 ### 1. 기능 명세서
 <div>
-  <img src="기능명세서.gif" width="80%"  />
+  <img src="기능명세서.gif" width="48%"  />
 </div>
 
 ### 2. API 명세서
 <div>
-  <img src="img/api명세서.gif" width="80%" />
+  <img src="img/api명세서.gif" width="48%" />
 </div>
 
 ### 3. 요구사항 명세서
 <div>
-  <img src="readme_img/요구사항명세서.png" width="80%" />
+  <img src="readme_img/요구사항명세서.png" width="48%" />
 
 </div>
 
 
 ## 유저 플로우
 <div>
-  <img src="readme_img/유저플로우.png" width="80%"  />
+  <img src="readme_img/유저플로우.png" height="48%"  />
 </div>
 
 
 ## 화면 정의서
 <div>
-  <img src="readme_img/화면정의서.png" width="80%" />
+  <img src="readme_img/화면정의서.png" width="48%" />
 </div>
 
 ## 담당 역할
