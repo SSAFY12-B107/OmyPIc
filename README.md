@@ -16,7 +16,7 @@
 # OmyPIc : 오직 나만을 위한 오픽 학습 서비스, 오마이픽 
 오픽 시험을 앞둔 사용자를 대상으로 맞춤형 영어 대본을 생성하고, 실전과 유사한 테스트 환경을 제공하는 학습 서비스 
 <div>
-  <img src="readme_img/설문조사.png" />
+  <img src="readme_img/오마이픽_소개.png" width="80%" />
 </div>
 
 ## 개발 기간
@@ -174,7 +174,7 @@
 2. Frontend
 - 사용자 행동 패턴 분석 도구 Hotjar 활용하여 UI/UX 개선에 적극 활용
 <div>
-  <img src="readme_img/프론트엔드설명.png" />  
+  <img src="readme_img/프론트엔드설명png.png" />  
   <img src="readme_img/프론트엔드설명_핫자루.gif" />  
 </div>
 
