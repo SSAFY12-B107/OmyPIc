@@ -93,7 +93,7 @@
 ### 4. 메인 화면 
    1) 현재레벨/희망레벨/시험예정일/실력 향상 추이 시각화 제공하여 지속적 학습 장려 
 <div>
-  <img src="readme_img/메인화면.png" width="48%" />
+  <img src="readme_img/메인화면.png" height="400px"/>
 </div>
 <br>
 
@@ -103,10 +103,13 @@
 <div>
   <img src="readme_img/스크립트생성1.png" height="500px" />
   <img src="readme_img/스크립트생성2.png"  height="500px" />
+</div>
 
 </div>
-     <img src="readme_img/" width="48%" />
-     <img src="readme_img/" width="48%" />
+  <img src="readme_img/" width="48%" />
+  <img src="readme_img/" width="48%" />
+</div>
+
    3) 로딩 화면에 애니메이션, 답변 Tip 명시하여 이탈 가능성 완화 
    4) 스크립트 보완 희망시 디테일 추가 가능하도록 AI 스크립트 보완 기능 제공 
 
@@ -115,14 +118,14 @@
 ### 6. 실전연습 메인 페이지 
    1) 실전연습(테스트 응시) 메인에서 시험유형 선택/유형별 나의 평균 등급 시각화/지난 응시 기록 제공하여 지속 학습 독려 
 <div>
-  <img src="readme_img/실전연습메인화면.png" width="48%" />
+  <img src="readme_img/실전연습메인화면.png" height="400px" />
 </div>
 <br>
 
 ### 7. 실전연습 응시 페이지 
    1) 설문조사 니즈에 따라 '실전과 유사한 환경' 재현하여 반복 연습 환경 제공 
 <div>
-  <img src="readme_img/실전연습화면.png" width="48%" />
+  <img src="readme_img/실전연습화면.png" height="400px" />
 </div>
 <br>
 
