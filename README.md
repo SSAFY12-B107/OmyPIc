@@ -16,7 +16,7 @@
 # OmyPIc : 오직 나만을 위한 오픽 학습 서비스, 오마이픽 
 오픽 시험을 앞둔 사용자를 대상으로 맞춤형 영어 대본을 생성하고, 실전과 유사한 테스트 환경을 제공하는 학습 서비스 
 <div>
-  <img src="readme_img/오마이픽_소개.png" width="80%" />
+  <img src="readme_img/오마이픽_소개.png" width="60%" />
 </div>
 
 ## 개발 기간
@@ -24,14 +24,16 @@
 
 ## 기획배경
 <div>
-  <img src="readme_img/설문조사.png" width="48%" />
-  <img src="readme_img/설문조사2.png" width="48%" />
+  <img src="readme_img/설문조사.png" width="60%" />
 </div>
-1. 설문조사를 통한 사용자 니즈 파악(3/3~3/5)<br>
-- 취업준비생 153명 대상 오픽 학습 서비스에 대한 수요, 학습에서 가장 어려운 점 조사<br> 
-2. 사용자 니즈 도출<br> 
-- 1) 영어로 대본 작성하는 것이 어렵다<br>
-- 2) 실제 시험과 유사한 형태로 연습하고, 예상 등급을 받아보고 싶다<br> 
+
+1. <b>설문조사를 통한 사용자 니즈 파악(3/4~3/6)<b><br>
+  - 취업준비생 153명 대상 오픽 학습 서비스에 대한 수요, 학습에서 가장 어려운 점 조사
+
+
+2. <b>사용자 니즈 도출<b>
+  - 영어로 대본 작성하는 것이 어렵다<br>
+  - 실제 시험과 유사한 형태로 연습하고, 예상 등급을 받아보고 싶다<br> 
 
 ## 서비스 목표
 1. 한국어로 답변하면 사용자의 희망 성적 수준에 맞는 영어 스크립트를 생성해 학습 보조
@@ -50,8 +52,9 @@
 ### 2. 실전과 유사한 테스트 환경 제공 
 - 실전(15문제), 유형별(콤보셋/롤플레잉/돌발), 한 문제로 세 가지 유형 테스트 제공
 <div>
-  <img src="readme_img/주기능소개_4.gif" width="48%" />
   <img src="readme_img/주기능소개_3.png" width="48%" />
+  <img src="readme_img/주기능소개_5.png" width="48%" />
+
 </div>
 
 ### 3. 사용자 답변(음성) 평가 
@@ -67,8 +70,7 @@
    1) 생성형 AI로 생성한 캐릭터 '오피기': 친근감, 부드러운 느낌 강화  
    2) 서비스 소개 화면: 처음 서비스를 접하는 유저를 위해 핵심기능을 요약하여 전달 
 <div>
-  <img src="입력폼%201차.gif" width="48%" />
-  <img src="입력폼%202차.gif" width="48%" />
+  <img src="readme_img/서비스로딩화면.gif" width="60%" />
 </div>
 <br>
 
@@ -76,7 +78,7 @@
    1) 맞춤형 학습을 위해 희망등급/현재등급/시험예정일/정보 활용 동의 정보 입력 
 
 <div>
-  <img src="image-23.png" width="35%" />
+  <img src="readme_img/사용자입력화면.gif" width="60%"  />
 </div>
 <br>
 
@@ -84,8 +86,7 @@
    1) 실제 오픽 시험에서는 백그라운드 서베이 기반 출제되기에 유사한 환경 제공하고자 서베이 제공
    2) 서베이 선택 팁 명시하여 매끄러운 학습 환경 셋팅 지원  
 <div>
-  <img src="메인 페이지, 마이 페이지, 잘 맞는 화장품 수정 시 추천 변화.gif" width="48%" />
-  <img src="마이페이지 top3 및 나와 맞지 않는 성분 제공.gif" width="48%" />
+  <img src="readme_img/서베이화면.gif" width="60%"  />
 </div>
 
 <br>
@@ -93,9 +94,7 @@
 ### 4. 메인 화면 
    1) 현재레벨/희망레벨/시험예정일/실력 향상 추이 시각화 제공하여 지속적 학습 장려 
 <div>
-  <img src="image-27.png" width="48%" />
-  <img src="image-28.png" width="48%" />
-  <img src="일반%20검색,%20추천%20화장품만%20보기.gif" width="48%" />
+  <img src="readme_img/메인화면.png" width="48%" />
 </div>
 <br>
 
@@ -103,29 +102,29 @@
    1) 실전에서 제공되는 주제별 유저가 선택하여 맞춤형 질문 연습 제공 
    2) 기출문제 기반 개인 경험 기반 맞춤형 스크립트 생성 제공 
 <div>
-  <img src="image-24.png" width="35%" />
-  <img src="제품%20상세%20전성분%20보기.gif" width="48%" />
+  <img src="readme_img/스크립트생성1.png" width="48%" />
+  <img src="readme_img/스크립트생성2.png" width="48%" />
+
 </div>
    
    3) 로딩 화면에 애니메이션, 답변 Tip 명시하여 이탈 가능성 완화 
    4) 스크립트 보완 희망시 디테일 추가 가능하도록 AI 스크립트 보완 기능 제공 
 <div>
-  <img src="리뷰작성.gif" width="48%" />
+  <img src="readme_img/리뷰작성.gif" width="48%" />
 </div>
 <br>
 
 ### 6. 실전연습 메인 페이지 
    1) 실전연습(테스트 응시) 메인에서 시험유형 선택/유형별 나의 평균 등급 시각화/지난 응시 기록 제공하여 지속 학습 독려 
 <div>
-  <img src="image-29.png" width="48%" />
+  <img src="readme_img/실전연습메인화면.png" width="48%" />
 </div>
 <br>
 
 ### 7. 실전연습 응시 페이지 
    1) 설문조사 니즈에 따라 '실전과 유사한 환경' 재현하여 반복 연습 환경 제공 
 <div>
-  <img src="img/image-30.png" width="48%" />
-  <img src="img/관리자.gif" width="48%" />
+  <img src="readme_img/실전연습화면.png" width="48%" />
 </div>
 <br>
 
@@ -133,8 +132,9 @@
    1) 종합(각 부문별 보완사항) 피드백 제공하여 상세 가이드 제공
    2) 설문조사 니즈에 따라 개별 피드백으로 '예상등급/문단구성/어휘력/발화량 평가' 기반 개인 솔루션 제공  
 <div>
-  <img src="img/로딩화면.gif" width="48%" />
-  <img src="img/서비스%20소개화면.gif" width="48%" />
+  <img src="readme_img/실전연습피드백화면.png" width="48%" />
+  <img src="readme_img/피드백페이지.gif" width="60%"  />
+
 </div>
 <br>
 
@@ -159,7 +159,7 @@
 
 </div>
 
-3. 삼성 청년 SW 아카데미 공모전 70명 11팀 중 우수상(2등) 수상 
+3. 삼성 청년 SW 아카데미 공모전 전체 70명-11팀 중 우수상(2등) 수상 
 -  창의성/실현가능성/기술 활용도 측면에서 수상 
 
 ## 서비스 아키텍처
@@ -217,18 +217,18 @@
 
 ## ERD
 <div>
-  <img src="image-31.png" width="48%" />
+  <img src="readme_img/ERD.png" width="48%" />
 </div>
 
 ## 명세서
 ### 1. 기능 명세서
 <div>
-  <img src="기능명세서.gif" width="48%"  />
+  <img src="readme_img/기능명세서.png" width="48%"  />
 </div>
 
 ### 2. API 명세서
 <div>
-  <img src="img/api명세서.gif" width="48%" />
+  <img src="readme_img/api명세서.gif" width="48%" />
 </div>
 
 ### 3. 요구사항 명세서
