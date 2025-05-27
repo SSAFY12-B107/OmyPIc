@@ -24,7 +24,7 @@
 
 ## 기획배경
 <div>
-  <img src="readme_img/설문조사.png" width="60%" />
+  <img src="readme_img/설문조사.png" width="48%" />
 </div>
 
 1. <b>설문조사를 통한 사용자 니즈 파악(3/4~3/6)<b><br>
@@ -44,7 +44,7 @@
 - 한/영 응답 기반으로 Gemini AI를 통해 IH~AL 수준 영어 스크립트 생성
 
 <div>
-  <img src="readme_img/주기능소개_1png.png"width="48%"  />
+  <img src="readme_img/주기능소개_1png.png" width="48%"  />
   <img src="readme_img/주기능소개_2.png" width="48%" />
 </div>
 <br>
@@ -53,7 +53,6 @@
 - 실전(15문제), 유형별(콤보셋/롤플레잉/돌발), 한 문제로 세 가지 유형 테스트 제공
 <div>
   <img src="readme_img/주기능소개_3.png" width="48%" />
-  <img src="readme_img/주기능소개_5.png" width="48%" />
 
 </div>
 
@@ -70,7 +69,7 @@
    1) 생성형 AI로 생성한 캐릭터 '오피기': 친근감, 부드러운 느낌 강화  
    2) 서비스 소개 화면: 처음 서비스를 접하는 유저를 위해 핵심기능을 요약하여 전달 
 <div>
-  <img src="readme_img/서비스로딩화면.gif" width="60%" />
+  <img src="readme_img/서비스로딩화면.gif" height="700px" />
 </div>
 <br>
 
@@ -78,7 +77,7 @@
    1) 맞춤형 학습을 위해 희망등급/현재등급/시험예정일/정보 활용 동의 정보 입력 
 
 <div>
-  <img src="readme_img/사용자입력화면.gif" width="60%"  />
+  <img src="readme_img/사용자입력화면.gif" height="600px" />
 </div>
 <br>
 
@@ -86,7 +85,7 @@
    1) 실제 오픽 시험에서는 백그라운드 서베이 기반 출제되기에 유사한 환경 제공하고자 서베이 제공
    2) 서베이 선택 팁 명시하여 매끄러운 학습 환경 셋팅 지원  
 <div>
-  <img src="readme_img/서베이화면.gif" width="60%"  />
+  <img src="readme_img/서베이화면.gif" height="600px" />
 </div>
 
 <br>
@@ -102,16 +101,15 @@
    1) 실전에서 제공되는 주제별 유저가 선택하여 맞춤형 질문 연습 제공 
    2) 기출문제 기반 개인 경험 기반 맞춤형 스크립트 생성 제공 
 <div>
-  <img src="readme_img/스크립트생성1.png" width="48%" />
-  <img src="readme_img/스크립트생성2.png" width="48%" />
+  <img src="readme_img/스크립트생성1.png" height="500px" />
+  <img src="readme_img/스크립트생성2.png"  height="500px" />
 
 </div>
-   
+     <img src="readme_img/" width="48%" />
+     <img src="readme_img/" width="48%" />
    3) 로딩 화면에 애니메이션, 답변 Tip 명시하여 이탈 가능성 완화 
    4) 스크립트 보완 희망시 디테일 추가 가능하도록 AI 스크립트 보완 기능 제공 
-<div>
-  <img src="readme_img/리뷰작성.gif" width="48%" />
-</div>
+
 <br>
 
 ### 6. 실전연습 메인 페이지 
@@ -132,9 +130,7 @@
    1) 종합(각 부문별 보완사항) 피드백 제공하여 상세 가이드 제공
    2) 설문조사 니즈에 따라 개별 피드백으로 '예상등급/문단구성/어휘력/발화량 평가' 기반 개인 솔루션 제공  
 <div>
-  <img src="readme_img/실전연습피드백화면.png" width="48%" />
-  <img src="readme_img/피드백페이지.gif" width="60%"  />
-
+  <img src="readme_img/피드백페이지.gif" height="600px" />
 </div>
 <br>
 
@@ -169,20 +165,21 @@
 
 
 ## 기술 설명 
-1. Infra 
+1. <b>Infra<b> 
 - '업데이트시 서버 끊겨 불편하다'는 유저 피드백에 따라 블루그린 배포 도입하여 서비스 연속성 유지 
 <div>
   <img src="readme_img/인프라설명.png"  width="48%"/>  
 </div>
+<br>
 
-2. Frontend
+2. <b>Frontend<b>
 - 사용자 행동 패턴 분석 도구 Hotjar 활용하여 UI/UX 개선에 적극 활용
 <div>
   <img src="readme_img/프론트엔드설명png.png" width="48%"/>  
   <img src="readme_img/프론트엔드설명_핫자루.gif" width="48%"/>  
 </div>
 
-3. Backend
+3. <b>Backend<b>
 - Celery와 Redis 도입하여 원어민 음성 생성 로직 서버 부하 감소
 - Fast API 서버 내부 Background Tasks는 트래픽에 따른 병목 발생, 작업 실패시 재시도 불가
 - 서버 외부, 우선순위 작업 큐에 따라 작업 실행하는 비동기 처리 방식으로 해결  
@@ -194,25 +191,24 @@
   <img src="readme_img/백엔드설명_4.png"  width="48%"/>  
 </div>
 
-4. AI 
+4. <b>AI<b> 
 - 억양, 발음 등 공식 평가 기준에 따라 이를 학습할 수 있도록 고품질 생동감 있는 원어민 음성 제공  
+- sesame 모델 선택 기준 
+  - 자연스럽고 생동감 있는 음성 구현 능력
+  - 상업적 활용 라이선스 보유 여부
+  - 향후 온디바이스 적용시 운영 지원 가능성  
 <div>
   <img src="readme_img/ai설명.png" width="48%" />  
 </div>
-- sesame 모델 선택 기준 
-- 1) 자연스럽고 생동감 있는 음성 구현 능력
-- 2) 상업적 활용 라이선스 보유 여부
-- 3) 향후 온디바이스 적용시 운영 지원 가능성  
 
 - sesame 활용 로직 
+  - sesame 모델은 생동감이 있으나 생성시간의 한계 존재
+  - gtts는 빠른 생성 시간 특장점이 있어, 두 모델 결합하여 생성시간 약 83% 단축 
 <div>
   <img src="readme_img/ai설명_2.png" width="48%" />  
+    <img src="readme_img/ai설명_3.png" width="48%" />  
 </div>
-- sesame 모델은 생동감이 있으나 생성시간의 한계 존재
-- gtts는 빠른 생성 시간 특장점이 있어, 두 모델 결합하여 생성시간 약 83% 단축 
-<div>
-  <img src="readme_img/ai설명_3.png" width="48%" />  
-</div>
+
 
 
 ## ERD
@@ -228,7 +224,7 @@
 
 ### 2. API 명세서
 <div>
-  <img src="readme_img/api명세서.gif" width="48%" />
+  <img src="readme_img/api명세서.png" width="48%" />
 </div>
 
 ### 3. 요구사항 명세서
@@ -240,7 +236,7 @@
 
 ## 유저 플로우
 <div>
-  <img src="readme_img/유저플로우.png" height="48%"  />
+  <img src="readme_img/유저플로우.png" height="500px"   />
 </div>
 
 
@@ -257,5 +253,5 @@
 | **김세림** | BE, Data | - BeautifulSoup, Selenium을 이용한 화장품 데이터 크롤링<br>- 화장품 성분 및 평점 데이터 수집<br>- 성분명 전처리 진행<br>- DB 초기 데이터 정제 및 AWS S3 이미지 url 연동<br>- 리뷰 페이지 CRUD 구현<br>- AWS S3을 이용한 이미지 업로드 기능 구현 |
 | **오한나** | FE | - 서비스 디자인(Figma)<br>- 메인페이지, 상품 상세 페이지, 리뷰 등록, 소개 페이지 구현<br>- 검색 팝업창(화장품/성분 등록/수정 기능) 구현<br>- 리뷰 등록, OCR, 관리자페이지에서 사용하는 이미지 업로드, 미리보기 컴포넌트 구현<br>- 회원정보폼 구현 마무리<br>- css 초기 설정 및 반응형 설정 |
 | **이태우** | BE | - 서비스 디자인(Figma)<br>- JPA를 이용하여 API 개발<br>- 스프링부트 서버에서 검색 정렬 알고리즘 구현<br>- 디바운싱 기반 화장품과 성분명 자동 완성 알고리즘 구현<br>- 화장품 상세 페이지 |
-| **전혜준** | FE | - Zustand 전역 상태 관리 시스템 구축<br>- TanStack Query와 Axios 기반 비동기 데이터 처리<br>- 검색 기능 구현(디바운싱 기반 연관 검색어, 필터링 검색)<br>- 마이페이지, 회원정보폼, OCR 등록 페이지<br>- 리뷰 좋아요 CRUD 기능 구현<br>- SCSS와 CSS Keyframes 활용한 인터랙티브 UI/UX 개발<br>- Figma 화면정의서 & API 명세서 지속적 업데이트 |
+| **전혜준** | FE | - Redux 전역 상태 관리 시스템 구축<br>- TanStack Query와 Axios 기반 비동기 데이터 처리<br>- 실전연습 기능 구현(학습 콘텐츠 유형 3가지, 사용자 답변 녹음, 예상등급 및 피드백 평가, 유저 학습 그래프 시각화)<br>- CSS 활용한 인터랙티브 UI/UX 개발<br>- Figma 화면정의서 & 유저플로우 & api 명세서 지속적 업데이트 |
 | **황대규** | BE, FE, Data | - 로그인, 회원가입, 초기 회원 정보 입력 폼 페이지 구현<br>- 관리자 신고 받은 리뷰 확인 및 ocr 기반 화장품 등록 페이지 구현<br>- 관리자 페이지 CRUD 구현<br>- clova ocr모델과 open ai api를 활용, ocr 데이터 처리<br>- 코사인 유사도, 하이브리드 추천 시스템을 활용한 추천 알고리즘 구현 |
