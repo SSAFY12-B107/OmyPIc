@@ -108,8 +108,8 @@
    3) 로딩 화면에 애니메이션, 답변 Tip 명시하여 이탈 가능성 완화 
    4) 스크립트 보완 희망시 디테일 추가 가능하도록 AI 스크립트 보완 기능 제공 
 <div style="display: flex;">
-  <img src="readme_img/스크립트생성4.png" width="35%" height="20%"/>
-  <img src="readme_img/스크립트생성3.png" width="35%" height="20%" />
+  <img src="readme_img/스크립트생성4.png" width="30%" />
+  <img src="readme_img/스크립트생성3.png" width="30%" />
 </div>
 
 
