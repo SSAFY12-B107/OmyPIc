@@ -102,12 +102,12 @@
    2) 기출문제 기반 개인 경험 기반 맞춤형 스크립트 생성 제공 
 <div>
   <img src="readme_img/스크립트생성1.png" height="500px" />
-  <img src="readme_img/스크립트생성2.png"  height="500px" />
+  <img src="readme_img/스크립트생성2.png" height="500px" />
 </div>
 
 </div>
-  <img src="readme_img/" width="48%" />
-  <img src="readme_img/" width="48%" />
+  <img src="readme_img/스크립트생성4.png" height="400px" />
+  <img src="readme_img/스크립트생성3.png" height="400px" />
 </div>
 
    3) 로딩 화면에 애니메이션, 답변 Tip 명시하여 이탈 가능성 완화 
@@ -252,9 +252,8 @@
 
 | 이름 | 역할 | 담당 업무 |
 | --- | --- | --- |
-| **김의중** | BE, Infra | - Spring Security, JWT, OAuth를 이용해 소셜로그인 및 회원가입 구현 (인증, 인가)<br>- 회원 마이페이지 CRUD 기능 구현<br>- JPA를 이용하여 API 개발<br>- Redis를 이용하여 인증토큰 관리 및 추천화장품, 성분분석정보 캐싱<br>- EC2, Jenkins, Dokcer, Nginx, GitLab을 이용하여 무중단 배포서버 구축<br>- 인증서를 이용하여 https 구현<br>- Nginx로 리버스프록시 사용 (/api, /, /recommend, /ocr)<br>- 스프링부트 서버에서 성분 분석 알고리즘 구현 |
-| **김세림** | BE, Data | - BeautifulSoup, Selenium을 이용한 화장품 데이터 크롤링<br>- 화장품 성분 및 평점 데이터 수집<br>- 성분명 전처리 진행<br>- DB 초기 데이터 정제 및 AWS S3 이미지 url 연동<br>- 리뷰 페이지 CRUD 구현<br>- AWS S3을 이용한 이미지 업로드 기능 구현 |
-| **오한나** | FE | - 서비스 디자인(Figma)<br>- 메인페이지, 상품 상세 페이지, 리뷰 등록, 소개 페이지 구현<br>- 검색 팝업창(화장품/성분 등록/수정 기능) 구현<br>- 리뷰 등록, OCR, 관리자페이지에서 사용하는 이미지 업로드, 미리보기 컴포넌트 구현<br>- 회원정보폼 구현 마무리<br>- css 초기 설정 및 반응형 설정 |
-| **이태우** | BE | - 서비스 디자인(Figma)<br>- JPA를 이용하여 API 개발<br>- 스프링부트 서버에서 검색 정렬 알고리즘 구현<br>- 디바운싱 기반 화장품과 성분명 자동 완성 알고리즘 구현<br>- 화장품 상세 페이지 |
-| **전혜준** | FE | - Redux 전역 상태 관리 시스템 구축<br>- TanStack Query와 Axios 기반 비동기 데이터 처리<br>- 실전연습 기능 구현(학습 콘텐츠 유형 3가지, 사용자 답변 녹음, 예상등급 및 피드백 평가, 유저 학습 그래프 시각화)<br>- CSS 활용한 인터랙티브 UI/UX 개발<br>- Figma 화면정의서 & 유저플로우 & api 명세서 지속적 업데이트 |
-| **황대규** | BE, FE, Data | - 로그인, 회원가입, 초기 회원 정보 입력 폼 페이지 구현<br>- 관리자 신고 받은 리뷰 확인 및 ocr 기반 화장품 등록 페이지 구현<br>- 관리자 페이지 CRUD 구현<br>- clova ocr모델과 open ai api를 활용, ocr 데이터 처리<br>- 코사인 유사도, 하이브리드 추천 시스템을 활용한 추천 알고리즘 구현 |
+| 김윤하 | BE, AI | - 스크립트 작성 및 모의고사 CRUD 기능 구현 <br> - PyMongo ORM을 활용한 API 개발 <br> - Celery + Redis 기반 병렬/큐잉 처리 구조 도입을 통한 음성 평가 로직의 성능 및 안정성 개선 <br> - LangChain을 활용한 STT 처리 및 음성 평가 로직 구현 <br>- Redis-Celery-Flower 기반 분산 작업 처리 시스템 구축 <br>- Prometheus-Grafana를 활용한 실시간 시스템 모니터링 및 시각화 구현 <br> - Whisk, Midjourney, ChatGPT, Runway ML 등 생성형 AI를 활용한 캐릭터 컨셉 및 디자인 개발, 영상 포트폴리오 제작
+| 김성태 | INFRA | - 전체 시스템 아키텍처 설계 및 구축<br>- AWS EC2와 Docker 기반 클라우드 플랫폼 배포 시스템 구축<br>- GitLab-Nginx-Jenkins 파이프라인을 통한 Blue/Green 배포 시스템 구현<br>- Shell Script를 활용한 배포 이상 상황 감지 및 자동 트래픽 전환 로직 구현<br>- AWS S3 기반 음성 데이터 저장 및 관리 시스템 구축<br>- Redis-Celery-Flower를 활용한 분산 작업 처리 시스템 구축<br>- Prometheus-Grafana를 통한 실시간 시스템 모니터링 및 시각화 구현<br>- SonarQube 기반 정적 코드 품질 검사 시스템 구축<br>- MatterMost 연동을 통한 빌드 상태 실시간 알림 시스템 구현 |
+| 김주희 | FE | - 오픽 시험과 동일한 문항의 설문조사 페이지 구현<br>- Google/Naver Oauth 연동을 통한 소셜 로그인 기능 구현<br>- 반응형 UI 설계 및 사용자 편의성 개선<br>- 로그인/회원가입 플로우 테스트 및 예외 처리 강화<br>- Google Analytics 연동을 통한 사용자 행동 분석<br>- PWA 적용으로 모바일 환경에서도 앱처럼 이용 가능한 환경 구축<br>- Figma 화면정의서 & 유저플로우 & API 명세서 지속적 업데이트 |
+| 오한나 | FE | - 개인 경험 기반 맟춤형 스크립트 작성 관련 페이지, 메인페이지 구현<br>- 토큰 기반 인증 및 에러 처리 자동화하는 Axios 인스턴스 구축<br>- 사용자 인증 상태별 페이지 접근 제어 라우팅 로직 구현<br>- 사용자 행동 분석 및 인사이트 확보를 위해 Hotjar 연동<br>- Figma 화면정의서 & 유저플로우 & api 명세서 지속적 업데이트 |
+| 전혜준 | FE | - Redux 전역 상태 관리 시스템 구축<br>- TanStack Query와 Axios 기반 비동기 데이터 처리<br>- 개인 경험 기반 맞춤형 실전연습 페이지 구현(학습 콘텐츠 유형 3가지, 사용자 답변 녹음, 예상등급 및 피드백 평가, 유저 학습 그래프 시각화)<br>- UI/UX 최적화, 최상단 CSS 파일 설정으로 일관된 인터랙티브 UI/UX 개발<br>- Figma 화면정의서 & 유저플로우 & api 명세서 지속적 업데이트<br>-PPT 제작,지역대전 프로젝트 발표대회 발표 |
