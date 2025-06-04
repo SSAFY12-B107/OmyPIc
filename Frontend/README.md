@@ -88,3 +88,4 @@ npm run dev
 - 전역 상태는 Redux Toolkit을 사용하며, 서버 데이터 요청 및 캐싱, 로딩/에러 상태 관리를 위해 TanStack Query를 사용합니다.
 
 - GA(Google Analytics) 및 Hotjar를 통한 유저 행동 추적을 지원합니다.
+----------------
