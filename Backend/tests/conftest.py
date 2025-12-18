@@ -12,8 +12,38 @@ pytest "fixtures"를 모아두는 파일
 '''
 
 import pytest
+import os
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, MagicMock
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_env():
+    '''
+    테스트 환경 변수 설정
+
+    모든 테스트 실행 전에 자동으로 실행됨 (autouse=True)
+    session scope로 테스트 세션당 1번만 실행됨
+    '''
+    # .env 파일 비활성화 (테스트 환경에서는 사용 안 함)
+    os.environ["PYDANTIC_SETTINGS_DOTENV_ENABLED"] = "0"
+
+    # 필수 환경변수 설정 (Settings 검증 통과용)
+    os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "15"
+    os.environ["REFRESH_TOKEN_EXPIRE_DAYS"] = "7"
+    os.environ["WIT_AI_API_KEY"] = "test_wit_api_key"
+    os.environ["MONGODB_URL"] = "mongodb://localhost:27017"
+    os.environ["JWT_SECRET_KEY"] = "test_jwt_secret"
+    os.environ["REFRESH_TOKEN_SECRET_KEY"] = "test_refresh_secret"
+    os.environ["AWS_ACCESS_KEY_ID"] = "test_aws_key"
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "test_aws_secret"
+    os.environ["AWS_REGION"] = "ap-northeast-2"
+    os.environ["AWS_S3_BUCKET_NAME"] = "test-bucket"
+
+    yield
+
+    # 테스트 종료 후 정리 (필요시)
+
 
 @pytest.fixture
 def mock_db():
@@ -164,3 +194,14 @@ def create_test_tokens():
         return access_token, refresh_token
 
     return _create_tokens
+
+
+# Audio 테스트용 fixtures
+@pytest.fixture
+def sample_audio_bytes():
+    '''
+    테스트용 샘플 오디오 바이트 데이터
+
+    실제 오디오는 아니지만 크기 검증용으로 충분함
+    '''
+    return b"fake_audio_data" * 100  # 1500 bytes
