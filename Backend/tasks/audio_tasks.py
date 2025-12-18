@@ -8,13 +8,87 @@ from bson import ObjectId, errors as bson_errors
 from db.mongodb import get_mongodb_sync
 from services.audio_processor import AudioProcessor
 from services.evaluator import ResponseEvaluator
-
-import time
+from core.exceptions import APIQuotaExceededError, APIRateLimitError, EvaluationError
 
 # 로깅 설정
 logger = logging.getLogger(__name__)
 
-@shared_task(bind=True, name="evaluate_random_problem")
+
+def evaluate_with_error_handling(evaluator, method_name, *args, **kwargs):
+    """
+    평가 함수 호출 및 API 오류 감지 헬퍼 함수
+
+    ResponseEvaluator의 메서드를 호출하고 API 오류를 적절한 예외로 변환
+    결과 검증도 수행하여 유효하지 않은 결과는 기본값으로 대체
+
+    Args:
+        evaluator: ResponseEvaluator 인스턴스
+        method_name: 호출할 메서드 이름 (예: 'evaluate_response_sync')
+        *args: 메서드에 전달할 위치 인자
+        **kwargs: 메서드에 전달할 키워드 인자
+
+    Returns:
+        dict: 평가 결과 딕셔너리
+
+    Raises:
+        APIQuotaExceededError: API 할당량 초과 시
+        APIRateLimitError: API Rate Limit 도달 시
+        EvaluationError: 기타 평가 오류 발생 시
+    """
+    try:
+        method = getattr(evaluator, method_name)
+        result = method(*args, **kwargs)
+
+        # 결과 검증 - None이나 유효하지 않은 딕셔너리면 기본값 반환
+        if not result or not isinstance(result, dict):
+            logger.warning(f"평가 결과가 유효하지 않습니다: {result}")
+            # 메서드 종류에 따라 다른 기본값 반환
+            if method_name == "evaluate_overall_test_sync":
+                return {
+                    "test_score": {
+                        "total_score": "IM2",
+                        "comboset_score": "IM2",
+                        "roleplaying_score": "IM2",
+                        "unexpected_score": "IM2"
+                    },
+                    "test_feedback": {
+                        "total_feedback": "평가 결과 형식이 올바르지 않아 기본 피드백을 제공합니다.",
+                        "paragraph": "문단 구성력 평가를 완료할 수 없습니다.",
+                        "vocabulary": "어휘력 평가를 완료할 수 없습니다.",
+                        "spoken_amount": "전달력 평가를 완료할 수 없습니다."
+                    }
+                }
+            else:
+                return {
+                    "score": "IL",
+                    "feedback": {
+                        "paragraph": "평가를 완료했으나 결과 형식이 올바르지 않습니다.",
+                        "vocabulary": "기본 어휘력 평가입니다.",
+                        "spoken_amount": "기본 전달력 평가입니다."
+                    }
+                }
+
+        return result
+
+    except Exception as e:
+        error_msg = str(e).lower()
+        # API 할당량이나 Rate Limit 관련 오류 감지
+        if any(term in error_msg for term in ["quota", "429", "rate limit", "exceeded"]):
+            logger.warning(f"API 할당량/Rate Limit 오류 감지: {error_msg}")
+            raise APIQuotaExceededError(str(e))
+        # 기타 평가 오류
+        logger.error(f"평가 중 오류 발생: {error_msg}")
+        raise EvaluationError(str(e))
+
+@shared_task(
+    bind=True,
+    name="evaluate_random_problem",
+    autoretry_for=(APIQuotaExceededError, APIRateLimitError),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    max_retries=5
+)
 def evaluate_random_problem_task(self, test_id, problem_id, user_id, audio_content_base64):
     try:
         # Base64 디코딩
@@ -52,67 +126,21 @@ def evaluate_random_problem_task(self, test_id, problem_id, user_id, audio_conte
                 }
             }
         else:
-            # 응답 평가 - 재시도 로직 추가
+            # 응답 평가 - Celery auto-retry가 자동으로 재시도 처리
             evaluator = ResponseEvaluator()
-            
-            # 최대 5번까지 재시도
-            retry_count = 0
-            max_retries = 5
-            last_error = None
-            
-            while retry_count < max_retries:
-                try:
-                    evaluation_result = evaluator.evaluate_response_sync(
-                        transcribed_text, 
-                        problem.get("problem_category", ""),
-                        problem.get("topic_category", ""),
-                        problem.get("content", "")
-                    )
-                    
-                    # 평가 결과 로깅
-                    logger.info(f"평가 결과: {evaluation_result}")
-                    
-                    # 결과 검증
-                    if not evaluation_result or not isinstance(evaluation_result, dict):
-                        logger.warning(f"평가 결과가 유효하지 않습니다: {evaluation_result}")
-                        evaluation_result = {
-                            "score": "IL",
-                            "feedback": {
-                                "paragraph": "평가를 완료했으나 결과 형식이 올바르지 않습니다.",
-                                "vocabulary": "기본 어휘력 평가입니다.",
-                                "spoken_amount": "기본 전달력 평가입니다."
-                            }
-                        }
-                    
-                    # 성공적으로 결과를 얻었으면 반복 종료
-                    break
-                    
-                except Exception as e:
-                    retry_count += 1
-                    last_error = e
-                    error_msg = str(e).lower()
-                    
-                    # API 할당량 초과 관련 오류인 경우
-                    if any(term in error_msg for term in ["quota", "429", "rate limit", "exceeded"]):
-                        logger.warning(f"API 할당량 오류 발생 ({retry_count}/{max_retries}): {error_msg}")
-                        # 다음 시도 전에 잠시 대기
-                        time.sleep(2 * retry_count)  # 점점 더 긴 대기 시간
-                    else:
-                        logger.error(f"평가 중 오류 발생 ({retry_count}/{max_retries}): {error_msg}")
-                        time.sleep(1)
-                    
-                    # 마지막 시도에서도 실패한 경우
-                    if retry_count >= max_retries:
-                        logger.error(f"최대 재시도 횟수에 도달했습니다: {error_msg}")
-                        evaluation_result = {
-                            "score": "ERROR",
-                            "feedback": {
-                                "paragraph": f"평가 중 오류가 발생했습니다: {str(last_error)}",
-                                "vocabulary": "평가를 완료할 수 없습니다.",
-                                "spoken_amount": "평가를 완료할 수 없습니다."
-                            },
-                            "error": str(last_error)
-                        }
+
+            # 평가 수행 (API 오류 시 APIQuotaExceededError 발생 → auto-retry)
+            evaluation_result = evaluate_with_error_handling(
+                evaluator,
+                'evaluate_response_sync',
+                transcribed_text,
+                problem.get("problem_category", ""),
+                problem.get("topic_category", ""),
+                problem.get("content", "")
+            )
+
+            # 평가 결과 로깅
+            logger.info(f"평가 결과: {evaluation_result}")
         
         # 테스트 문서 업데이트
         db.tests.update_one(
@@ -177,7 +205,15 @@ def evaluate_random_problem_task(self, test_id, problem_id, user_id, audio_conte
             "evaluated_at": datetime.now().isoformat()
         }
 
-@shared_task(bind=True, name="process_audio")
+@shared_task(
+    bind=True,
+    name="process_audio",
+    autoretry_for=(APIQuotaExceededError, APIRateLimitError),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    max_retries=5
+)
 def process_audio_task(self, test_id, problem_id, problem_number, audio_content_bytes, is_last_problem=False):
     """
     오디오 파일을 처리하고 평가하는 Celery 작업
@@ -270,68 +306,21 @@ def process_audio_task(self, test_id, problem_id, problem_number, audio_content_
                 }
             }
         else:
-            # 7. 평가기 생성 및 평가 수행 - 재시도 로직 추가
+            # 7. 평가기 생성 및 평가 수행 - Celery auto-retry가 자동으로 재시도 처리
             evaluator_instance = ResponseEvaluator()
-            
-            # 최대 5번까지 재시도
-            retry_count = 0
-            max_retries = 5
-            last_error = None
-            
-            while retry_count < max_retries:
-                try:
-                    # LangChain 평가 모델 호출 - 동기식
-                    evaluation_result = evaluator_instance.evaluate_response_sync(
-                        user_response=transcribed_text,
-                        problem_category=problem_category,
-                        topic_category=topic_category,
-                        problem=problem_content
-                    )
-                    
-                    # 평가 결과 로깅 - 로그에서 확인할 수 있도록
-                    logger.info(f"평가 결과: {evaluation_result}")
-                    
-                    # 결과 검증 - None이나 빈 딕셔너리면 기본값 적용
-                    if not evaluation_result or not isinstance(evaluation_result, dict):
-                        logger.warning(f"평가 결과가 유효하지 않습니다: {evaluation_result}")
-                        evaluation_result = {
-                            "score": "IL",
-                            "feedback": {
-                                "paragraph": "평가를 완료했으나 결과 형식이 올바르지 않습니다.",
-                                "vocabulary": "기본 어휘력 평가입니다.",
-                                "spoken_amount": "기본 전달력 평가입니다."
-                            }
-                        }
-                    
-                    # 성공적으로 결과를 얻었으면 반복 종료
-                    break
-                    
-                except Exception as e:
-                    retry_count += 1
-                    last_error = e
-                    error_msg = str(e).lower()
-                    
-                    # API 할당량 초과 관련 오류인 경우
-                    if any(term in error_msg for term in ["quota", "429", "rate limit", "exceeded"]):
-                        logger.warning(f"API 할당량 오류 발생 ({retry_count}/{max_retries}): {error_msg}")
-                        # 다음 시도 전에 잠시 대기
-                        time.sleep(2 * retry_count)  # 점점 더 긴 대기 시간
-                    else:
-                        logger.error(f"평가 중 오류 발생 ({retry_count}/{max_retries}): {error_msg}")
-                        time.sleep(1)
-                    
-                    # 마지막 시도에서도 실패한 경우
-                    if retry_count >= max_retries:
-                        logger.error(f"최대 재시도 횟수에 도달했습니다: {error_msg}")
-                        evaluation_result = {
-                            "score": "ERROR",
-                            "feedback": {
-                                "paragraph": f"평가 중 오류가 발생했습니다: {str(last_error)}",
-                                "vocabulary": "평가를 완료할 수 없습니다.",
-                                "spoken_amount": "평가를 완료할 수 없습니다."
-                            },
-                            "error": str(last_error)
-                        }
+
+            # 평가 수행 (API 오류 시 APIQuotaExceededError 발생 → auto-retry)
+            evaluation_result = evaluate_with_error_handling(
+                evaluator_instance,
+                'evaluate_response_sync',
+                user_response=transcribed_text,
+                problem_category=problem_category,
+                topic_category=topic_category,
+                problem=problem_content
+            )
+
+            # 평가 결과 로깅
+            logger.info(f"평가 결과: {evaluation_result}")
         
         # 점수와 피드백 추출 - 더 안전한 방식으로
         score = evaluation_result.get("score", None)
@@ -417,7 +406,15 @@ def process_audio_task(self, test_id, problem_id, problem_number, audio_content_
             "error": str(e)
         }
 
-@shared_task(bind=True, name="evaluate_overall_test")
+@shared_task(
+    bind=True,
+    name="evaluate_overall_test",
+    autoretry_for=(APIQuotaExceededError, APIRateLimitError),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    max_retries=5
+)
 def evaluate_overall_test_task(self, test_id):
     """전체 테스트 종합 평가 Celery 작업"""
     from services.evaluator import ResponseEvaluator
@@ -458,60 +455,19 @@ def evaluate_overall_test_task(self, test_id):
 
         logger.info(f"전체 테스트 종합 평가 시작 - 문제 수: {len(problem_details)}")
 
-        # 4. 평가기 생성 및 종합 평가 실행 - 재시도 로직 추가
+        # 4. 평가기 생성 및 종합 평가 실행 - Celery auto-retry가 자동으로 재시도 처리
         evaluator = ResponseEvaluator()
 
-        # 최대 5번까지 재시도
-        retry_count = 0
-        max_retries = 5
-        last_error = None
+        # 종합 평가 수행 (API 오류 시 APIQuotaExceededError 발생 → auto-retry)
+        evaluation_result = evaluate_with_error_handling(
+            evaluator,
+            'evaluate_overall_test_sync',
+            test,
+            problem_details
+        )
 
-        while retry_count < max_retries:
-            try:
-                evaluation_result = evaluator.evaluate_overall_test_sync(test, problem_details)
-                
-                # 결과 로깅
-                logger.info(f"종합 평가 결과: {evaluation_result}")
-                
-                # 결과 검증
-                if not evaluation_result or not isinstance(evaluation_result, dict):
-                    logger.warning("종합 평가 결과가 유효하지 않습니다")
-                    evaluation_result = {
-                        "test_score": {
-                            "total_score": "IM2",
-                            "comboset_score": "IM2",
-                            "roleplaying_score": "IM2",
-                            "unexpected_score": "IM2"
-                        },
-                        "test_feedback": {
-                            "total_feedback": "평가 결과 형식이 올바르지 않아 기본 피드백을 제공합니다.",
-                            "paragraph": "문단 구성력 평가를 완료할 수 없습니다.",
-                            "vocabulary": "어휘력 평가를 완료할 수 없습니다.",
-                            "spoken_amount": "전달력 평가를 완료할 수 없습니다."
-                        }
-                    }
-                
-                # 성공적으로 결과를 얻었으면 반복 종료
-                break
-                
-            except Exception as e:
-                retry_count += 1
-                last_error = e
-                error_msg = str(e).lower()
-                
-                # API 할당량 초과 관련 오류인 경우
-                if any(term in error_msg for term in ["quota", "429", "rate limit", "exceeded"]):
-                    logger.warning(f"API 할당량 오류 발생 ({retry_count}/{max_retries}): {error_msg}")
-                    # 다음 시도 전에 잠시 대기
-                    time.sleep(2 * retry_count)  # 점점 더 긴 대기 시간
-                else:
-                    logger.error(f"종합 평가 중 오류 발생 ({retry_count}/{max_retries}): {error_msg}")
-                    time.sleep(1)
-                
-                # 마지막 시도에서도 실패한 경우
-                if retry_count >= max_retries:
-                    logger.error(f"최대 재시도 횟수에 도달했습니다: {error_msg}")
-                    raise ValueError(f"종합 평가 중 오류가 발생했습니다: {str(last_error)}")
+        # 결과 로깅
+        logger.info(f"종합 평가 결과: {evaluation_result}")
 
         # 5. 점수 및 피드백 업데이트
         db.tests.update_one(

@@ -48,3 +48,11 @@ APScheduler==3.11.0
 redis==5.2.1
 celery==5.5.0
 flower==2.0.1
+gevent>=23.9.0  # Celery gevent pool - I/O Bound 작업 최적화 (100개 동시 처리)
+
+# Testing - 테스트 관련 패키지
+pytest==8.3.4                # 테스트 프레임워크
+pytest-asyncio==0.24.0       # 비동기 테스트 지원
+respx==0.21.1                # HTTP 요청 모킹 (가짜 API 응답)
+mongomock-motor==0.0.34      # MongoDB 모킹 (가짜 DB)
+faker==33.1.0                # 가짜 데이터 생성

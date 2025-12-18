@@ -51,7 +51,9 @@ class Settings(BaseSettings):
     AWS_S3_BUCKET_NAME: str = Field(..., env="AWS_S3_BUCKET_NAME")
 
     GEMINI_API_KEYS: str = os.getenv("GEMINI_API_KEYS")
-    GROQ_API_KEYS: str = os.getenv("GROQ_API_KEYS")
+
+    # Wit.ai STT 설정
+    WIT_AI_API_KEY: str = os.getenv("WIT_AI_API_KEY", "")
 
     # Redis 및 Celery 설정
     REDIS_URL: str = os.getenv("REDIS_URL")
@@ -62,9 +64,6 @@ class Settings(BaseSettings):
     
     def gemini_api_keys(self) -> List[str]:
         return [i.strip() for i in self.GEMINI_API_KEYS.split(",") if i.strip()]
-    
-    def groq_api_keys(self) -> List[str]:
-        return [i.strip() for i in self.GROQ_API_KEYS.split(",") if i.strip()]
 
     @property
     def cookie_domain(self) -> Optional[str]:

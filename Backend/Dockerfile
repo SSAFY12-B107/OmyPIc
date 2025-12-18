@@ -25,3 +25,23 @@ COPY . .
 # 실행 설정
 EXPOSE 8000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# ============================================================================
+# Celery Worker 실행 명령어 (참고용 - 별도 컨테이너에서 실행)
+# ============================================================================
+#
+# Gevent ㅇ 사용 Celery Worker 실행:
+# celery -A celery_worker.celery_app worker \
+#   --pool=gevent \
+#   --concurrency=100 \
+#   --loglevel=info \
+#   --max-tasks-per-child=500 \
+#   --max-memory-per-child=512000
+#
+# 또는 celery_worker.py의 설정을 사용하는 경우:
+# celery -A celery_worker.celery_app worker --loglevel=info
+# (worker_pool, worker_concurrency 등은 celery_worker.py에 설정되어 있음)
+#
+# Flower 모니터링 대시보드 실행 (선택사항):
+# celery -A celery_worker.celery_app flower --port=5555
+# ============================================================================
