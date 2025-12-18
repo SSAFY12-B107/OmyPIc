@@ -43,9 +43,8 @@ scrape_configs:
   - job_name: 'fastapi'
     static_configs:
       # Docker 네트워크 내부에서 FastAPI 컨테이너 접근
-      # 로컬 개발: localhost:8000
-      # Docker: fastapi:8000 또는 host.docker.internal:8000
-      - targets: ['host.docker.internal:8000']
+      # 통합 docker-compose: fastapi:8000
+      - targets: ['fastapi:8000']
         labels:
           service: 'omypic-api'
           component: 'backend'
@@ -70,7 +69,7 @@ scrape_configs:
   # 면접 포인트: 캐시 효율성, 메모리 관리, Pub/Sub 성능
   - job_name: 'redis'
     static_configs:
-      - targets: ['redis_exporter:9121']
+      - targets: ['redis-exporter:9121']
         labels:
           service: 'redis'
           component: 'cache'
