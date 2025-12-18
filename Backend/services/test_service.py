@@ -7,7 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase as Database
 from bson import ObjectId
 
 from models.test import TestModel, TestTypeEnum
-from services.audio_processor import AudioProcessor, FastAudioProcessor
+from services.audio_processor import AudioProcessor
 from services.evaluator import ResponseEvaluator
 from services.test_generator import get_random_single_problem, generate_full_test, generate_comboset_test, generate_roleplay_test, generate_unexpected_test
 
@@ -20,9 +20,8 @@ import asyncio
 # 로깅 설정
 logger = logging.getLogger(__name__)
 
-# 두 가지 전역 인스턴스 생성
-standard_audio_processor = AudioProcessor(model_name="whisper-large-v3")  # 정확성 우선
-fast_audio_processor = FastAudioProcessor(model_name="whisper-large-v3")  # 속도 우선
+# AudioProcessor 전역 인스턴스 (Wit.ai 기반)
+audio_processor = AudioProcessor()
 
 evaluator = ResponseEvaluator()
 
@@ -303,7 +302,7 @@ async def process_audio_background(
         
         # 2. AudioProcessor를 사용하여 오디오 텍스트 변환
         try:
-            transcribed_text = standard_audio_processor.process_audio(audio_content)
+            transcribed_text = audio_processor.process_audio(audio_content)
             logger.info(f"음성 변환 완료: {transcribed_text[:50]}...")
         except Exception as e:
             logger.error(f"음성 변환 중 오류: {str(e)}", exc_info=True)
@@ -623,7 +622,7 @@ async def transcribe_audio(audio_content, user_id):
         
         logger.info(f"음성 변환 시작 - 파일 크기: {len(audio_content)} 바이트")
         
-        transcribed_text = fast_audio_processor.process_audio_fast(audio_content)
+        transcribed_text = audio_processor.process_audio(audio_content)
         
         logger.info(f"음성 변환 성공: {transcribed_text[:50]}...")
         return transcribed_text

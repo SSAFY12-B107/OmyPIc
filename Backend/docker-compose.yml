@@ -1,0 +1,248 @@
+# OmyPIC Backend - 통합 Docker Compose
+# 전체 스택: Redis, MongoDB, FastAPI, Celery, Prometheus, Grafana, Flower
+#
+# 사용법:
+#   전체 실행: docker compose up -d
+#   로그 확인: docker compose logs -f [서비스명]
+#   종료:      docker compose down
+#
+# 접속 정보:
+#   - FastAPI:    http://localhost:8000
+#   - Prometheus: http://localhost:9090
+#   - Grafana:    http://localhost:3001 (admin/omypic123)
+#   - Flower:     http://localhost:5555
+
+services:
+  # ===========================================
+  # 인프라 서비스
+  # ===========================================
+
+  # Redis - Celery Broker & 캐시
+  redis:
+    image: redis:7-alpine
+    container_name: omypic-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # MongoDB - 메인 데이터베이스
+  mongodb:
+    image: mongo:7
+    container_name: omypic-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=omypic123
+      - MONGO_INITDB_DATABASE=omypic
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ===========================================
+  # 애플리케이션 서비스
+  # ===========================================
+
+  # FastAPI - 백엔드 API 서버
+  fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: omypic-fastapi
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - MONGODB_URL=mongodb://admin:omypic123@mongodb:27017/omypic?authSource=admin
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/metrics/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # Celery Worker - 비동기 작업 처리 (Gevent Pool)
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: omypic-celery
+    command: celery -A celery_worker.celery_app worker --pool=gevent --concurrency=15 --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - MONGODB_URL=mongodb://admin:omypic123@mongodb:27017/omypic?authSource=admin
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ===========================================
+  # 모니터링 서비스
+  # ===========================================
+
+  # Prometheus - 메트릭 수집 및 저장
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: omypic-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - fastapi
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Grafana - 메트릭 시각화 대시보드
+  grafana:
+    image: grafana/grafana:latest
+    container_name: omypic-grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=omypic123
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Redis Exporter - Redis 메트릭 수집기
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: omypic-redis-exporter
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis:6379
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9121/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Celery Flower - Celery 작업 모니터링
+  flower:
+    image: mher/flower:latest
+    container_name: omypic-flower
+    command: celery --broker=redis://redis:6379/0 flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+      - celery-worker
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5555/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ===========================================
+  # 테스트 서비스 (on-demand)
+  # ===========================================
+
+  # K6 - 부하 테스트
+  k6:
+    image: grafana/k6:latest
+    container_name: omypic-k6
+    volumes:
+      - ./tests:/scripts
+    environment:
+      - K6_PROMETHEUS_RW_SERVER_URL=http://prometheus:9090/api/v1/write
+    depends_on:
+      - fastapi
+    profiles:
+      - loadtest
+    command: run /scripts/load_test_scenario.js
+
+# ===========================================
+# 볼륨 정의
+# ===========================================
+volumes:
+  redis_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# ===========================================
+# 사용 예시
+# ===========================================
+#
+# 1. 전체 스택 실행:
+#    docker compose up -d
+#
+# 2. 특정 서비스 로그 확인:
+#    docker compose logs -f fastapi
+#    docker compose logs -f celery-worker
+#    docker compose logs -f prometheus
+#
+# 3. 부하 테스트 실행:
+#    docker compose --profile loadtest run k6
+#
+# 4. 서비스 재시작:
+#    docker compose restart fastapi
+#
+# 5. 전체 종료:
+#    docker compose down
+#
+# 6. 볼륨 포함 완전 삭제:
+#    docker compose down -v
