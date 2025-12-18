@@ -1,0 +1,126 @@
+# Prometheus 설정 파일
+# 목적: 메트릭 수집 타겟 정의, 스크래핑 간격 설정
+# 작성일: 2025-12-18
+
+# 전역 설정
+# 면접 포인트: 스크래핑 간격은 시스템 부하와 메트릭 정확도의 트레이드오프
+global:
+  # 메트릭 수집 주기 (15초마다 수집)
+  # 너무 짧으면 타겟 부하 증가, 너무 길면 실시간성 저하
+  scrape_interval: 15s
+
+  # 메트릭 평가 주기 (15초마다 평가)
+  evaluation_interval: 15s
+
+  # 외부 레이블 (선택사항)
+  # 여러 Prometheus 인스턴스 구분 시 유용
+  external_labels:
+    cluster: 'omypic-backend'
+    environment: 'development'
+
+# 알림 규칙 파일 (선택사항)
+# 면접 포인트: Alertmanager 연동, SLA 모니터링
+# rule_files:
+#   - 'alert_rules.yml'
+
+# 스크래핑 설정
+# 면접 포인트: Pull 기반 모니터링, 서비스 디스커버리, 타겟 헬스체크
+scrape_configs:
+  # Prometheus 자체 메트릭 수집
+  # 목적: Prometheus 서버 상태 모니터링 (메모리, 쿼리 성능)
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    # 메트릭 재레이블링 (선택사항)
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'prometheus-server'
+
+  # FastAPI 애플리케이션 메트릭 수집
+  # 목적: HTTP 요청 수, 응답 시간, 에러율, 비즈니스 메트릭
+  # 면접 포인트: 애플리케이션 성능 모니터링 (APM), 레이턴시 추적
+  - job_name: 'fastapi'
+    static_configs:
+      # Docker 네트워크 내부에서 FastAPI 컨테이너 접근
+      # 로컬 개발: localhost:8000
+      # Docker: fastapi:8000 또는 host.docker.internal:8000
+      - targets: ['host.docker.internal:8000']
+        labels:
+          service: 'omypic-api'
+          component: 'backend'
+
+    # 메트릭 경로 (/metrics 엔드포인트)
+    metrics_path: '/metrics'
+
+    # 스크래핑 간격 재정의 (선택사항)
+    scrape_interval: 10s
+
+    # 타임아웃 설정
+    scrape_timeout: 5s
+
+    # 헬스체크 및 재레이블링
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'omypic-backend'
+
+  # Redis Exporter 메트릭 수집
+  # 목적: Redis 성능 지표 (메모리 사용량, 연결 수, 키 개수, 히트율)
+  # 면접 포인트: 캐시 효율성, 메모리 관리, Pub/Sub 성능
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis_exporter:9121']
+        labels:
+          service: 'redis'
+          component: 'cache'
+
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 5s
+
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'omypic-redis'
+
+  # Celery Flower 메트릭 수집
+  # 목적: Celery 워커 상태, 작업 큐 길이, 성공/실패율
+  # 면접 포인트: 비동기 작업 모니터링, 워커 오토스케일링, 재시도 추적
+  - job_name: 'celery'
+    static_configs:
+      - targets: ['flower:5555']
+        labels:
+          service: 'celery'
+          component: 'worker'
+
+    # Flower는 기본적으로 Prometheus 메트릭을 /metrics에서 제공
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 5s
+
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'omypic-celery'
+
+# 주의사항:
+# 1. Docker 환경에서 실행 시 타겟 주소 조정 필요:
+#    - 로컬: localhost:port
+#    - Docker 네트워크: service_name:port
+#    - Docker Desktop: host.docker.internal:port
+#
+# 2. FastAPI 메트릭 엔드포인트가 활성화되어 있어야 함
+#    - main.py에서 prometheus_client 설정 확인
+#
+# 3. Redis Exporter는 Redis 연결 정보 필요
+#    - docker-compose.monitoring.yml에서 REDIS_ADDR 설정
+#
+# 4. Flower는 Celery 워커가 실행 중이어야 메트릭 수집 가능
+
+# 면접 대비 핵심 개념:
+# - Pull vs Push 모니터링: Prometheus는 Pull 방식으로 타겟에서 메트릭 가져옴
+# - Service Discovery: static_configs 외에 DNS, Kubernetes 등 자동 발견 가능
+# - Metric Types: Counter, Gauge, Histogram, Summary
+# - Cardinality: 레이블 수가 많으면 메모리 사용량 증가
+# - PromQL: Prometheus Query Language로 메트릭 집계 및 분석
