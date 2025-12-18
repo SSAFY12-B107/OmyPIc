@@ -1,0 +1,65 @@
+# Grafana 데이터소스 자동 프로비저닝
+# 목적: Grafana 시작 시 Prometheus 데이터소스 자동 등록
+# 작성일: 2025-12-18
+# 면접 포인트: Infrastructure as Code, GitOps, 재현 가능한 환경 구성
+
+apiVersion: 1
+
+# 데이터소스 목록
+datasources:
+  # Prometheus 데이터소스
+  - name: Prometheus
+    type: prometheus
+    access: proxy  # Grafana 서버를 통해 접근 (브라우저에서 직접 접근 X)
+
+    # Prometheus 서버 URL
+    # Docker 네트워크 내부: http://prometheus:9090
+    url: http://prometheus:9090
+
+    # 기본 데이터소스로 설정
+    isDefault: true
+
+    # JSON 데이터 설정
+    jsonData:
+      # 타임아웃 설정 (초)
+      timeout: 60
+
+      # HTTP 메서드
+      httpMethod: POST
+
+      # 쿼리 타임아웃
+      queryTimeout: 60s
+
+      # 시간 간격 (메트릭 해상도)
+      timeInterval: 15s
+
+      # Prometheus 버전
+      # prometheusType: 'Prometheus'
+
+      # Exemplar 지원 (분산 트레이싱)
+      # exemplarTraceIdDestinations:
+      #   - name: trace_id
+      #     datasourceUid: jaeger_uid
+
+    # 보안 설정
+    secureJsonData:
+      # Prometheus에 인증이 필요한 경우
+      # httpHeaderValue1: 'Bearer your-token-here'
+
+    # 편집 가능 여부
+    editable: true
+
+    # 버전
+    version: 1
+
+# 주의사항:
+# 1. 파일명은 임의로 지정 가능 (prometheus.yml, datasources.yml 등)
+# 2. apiVersion은 반드시 1로 설정
+# 3. access: proxy는 Grafana 서버가 Prometheus에 접근
+#    access: direct는 브라우저가 직접 Prometheus에 접근 (CORS 필요)
+# 4. url은 Docker 네트워크 내부 주소 사용 (service_name:port)
+
+# 면접 대비 개념:
+# - Provisioning: 수동 설정 대신 파일 기반 자동 구성
+# - Proxy vs Direct: 네트워크 보안 및 접근 제어
+# - GitOps: 설정을 코드로 관리하여 버전 관리 및 재현성 확보
