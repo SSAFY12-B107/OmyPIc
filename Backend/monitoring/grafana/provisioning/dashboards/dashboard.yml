@@ -1,0 +1,30 @@
+# Grafana 대시보드 자동 프로비저닝 설정
+# 목적: Grafana 시작 시 대시보드 자동 로드
+# 작성일: 2025-12-18
+# 면접 포인트: Infrastructure as Code, 대시보드 버전 관리
+
+apiVersion: 1
+
+providers:
+  # OmyPIC 대시보드 프로바이더
+  - name: 'OmyPIC Dashboards'
+    orgId: 1  # 조직 ID (기본값: 1)
+    folder: 'OmyPIC'  # Grafana 내 폴더명
+    type: file
+    disableDeletion: false  # Grafana UI에서 삭제 가능
+    updateIntervalSeconds: 10  # 파일 변경 감지 주기
+    allowUiUpdates: true  # Grafana UI에서 수정 가능
+    options:
+      # 대시보드 JSON 파일 경로
+      path: /etc/grafana/provisioning/dashboards
+
+# 주의사항:
+# 1. path에 지정된 디렉토리의 모든 .json 파일이 대시보드로 로드됨
+# 2. allowUiUpdates: true로 설정하면 UI에서 수정 가능 (개발 환경)
+#    프로덕션에서는 false로 설정하여 코드로만 관리 권장
+# 3. disableDeletion: false로 설정하면 UI에서 삭제 가능
+
+# 면접 대비 개념:
+# - Dashboard as Code: 대시보드를 JSON으로 관리하여 Git 버전 관리
+# - Folder Organization: 대시보드를 폴더별로 구성하여 관리 용이
+# - Update Strategy: 파일 변경 시 자동 재로드 (Hot Reload)
